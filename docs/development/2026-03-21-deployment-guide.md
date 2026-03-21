@@ -8,15 +8,15 @@
 
 仓库内已提供模板文件：
 
-- [deploy/README.md](../../deploy/README.md)
-- [deploy/env/application-prod.yml.example](../../deploy/env/application-prod.yml.example)
-- [deploy/nginx/www.example.com.conf](../../deploy/nginx/www.example.com.conf)
-- [deploy/nginx/ops.example.com.conf](../../deploy/nginx/ops.example.com.conf)
-- [deploy/nginx/api.example.com.conf](../../deploy/nginx/api.example.com.conf)
-- [deploy/systemd/youqinggong-spring.service](../../deploy/systemd/youqinggong-spring.service)
-- [deploy/scripts/build-release.sh](../../deploy/scripts/build-release.sh)
-- [frontend/.env.production.example](../../.env.production.example)
-- [admin/.env.production.example](https://github.com/huangcongqiang/youqinggong-admin/blob/main/.env.production.example)
+- [deploy/README.md](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/README.md)
+- [deploy/env/application-prod.yml.example](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/env/application-prod.yml.example)
+- [deploy/nginx/www.example.com.conf](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/nginx/www.example.com.conf)
+- [deploy/nginx/ops.example.com.conf](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/nginx/ops.example.com.conf)
+- [deploy/nginx/api.example.com.conf](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/nginx/api.example.com.conf)
+- [deploy/systemd/youqinggong-spring.service](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/systemd/youqinggong-spring.service)
+- [deploy/scripts/build-release.sh](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/scripts/build-release.sh)
+- [frontend/.env.production.example](/Users/huangcongqiang/Desktop/products/youqinggong/frontend/.env.production.example)
+- [admin/.env.production.example](/Users/huangcongqiang/Desktop/products/youqinggong/admin/.env.production.example)
 
 ## 2. 推荐部署结构
 
@@ -39,17 +39,30 @@
 
 ## 3. 环境假设
 
-默认按以下环境编写：
+默认按“本地 / CI 构建，服务器运行”的方式编写。
 
-- 操作系统：Ubuntu 22.04 LTS 或同类 Linux
+构建机建议环境：
+
 - JDK：17
 - Maven：3.9+
 - Node.js：20 LTS
 - npm：10+
+
+服务器建议环境：
+
+- 操作系统：Ubuntu 22.04 LTS 或同类 Linux
+- Java Runtime：17
 - MySQL：8.x
 - Nginx：1.24+
+- `curl / unzip / rsync` 等基础运维工具
 
-如果你的服务器版本不同，命令可能有小差异，但整体流程不变。
+这样做的原因是：
+
+- 避免 Node / Maven 编译占用服务器 CPU 和内存
+- 避免把 `node_modules`、源码和构建缓存长期放在服务器上
+- 发布时只替换已构建好的静态资源和 jar，速度更快、回滚更简单
+
+如果你的环境版本不同，命令可能有小差异，但整体流程不变。
 
 ## 4. 服务器目录建议
 
@@ -74,21 +87,21 @@
 
 ```bash
 sudo apt update
-sudo apt install -y nginx mysql-server openjdk-17-jdk maven curl unzip
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+sudo apt install -y nginx mysql-server openjdk-17-jre-headless curl unzip rsync
 ```
 
 校验版本：
 
 ```bash
 java -version
-mvn -v
-node -v
-npm -v
 mysql --version
 nginx -v
 ```
+
+说明：
+
+- `mvn / node / npm` 建议只安装在本地开发机或 CI 构建机
+- 生产服务器默认不承担编译任务，只承担运行和反向代理
 
 ## 6. 数据库初始化
 
@@ -118,6 +131,8 @@ mysql -u youqinggong -p youqinggong < seed.sql
 
 ## 7. Spring Boot 服务部署
 
+推荐方式：先在本地开发机或 CI 上构建，再上传 jar 到服务器。
+
 ### 7.1 生产构建
 
 ```bash
@@ -131,11 +146,17 @@ mvn clean package -DskipTests
 backend/spring-app/target/youqinggong-spring-app-0.1.0.jar
 ```
 
-拷贝到服务器目标目录：
+推荐先复制到统一发布目录，再上传到服务器：
 
 ```bash
-sudo mkdir -p /srv/youqinggong/backend
-sudo cp target/youqinggong-spring-app-0.1.0.jar /srv/youqinggong/backend/app.jar
+mkdir -p release/backend
+cp target/youqinggong-spring-app-0.1.0.jar release/backend/app.jar
+```
+
+上传到服务器目标目录：
+
+```bash
+scp release/backend/app.jar root@your-server:/srv/youqinggong/backend/app.jar
 ```
 
 ### 7.2 生产配置文件
@@ -181,7 +202,7 @@ app:
 
 - 不要把生产密码写死在仓库里
 - 正式环境建议把数据库密码、腾讯 IM 密钥进一步迁到环境变量或密钥管理系统
-- 仓库模板可直接参考 [deploy/env/application-prod.yml.example](../../deploy/env/application-prod.yml.example)
+- 仓库模板可直接参考 [deploy/env/application-prod.yml.example](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/env/application-prod.yml.example)
 
 ### 7.3 systemd 服务
 
@@ -237,7 +258,7 @@ VITE_API_BASE=https://api.example.com/api
 
 仓库模板：
 
-- [frontend/.env.production.example](../../.env.production.example)
+- [frontend/.env.production.example](/Users/huangcongqiang/Desktop/products/youqinggong/frontend/.env.production.example)
 
 ### 8.2 构建
 
@@ -253,11 +274,20 @@ npm run build
 frontend/dist
 ```
 
-发布到服务器：
+推荐先在本地打包，再上传到服务器：
+
+```bash
+mkdir -p release/frontend
+cp -R dist/. release/frontend/
+tar -czf release/frontend-dist.tar.gz -C release frontend
+scp release/frontend-dist.tar.gz root@your-server:/tmp/
+```
+
+服务器上发布：
 
 ```bash
 sudo mkdir -p /srv/youqinggong/frontend
-sudo cp -R dist/* /srv/youqinggong/frontend/
+sudo tar -xzf /tmp/frontend-dist.tar.gz -C /srv/youqinggong
 ```
 
 ## 9. 后台管理部署
@@ -272,7 +302,7 @@ VITE_API_BASE=https://api.example.com/api
 
 仓库模板：
 
-- [admin/.env.production.example](https://github.com/huangcongqiang/youqinggong-admin/blob/main/.env.production.example)
+- [admin/.env.production.example](/Users/huangcongqiang/Desktop/products/youqinggong/admin/.env.production.example)
 
 ### 9.2 构建
 
@@ -282,11 +312,20 @@ npm install
 npm run build
 ```
 
-发布到服务器：
+推荐先在本地打包，再上传到服务器：
+
+```bash
+mkdir -p release/admin
+cp -R dist/. release/admin/
+tar -czf release/admin-dist.tar.gz -C release admin
+scp release/admin-dist.tar.gz root@your-server:/tmp/
+```
+
+服务器上发布：
 
 ```bash
 sudo mkdir -p /srv/youqinggong/admin
-sudo cp -R dist/* /srv/youqinggong/admin/
+sudo tar -xzf /tmp/admin-dist.tar.gz -C /srv/youqinggong
 ```
 
 ## 10. Nginx 配置
@@ -295,7 +334,7 @@ sudo cp -R dist/* /srv/youqinggong/admin/
 
 仓库模板目录：
 
-- [deploy/nginx](../../deploy/nginx)
+- [deploy/nginx](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/nginx)
 
 ### 10.1 前台 `www.example.com`
 
@@ -379,11 +418,13 @@ sudo certbot --nginx -d www.example.com -d ops.example.com -d api.example.com
 正式发布时建议按下面顺序：
 
 1. 备份数据库
-2. 发布 Spring Boot 服务
-3. 健康检查 API
-4. 发布前台静态资源
-5. 发布后台静态资源
-6. 验证首页、企业端、人才端、后台管理、API 健康检查
+2. 在本地或 CI 生成发布包
+3. 上传 jar 与静态资源压缩包到服务器
+4. 发布 Spring Boot 服务
+5. 健康检查 API
+6. 发布前台静态资源
+7. 发布后台静态资源
+8. 验证首页、企业端、人才端、后台管理、API 健康检查
 
 如果需要先在本地或 CI 生成一份统一发布包，可以直接使用：
 
@@ -394,7 +435,14 @@ bash build-release.sh
 
 脚本位置：
 
-- [deploy/scripts/build-release.sh](../../deploy/scripts/build-release.sh)
+- [deploy/scripts/build-release.sh](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/scripts/build-release.sh)
+
+脚本执行完成后，推荐上传这些产物：
+
+- `release/frontend-dist.tar.gz`
+- `release/admin-dist.tar.gz`
+- `release/backend-app.tar.gz`
+- `release/SHA256SUMS`
 
 ## 13. 健康检查清单
 
@@ -477,16 +525,17 @@ sudo systemctl restart youqinggong-spring
 优先检查：
 
 - 是否拷贝到了正确目录
+- 是否正确解压了最新的 `*.tar.gz`
 - 是否有 CDN 或浏览器缓存
-- 是否真的执行了 `npm run build`
+- 是否真的在本地或 CI 重新执行了 `npm run build`
 
 ## 16. 当前阶段的部署建议
 
 如果你现在就要把当前项目先部署到测试服务器，建议按下面方式：
 
-- 前台：部署 `frontend`
-- 后台：部署 `admin`
-- 后端：优先部署 `backend/spring-app`
+- 前台：本地构建 `frontend` 后上传静态包
+- 后台：本地构建 `admin` 后上传静态包
+- 后端：优先本地构建 `backend/spring-app`，只上传 jar
 - 数据库：先导入 `schema.sql`，若需要演示数据再导入 `seed.sql`
 
 如果只是演示页面联调，也可以先部署根目录 mock API。  

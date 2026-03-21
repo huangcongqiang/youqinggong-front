@@ -2,11 +2,13 @@
 """SSH helper: run commands on remote server via paramiko or subprocess+pexpect."""
 import subprocess, sys, os
 
-HOST = "39.105.18.117"
-USER = "root"
-PASS = "H4337339h."
+HOST = os.environ.get("YOUQINGGONG_DEPLOY_HOST", "")
+USER = os.environ.get("YOUQINGGONG_DEPLOY_USER", "")
+PASS = os.environ.get("YOUQINGGONG_DEPLOY_PASSWORD", "")
 
 def run_via_expect(cmd):
+    if not HOST or not USER or not PASS:
+        raise SystemExit("Missing YOUQINGGONG_DEPLOY_HOST / YOUQINGGONG_DEPLOY_USER / YOUQINGGONG_DEPLOY_PASSWORD")
     script = f"""#!/usr/bin/expect -f
 set timeout 30
 spawn ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 {USER}@{HOST} "{cmd}"
@@ -28,4 +30,3 @@ expect eof
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "uname -a"
     print(run_via_expect(cmd))
-

@@ -1,4 +1,13 @@
-import { mockAnalyzeTaskBrief, webMockData } from '../data/mock';
+import {
+  aiPublishPresetMockData,
+  getTaskRoomBindingMock,
+  getTaskRoomCounterpartMock,
+  getTaskRoomMemberMock,
+  getTaskRoomMock,
+  getTaskRoomsMock,
+  mockAnalyzeTaskBrief,
+  webMockData
+} from '../data/mock';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
 
@@ -38,12 +47,50 @@ const onboardingFallback = {
 };
 
 const taskRoomFallback = {
+  roomKey: 'launch-sprint',
   taskId: 'task-001',
+  title: 'AI 招聘 H5 首版',
+  stage: '需求确认中',
+  focus: '确认 3 周 MVP 范围，并锁定哪些能力放到第二阶段。',
+  taskRoom: {
+    taskId: 'task-001',
+    provider: 'TENCENT_IM',
+    providerRoomId: 'group_task_001',
+    groupType: 'Public',
+    joinOption: 'FreeAccess',
+    status: 'ACTIVE'
+  },
+  members: [
+    {
+      audience: 'enterprise',
+      platformUserId: 'business-user-001',
+      imUserId: 'u_business_user_001',
+      displayName: '星河智能',
+      role: 'PROJECT_OWNER'
+    },
+    {
+      audience: 'talent',
+      platformUserId: 'talent-user-002',
+      imUserId: 'u_talent_user_002',
+      displayName: '陈一宁',
+      role: 'TALENT'
+    },
+    {
+      audience: 'system',
+      platformUserId: 'system-ai',
+      imUserId: 'system_ai',
+      displayName: 'AI 系统消息',
+      role: 'SYSTEM'
+    }
+  ],
   participants: ['星河智能', '陈一宁', 'AI 系统消息'],
+  quickReplies: ['这条范围我确认', '先把支付放到二期', '今晚回传首版结构'],
+  taskTags: ['Vue 3', '任务闭环', '现代科技感'],
+  pendingActions: ['确认支付与结算延后', '确认首页首屏信息层级'],
   messages: [
-    { author: '系统消息', type: 'SYSTEM', text: '项目沟通已开启，可在这里同步需求确认与阶段进展。' },
-    { author: '星河智能', type: 'TEXT', text: '我们先按 3 周首版推进。' },
-    { author: '陈一宁', type: 'TEXT', text: '收到，我会先按里程碑拆出首版交付清单。' }
+    { author: '系统消息', type: 'SYSTEM', time: '09:12', text: '项目沟通已开启，可在这里同步需求确认与阶段进展。' },
+    { author: '星河智能', type: 'TEXT', time: '09:18', text: '我们先按 3 周首版推进。' },
+    { author: '陈一宁', type: 'TEXT', time: '09:31', text: '收到，我会先按里程碑拆出首版交付清单。' }
   ]
 };
 
@@ -158,14 +205,21 @@ export function publishTask(payload) {
   return writeJson(
     '/tasks/publish',
     () => ({
-      taskId: 'task-20260321-publish',
+      taskId: `task-demo-${Date.now()}`,
       publisherUserId: String(payload.publisherUserId),
       organizationId: String(payload.organizationId || 1),
       title: payload.title,
       brief: payload.brief,
       source: payload.source,
       status: 'AI_ANALYZING',
-      nextStep: '任务已进入 AI 拆解阶段，等待 B 端确认模块和工期。'
+      nextStep: '任务已进入 AI 拆解阶段，等待 B 端确认模块和工期。',
+      analysisProvider: 'Mock AI',
+      analysisModel: 'rule-based',
+      analysisSummary: {
+        total: '12 个开发日',
+        risk: '建议先锁第一阶段交付范围，再进入人才匹配。'
+      },
+      matchingPreview: mockAnalyzeTaskBrief(payload.brief).matchingPreview
     }),
     payload
   );
@@ -183,8 +237,105 @@ export function confirmTaskAnalysis(taskId) {
   );
 }
 
-export function getTaskRoom() {
-  return readJson('/messages/task-room', taskRoomFallback);
+export function getTaskRooms() {
+  return readJson(
+    '/messages/task-rooms',
+    {
+      summary: {
+        activeRooms: String(getTaskRoomsMock().length),
+        waitingReply: '2',
+        unreadRooms: '2'
+      },
+      items: getTaskRoomsMock()
+    }
+  );
+}
+
+export function getTaskRoom(roomKey) {
+  const fallback = roomKey ? getTaskRoomMock(roomKey) : taskRoomFallback;
+  const path = roomKey ? `/messages/task-room/${roomKey}` : '/messages/task-room';
+  return readJson(path, fallback);
+}
+
+export function sendTaskRoomMessage(roomKey, payload) {
+  return writeJson(
+    `/messages/task-room/${roomKey}/messages`,
+    () => {
+      const room = getTaskRoomMock(roomKey);
+      const time = '刚刚';
+      room.messages.push({
+        author: payload.author || '星河智能',
+        type: payload.type || 'TEXT',
+        time,
+        text: payload.text || '收到，我先按当前版本推进。'
+      });
+      room.messages.push({
+        author: 'AI 系统消息',
+        type: 'SYSTEM',
+        time,
+        text: '消息已写入任务房间，建议把它转成明确的范围、里程碑或交付件说明。'
+      });
+      room.lastTime = time;
+      room.lastMessage = payload.text || '收到，我先按当前版本推进。';
+      room.unreadCount = '0';
+      return room;
+    },
+    payload
+  );
+}
+
+export function getAiPublishPresets() {
+  return readJson(
+    '/ai/publish-presets',
+    {
+      defaultPublisherUserId: '1',
+      defaultOrganizationId: '1',
+      items: aiPublishPresetMockData
+    }
+  );
+}
+
+export function getTencentImRuntimeConfig(audience, roomKey) {
+  const normalizedAudience = audience === 'talent' ? 'talent' : 'enterprise';
+  const normalizedRoomKey = roomKey || 'launch-sprint';
+  const room = getTaskRoomMock(normalizedRoomKey);
+  const currentUser = getTaskRoomMemberMock(normalizedRoomKey, normalizedAudience);
+  const counterpartUser = getTaskRoomCounterpartMock(normalizedRoomKey, normalizedAudience);
+  const taskRoom = getTaskRoomBindingMock(normalizedRoomKey);
+  const fallback = {
+    provider: 'Tencent IM',
+    enabled: false,
+    status: 'MOCK_FALLBACK',
+    audience: normalizedAudience,
+    sdkAppId: '',
+    platformUserId: currentUser.platformUserId,
+    userId: currentUser.imUserId,
+    userSig: '',
+    displayName: currentUser.displayName,
+    roomKey: normalizedRoomKey,
+    groupId: taskRoom.providerRoomId || room.roomId,
+    roomTitle: room.title,
+    taskId: room.taskId,
+    conversationType: 'GROUP',
+    groupType: taskRoom.groupType || 'Public',
+    joinOption: taskRoom.joinOption || 'FreeAccess',
+    currentUser,
+    counterpartUser,
+    members: room.members || [],
+    taskRoom,
+    useMockFallback: true,
+    notes: [
+      '尚未配置腾讯 IM SDKAppID 或 AppKey，前台会继续显示演示消息数据。',
+      '当前 userId 来源于平台用户身份映射，任务群来源于任务房间绑定。'
+    ]
+  };
+
+  const params = new URLSearchParams({
+    audience: normalizedAudience,
+    roomKey: normalizedRoomKey
+  });
+
+  return readJson(`/im/tencent/config?${params.toString()}`, fallback);
 }
 
 export function confirmNegotiation(taskId, payload) {

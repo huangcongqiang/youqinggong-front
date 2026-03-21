@@ -6,9 +6,9 @@ Usage: python3 deploy/scripts/deploy.py
 """
 import paramiko, os, sys, subprocess, glob, shutil, io
 
-HOST = "39.105.18.117"
-USER = "root"
-PASS = "H4337339h."
+HOST = os.environ.get("YOUQINGGONG_DEPLOY_HOST", "")
+USER = os.environ.get("YOUQINGGONG_DEPLOY_USER", "")
+PASS = os.environ.get("YOUQINGGONG_DEPLOY_PASSWORD", "")
 WORKSPACE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ── Nginx 配置（不改动现有 cyxss.xyz / neo-runner） ──────────────────────
@@ -103,9 +103,17 @@ def build_jar():
 # ── SSH / SFTP 工具 ───────────────────────────────────────────────────────
 
 def connect():
+    if not HOST or not USER:
+        raise SystemExit("Missing YOUQINGGONG_DEPLOY_HOST or YOUQINGGONG_DEPLOY_USER")
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    c.connect(HOST, username=USER, password=PASS, timeout=15)
+    connect_kwargs = {
+        "username": USER,
+        "timeout": 15
+    }
+    if PASS:
+        connect_kwargs["password"] = PASS
+    c.connect(HOST, **connect_kwargs)
     return c
 
 def ssh_run(client, label, cmd, timeout=60):
@@ -210,4 +218,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

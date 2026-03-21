@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
+import os
 import paramiko
 
-HOST = "39.105.18.117"
-USER = "root"
-PASS = "H4337339h."
+HOST = os.environ.get("YOUQINGGONG_DEPLOY_HOST", "")
+USER = os.environ.get("YOUQINGGONG_DEPLOY_USER", "")
+PASS = os.environ.get("YOUQINGGONG_DEPLOY_PASSWORD", "")
+
+if not HOST or not USER:
+    raise SystemExit("Missing YOUQINGGONG_DEPLOY_HOST or YOUQINGGONG_DEPLOY_USER")
 
 c = paramiko.SSHClient()
 c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-c.connect(HOST, username=USER, password=PASS, timeout=15)
+connect_kwargs = {
+    "username": USER,
+    "timeout": 15
+}
+if PASS:
+    connect_kwargs["password"] = PASS
+c.connect(HOST, **connect_kwargs)
 
 def run(label, cmd):
     print(f"\n=== {label} ===")
@@ -29,4 +39,3 @@ run("Port 3001 来源", "ss -tlnp | grep 3001")
 run("Port 80 原 default 站点备份", "cat /etc/nginx/sites-available/default 2>/dev/null | head -30 || echo '无 default'")
 
 c.close()
-

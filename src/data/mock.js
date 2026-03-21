@@ -571,11 +571,319 @@ export const webMockData = {
   }
 };
 
-export function mockAnalyzeTaskBrief(brief) {
-  const content = brief && brief.trim() ? brief.trim() : webMockData.business.sampleBrief;
+export const aiPublishPresetMockData = [
+  {
+    id: 'recruit-launch',
+    title: 'AI 招聘 H5 首版',
+    source: 'TEXT',
+    brief: '我想做一个面向中小企业的 AI 招聘 H5，支持发布任务、查看人才、在线沟通和进度协作，需要 3 周内完成首版可演示版本，整体风格偏现代科技感。',
+    focus: '任务闭环 + 人才匹配 + 项目沟通',
+    period: '3 周',
+    tags: ['Vue 3', '多端体验', '协作闭环']
+  },
+  {
+    id: 'knowledge-refactor',
+    title: '企业知识库后台重构',
+    source: 'TEXT',
+    brief: '我们要重构企业知识库后台，覆盖知识分类、检索策略配置、权限分级、日志分析和管理端体验，希望 4 周内完成一期联调版本。',
+    focus: '知识库管理 + 检索配置 + 权限模型',
+    period: '4 周',
+    tags: ['Spring Boot', 'MySQL', '后台管理']
+  },
+  {
+    id: 'brand-voice',
+    title: '品牌官网与工作台视觉升级',
+    source: 'VOICE',
+    brief: '需要帮一家 AI 服务公司做官网和工作台的视觉升级，首页要更科技、更有留白，企业端和人才端要明显区分，最好两周给出首版。',
+    voiceTranscript: '我们想把官网和工作台一起升级，首页要更有科技感，企业端和人才端分开表达，整体希望两周能做一个可演示的首版。',
+    focus: '官网首页 + 工作台视觉升级',
+    period: '2 周',
+    tags: ['品牌设计', '交互体验', 'H5 官网']
+  },
+  {
+    id: 'creator-agent',
+    title: '创作者脚本智能协作台',
+    source: 'VOICE',
+    brief: '想做一个给短视频团队用的脚本协作台，支持选题池、AI 生成脚本、多人评论反馈和进度推进，先做 MVP 版本。',
+    voiceTranscript: '我们要做短视频团队的脚本协作台，要有选题池、AI 生成脚本、多人反馈和进度管理，先做一个 MVP。',
+    focus: '内容生产协作 + AI 辅助生成',
+    period: '3 周',
+    tags: ['AI Agent', '内容协作', '任务看板']
+  }
+];
+
+export const taskRoomMockData = [
+  {
+    roomKey: 'launch-sprint',
+    taskId: 'task-001',
+    title: 'AI 招聘 H5 首版',
+    stage: '需求确认中',
+    focus: '确认 3 周 MVP 范围，并锁定哪些能力放到第二阶段。',
+    provider: 'Tencent IM',
+    roomId: 'group_task_001',
+    taskRoom: {
+      taskId: 'task-001',
+      provider: 'TENCENT_IM',
+      providerRoomId: 'group_task_001',
+      groupType: 'Public',
+      joinOption: 'FreeAccess',
+      status: 'ACTIVE'
+    },
+    members: [
+      {
+        audience: 'enterprise',
+        platformUserId: 'business-user-001',
+        imUserId: 'u_business_user_001',
+        displayName: '星河智能',
+        role: 'PROJECT_OWNER'
+      },
+      {
+        audience: 'talent',
+        platformUserId: 'talent-user-002',
+        imUserId: 'u_talent_user_002',
+        displayName: '陈一宁',
+        role: 'TALENT'
+      },
+      {
+        audience: 'system',
+        platformUserId: 'system-ai',
+        imUserId: 'system_ai',
+        displayName: 'AI 系统消息',
+        role: 'SYSTEM'
+      }
+    ],
+    unreadCount: '2',
+    lastTime: '09:58',
+    lastMessage: '我今晚把首页结构和任务闭环清单发出来。',
+    participants: ['星河智能', '陈一宁', 'AI 系统消息'],
+    taskTags: ['Vue 3', '任务闭环', '现代科技感'],
+    quickReplies: ['这条范围我确认', '先把支付放到二期', '今晚回传首版结构'],
+    pendingActions: ['确认支付与结算延后', '确认首页首屏信息层级', '确认第一阶段只做核心协作闭环'],
+    messages: [
+      { author: '系统消息', type: 'SYSTEM', time: '09:12', text: '任务房间已创建，可在此同步需求确认与阶段进展。' },
+      { author: '星河智能', type: 'TEXT', time: '09:18', text: '这次首版我们先保留发布任务、看人才、协作和验收。' },
+      { author: 'AI 系统消息', type: 'SYSTEM', time: '09:20', text: '建议将首版拆为首页/角色入口、人才广场、项目沟通、协作空间 4 个模块。' },
+      { author: '陈一宁', type: 'TEXT', time: '09:31', text: '收到，我建议把支付和更复杂的风控放到第二阶段。', attachments: ['MVP-范围草案.md'] },
+      { author: '星河智能', type: 'TEXT', time: '09:58', text: '可以，先把闭环和演示效果做顺。' }
+    ]
+  },
+  {
+    roomKey: 'design-polish',
+    taskId: 'task-018',
+    title: '官网与工作台视觉升级',
+    stage: '设计反馈',
+    focus: '对齐首页留白、科技感和角色区分，再推进企业端与人才端细化。',
+    provider: 'Tencent IM',
+    roomId: 'group_task_018',
+    taskRoom: {
+      taskId: 'task-018',
+      provider: 'TENCENT_IM',
+      providerRoomId: 'group_task_018',
+      groupType: 'Public',
+      joinOption: 'FreeAccess',
+      status: 'ACTIVE'
+    },
+    members: [
+      {
+        audience: 'enterprise',
+        platformUserId: 'business-user-018',
+        imUserId: 'u_business_user_018',
+        displayName: '立方增长',
+        role: 'PROJECT_OWNER'
+      },
+      {
+        audience: 'talent',
+        platformUserId: 'talent-user-018',
+        imUserId: 'u_talent_user_018',
+        displayName: '苏禾',
+        role: 'TALENT'
+      },
+      {
+        audience: 'system',
+        platformUserId: 'system-ai',
+        imUserId: 'system_ai',
+        displayName: 'AI 系统消息',
+        role: 'SYSTEM'
+      }
+    ],
+    unreadCount: '1',
+    lastTime: '14:26',
+    lastMessage: '首页新版的留白和角色入口方向我们认可，继续往工作台收。',
+    participants: ['立方增长', '苏禾', 'AI 系统消息'],
+    taskTags: ['品牌官网', '工作台视觉', '角色分流'],
+    quickReplies: ['先改首页', '这个视觉方向可以', '继续收工作台'],
+    pendingActions: ['确定首页案例区展示方式', '确认企业端和人才端导航差异', '减少说明型长文案'],
+    messages: [
+      { author: '立方增长', type: 'TEXT', time: '13:42', text: '现在整体科技感有了，但文字还是有点密。' },
+      { author: '苏禾', type: 'TEXT', time: '13:55', text: '我会先拉开首页首屏和角色入口，再去收工作台。' },
+      { author: 'AI 系统消息', type: 'SYSTEM', time: '14:02', text: '建议优先压缩说明文案，保留 1 条主张 + 2 条证明 + 2 个入口。' },
+      { author: '立方增长', type: 'TEXT', time: '14:26', text: '首页新版的留白和角色入口方向我们认可，继续往工作台收。' }
+    ]
+  },
+  {
+    roomKey: 'backend-handoff',
+    taskId: 'task-026',
+    title: '企业知识库后台重构',
+    stage: '联调推进',
+    focus: '确认权限模型、日志字段和检索配置面板的首版范围。',
+    provider: 'Tencent IM',
+    roomId: 'group_task_026',
+    taskRoom: {
+      taskId: 'task-026',
+      provider: 'TENCENT_IM',
+      providerRoomId: 'group_task_026',
+      groupType: 'Public',
+      joinOption: 'FreeAccess',
+      status: 'ACTIVE'
+    },
+    members: [
+      {
+        audience: 'enterprise',
+        platformUserId: 'business-user-026',
+        imUserId: 'u_business_user_026',
+        displayName: '深蓝科技',
+        role: 'PROJECT_OWNER'
+      },
+      {
+        audience: 'talent',
+        platformUserId: 'talent-user-026',
+        imUserId: 'u_talent_user_026',
+        displayName: '林昭',
+        role: 'TALENT'
+      },
+      {
+        audience: 'system',
+        platformUserId: 'system-ai',
+        imUserId: 'system_ai',
+        displayName: 'AI 系统消息',
+        role: 'SYSTEM'
+      }
+    ],
+    unreadCount: '0',
+    lastTime: '18:10',
+    lastMessage: '权限粒度我们先按组织 / 角色 / 数据范围三层走。',
+    participants: ['深蓝科技', '林昭', 'AI 系统消息'],
+    taskTags: ['Spring Boot', 'MySQL', '权限模型', '后台管理'],
+    quickReplies: ['这版字段我确认', '先锁日志字段', '检索实验面板后置'],
+    pendingActions: ['确认日志字段最小集', '确认角色层级与数据范围', '确认检索实验面板后置'],
+    messages: [
+      { author: '深蓝科技', type: 'TEXT', time: '17:32', text: '权限这块我们先不要做得太重，首版先能联调。' },
+      { author: '林昭', type: 'TEXT', time: '17:40', text: '建议先按组织 / 角色 / 数据范围三层做，后面再补更细颗粒度。' },
+      { author: 'AI 系统消息', type: 'SYSTEM', time: '17:43', text: '当前需求更适合先锁核心权限矩阵和日志字段，再补检索实验配置。' },
+      { author: '深蓝科技', type: 'TEXT', time: '18:10', text: '权限粒度我们先按组织 / 角色 / 数据范围三层走。' }
+    ]
+  }
+];
+
+function cloneMock(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+export function getTaskRoomsMock() {
+  return cloneMock(
+    taskRoomMockData.map(({ messages, ...room }) => room)
+  );
+}
+
+export function getTaskRoomMock(roomKey = 'launch-sprint') {
+  const room = taskRoomMockData.find((item) => item.roomKey === roomKey) || taskRoomMockData[0];
+  return cloneMock(room);
+}
+
+export function getTaskRoomBindingMock(roomKey = 'launch-sprint') {
+  return getTaskRoomMock(roomKey).taskRoom || {
+    taskId: 'task-001',
+    provider: 'TENCENT_IM',
+    providerRoomId: 'group_task_001',
+    groupType: 'Public',
+    joinOption: 'FreeAccess',
+    status: 'ACTIVE'
+  };
+}
+
+export function getTaskRoomMemberMock(roomKey = 'launch-sprint', audience = 'enterprise') {
+  const normalizedAudience = audience === 'talent' ? 'talent' : 'enterprise';
+  const room = getTaskRoomMock(roomKey);
+  const member = (room.members || []).find((item) => item.audience === normalizedAudience);
+
+  if (member) {
+    return member;
+  }
+
+  return normalizedAudience === 'talent'
+    ? {
+        audience: 'talent',
+        platformUserId: 'talent-user-demo',
+        imUserId: 'u_talent_user_demo',
+        displayName: '陈一宁',
+        role: 'TALENT'
+      }
+    : {
+        audience: 'enterprise',
+        platformUserId: 'business-user-demo',
+        imUserId: 'u_business_user_demo',
+        displayName: '星河智能',
+        role: 'PROJECT_OWNER'
+      };
+}
+
+export function getTaskRoomCounterpartMock(roomKey = 'launch-sprint', audience = 'enterprise') {
+  const normalizedAudience = audience === 'talent' ? 'enterprise' : 'talent';
+  return getTaskRoomMemberMock(roomKey, normalizedAudience);
+}
+
+function detectAnalysisProfile(content) {
+  if (content.includes('知识库') || content.includes('检索') || content.includes('权限')) {
+    return {
+      modules: [
+        { name: '知识模型与分类', duration: '3 天', output: '知识分类、元数据字段和内容生命周期管理' },
+        { name: '检索配置中心', duration: '4 天', output: '检索策略、召回权重、问答参数与实验面板' },
+        { name: '权限与审计', duration: '3 天', output: '组织、角色、数据范围与操作日志' },
+        { name: '运营后台', duration: '4 天', output: '知识内容管理、日志分析与问题回溯' }
+      ],
+      schedule: {
+        total: '14 个开发日',
+        risk: '权限粒度和检索策略建议在第一阶段就定清，否则后续联调回合数会明显增加。'
+      },
+      tags: ['Spring Boot', 'MySQL', '权限模型', '检索配置', '后台管理'],
+      recommendations: [
+        '先把知识分类、权限和检索实验面板做成最小闭环',
+        '日志分析优先保留核心字段，报表和可视化可以第二阶段再补',
+        '需要尽早确认知识同步来源和清洗规则'
+      ],
+      matchingPreview: [
+        { name: '林昭', role: '全栈产品工程师', reason: '适合快速落知识库后台、接口和权限模型' },
+        { name: '顾岩', role: '独立 AI 自动化顾问', reason: '适合设计检索策略、RAG 规则和问答监控' }
+      ]
+    };
+  }
+
+  if (content.includes('脚本') || content.includes('内容') || content.includes('视频')) {
+    return {
+      modules: [
+        { name: '选题池与素材管理', duration: '2 天', output: '热点池、素材标签和脚本来源沉淀' },
+        { name: 'AI 脚本生成', duration: '3 天', output: '脚本草稿生成、改写、版本对比与提示词模板' },
+        { name: '协作评论与进度', duration: '3 天', output: '评论反馈、状态流转和多人协作记录' },
+        { name: '复盘面板', duration: '2 天', output: '选题命中率、脚本采用率和内容复盘' }
+      ],
+      schedule: {
+        total: '10 个开发日',
+        risk: 'AI 生成效果要依赖提示词模板和素材沉淀，首版建议先限制脚本模板种类。'
+      },
+      tags: ['AI Agent', '内容协作', '脚本生成', '任务看板'],
+      recommendations: [
+        '首版先覆盖脚本草稿生成与多人反馈，不要一开始就做复杂分发',
+        '把脚本版本记录和评论放到同一条时间线里',
+        '先沉淀可复用的提示词模板，再扩多风格内容'
+      ],
+      matchingPreview: [
+        { name: '苏禾', role: '品牌与交互设计师', reason: '适合内容工作台和信息层级梳理' },
+        { name: '顾岩', role: '独立 AI 自动化顾问', reason: '适合设计脚本生成和提示词模板策略' }
+      ]
+    };
+  }
 
   return {
-    originalBrief: content,
     modules: [
       { name: '角色与权限', duration: '2 天', output: '企业 / 人才 / 管理员基础角色与权限映射' },
       { name: '任务闭环', duration: '4 天', output: '发布、AI 拆解、确认、匹配、协作、验收流程' },
@@ -591,6 +899,27 @@ export function mockAnalyzeTaskBrief(brief) {
       '第一阶段先保证任务闭环和审核流程完整',
       '文件上传与 AI 审查可以先接 mock 能力，再对接真实模型',
       '移动端优先处理消息、日历、进度上传，桌面端优先处理总览与筛选'
+    ],
+    matchingPreview: [
+      { name: '林昭', role: '全栈产品工程师', reason: '适合推进前后台一体的 MVP 首版' },
+      { name: '苏禾', role: '品牌与交互设计师', reason: '适合把首页、工作台和任务流程做得更清晰' },
+      { name: '顾岩', role: '独立 AI 自动化顾问', reason: '适合补强 AI 拆单、巡检和验收建议' }
     ]
+  };
+}
+
+export function mockAnalyzeTaskBrief(brief) {
+  const content = brief && brief.trim() ? brief.trim() : webMockData.business.sampleBrief;
+  const profile = detectAnalysisProfile(content);
+
+  return {
+    provider: 'Mock AI',
+    model: 'rule-based',
+    originalBrief: content,
+    modules: profile.modules,
+    schedule: profile.schedule,
+    tags: profile.tags,
+    recommendations: profile.recommendations,
+    matchingPreview: profile.matchingPreview
   };
 }

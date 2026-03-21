@@ -5,11 +5,11 @@
 2. 把有轻工前台从 80 改到 8082（避免冲突）
 3. reload Nginx 验证
 """
-import paramiko, io
+import paramiko, io, os
 
-HOST = "39.105.18.117"
-USER = "root"
-PASS = "H4337339h."
+HOST = os.environ.get("YOUQINGGONG_DEPLOY_HOST", "")
+USER = os.environ.get("YOUQINGGONG_DEPLOY_USER", "")
+PASS = os.environ.get("YOUQINGGONG_DEPLOY_PASSWORD", "")
 
 # 有轻工新的 Nginx 配置：使用 8082 端口，不抢占 80/443
 YOUQINGGONG_CONF = """\
@@ -49,9 +49,17 @@ server {
 """
 
 def connect():
+    if not HOST or not USER:
+        raise SystemExit("Missing YOUQINGGONG_DEPLOY_HOST or YOUQINGGONG_DEPLOY_USER")
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    c.connect(HOST, username=USER, password=PASS, timeout=15)
+    connect_kwargs = {
+        "username": USER,
+        "timeout": 15
+    }
+    if PASS:
+        connect_kwargs["password"] = PASS
+    c.connect(HOST, **connect_kwargs)
     return c
 
 def run(client, label, cmd, timeout=30):
@@ -121,4 +129,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

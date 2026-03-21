@@ -5,9 +5,9 @@ Usage: python3 deploy/scripts/configure_server.py
 """
 import paramiko, os
 
-HOST = "39.105.18.117"
-USER = "root"
-PASS = "H4337339h."
+HOST = os.environ.get("YOUQINGGONG_DEPLOY_HOST", "")
+USER = os.environ.get("YOUQINGGONG_DEPLOY_USER", "")
+PASS = os.environ.get("YOUQINGGONG_DEPLOY_PASSWORD", "")
 
 NGINX_CONF = """\
 server {
@@ -62,9 +62,17 @@ echo "API check done"
 """
 
 def connect():
+    if not HOST or not USER:
+        raise SystemExit("Missing YOUQINGGONG_DEPLOY_HOST or YOUQINGGONG_DEPLOY_USER")
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    c.connect(HOST, username=USER, password=PASS, timeout=15)
+    connect_kwargs = {
+        "username": USER,
+        "timeout": 15
+    }
+    if PASS:
+        connect_kwargs["password"] = PASS
+    c.connect(HOST, **connect_kwargs)
     return c
 
 def run(client, cmd, timeout=60):
@@ -119,4 +127,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

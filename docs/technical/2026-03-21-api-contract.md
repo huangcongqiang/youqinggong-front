@@ -1630,7 +1630,14 @@ https://api.example.com/api
 
 用途：
 
-- 获取腾讯 IM 平台配置说明
+- 获取当前登录用户在指定任务房间下的腾讯 IM 运行时配置
+
+查询参数：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `audience` | `string` | 否 | `enterprise` | 当前端身份，`enterprise / talent` |
+| `roomKey` | `string` | 否 | `launch-sprint` | 平台任务房间标识 |
 
 主要响应字段：
 
@@ -1638,6 +1645,14 @@ https://api.example.com/api
 |---|---|---|
 | `provider` | `string` | 固定为 `Tencent IM` |
 | `status` | `string` | 接入状态 |
+| `audience` | `string` | 当前端身份 |
+| `platformUserId` | `string` | 平台用户 ID |
+| `userId` | `string` | 当前登录用户映射到腾讯 IM 的 userID |
+| `userSig` | `string` | 后端根据当前平台用户动态生成 |
+| `groupId` | `string` | 当前任务房间绑定的腾讯 IM 群 ID |
+| `currentUser` | `object` | 当前登录用户摘要 |
+| `counterpartUser` | `object` | 当前任务房间里的对侧协作用户摘要 |
+| `taskRoom` | `object` | 平台任务房间与腾讯 IM 群绑定信息 |
 | `recommendedScope` | `string[]` | 推荐接入范围 |
 | `notes` | `string[]` | 说明 |
 
@@ -1646,11 +1661,38 @@ https://api.example.com/api
 ```json
 {
   "provider": "Tencent IM",
-  "status": "planned",
+  "status": "READY",
+  "audience": "enterprise",
+  "platformUserId": "business-user-001",
+  "userId": "u_business_user_001",
+  "userSig": "eJyrVgrx...",
+  "groupId": "group_task_001",
+  "currentUser": {
+    "audience": "enterprise",
+    "platformUserId": "business-user-001",
+    "imUserId": "u_business_user_001",
+    "displayName": "星河智能",
+    "role": "PROJECT_OWNER"
+  },
+  "counterpartUser": {
+    "audience": "talent",
+    "platformUserId": "talent-user-002",
+    "imUserId": "u_talent_user_002",
+    "displayName": "陈一宁",
+    "role": "TALENT"
+  },
+  "taskRoom": {
+    "taskId": "task-001",
+    "provider": "TENCENT_IM",
+    "providerRoomId": "group_task_001",
+    "groupType": "Public",
+    "joinOption": "FreeAccess",
+    "status": "ACTIVE"
+  },
   "recommendedScope": ["单聊", "任务群聊", "历史消息回溯", "离线推送", "系统消息"],
   "notes": [
-    "任务接受后自动创建任务房间",
-    "房间 ID 与 task_id 绑定，消息摘要回写平台任务页"
+    "当前 userId 来源于平台用户身份映射，而不是写死在环境变量里。",
+    "任务房间与 task_id 绑定，消息摘要仍需回写平台任务页。"
   ]
 }
 ```
@@ -1674,6 +1716,8 @@ https://api.example.com/api
 | `taskId` | `string` | 任务 ID |
 | `provider` | `string` | IM 提供方 |
 | `roomId` | `string` | 房间 ID |
+| `taskRoom` | `object` | 平台任务房间与腾讯 IM 群绑定摘要 |
+| `members` | `object[]` | 房间成员与平台用户映射 |
 | `participants` | `string[]` | 参与者 |
 | `messages` | `object[]` | 消息预览 |
 
@@ -1692,6 +1736,30 @@ https://api.example.com/api
   "taskId": "task-001",
   "provider": "Tencent IM",
   "roomId": "group_task_001",
+  "taskRoom": {
+    "taskId": "task-001",
+    "provider": "TENCENT_IM",
+    "providerRoomId": "group_task_001",
+    "groupType": "Public",
+    "joinOption": "FreeAccess",
+    "status": "ACTIVE"
+  },
+  "members": [
+    {
+      "audience": "enterprise",
+      "platformUserId": "business-user-001",
+      "imUserId": "u_business_user_001",
+      "displayName": "星河智能",
+      "role": "PROJECT_OWNER"
+    },
+    {
+      "audience": "talent",
+      "platformUserId": "talent-user-002",
+      "imUserId": "u_talent_user_002",
+      "displayName": "陈一宁",
+      "role": "TALENT"
+    }
+  ],
   "participants": ["星河智能", "陈一宁", "AI 系统消息"],
   "messages": [
     {

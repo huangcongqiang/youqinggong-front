@@ -317,6 +317,65 @@ button {
   align-items: start;
 }
 
+.portal-stage {
+  padding: 30px;
+}
+
+.portal-stage-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.portal-stage-copy {
+  min-width: 0;
+}
+
+.portal-hero-actions {
+  margin-top: -2px;
+}
+
+.portal-note-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.portal-note-card {
+  min-height: 136px;
+  padding: 18px 18px 20px;
+  border-radius: 22px;
+  border: 1px solid rgba(121, 155, 255, 0.12);
+  background: rgba(10, 21, 43, 0.72);
+}
+
+.portal-note-card p {
+  margin: 22px 0 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.portal-note-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(18, 35, 70, 0.92);
+  color: rgba(209, 222, 255, 0.92);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.portal-stage-side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .portal-entry-stack {
   display: flex;
   flex-direction: column;
@@ -349,6 +408,62 @@ button {
 .portal-entry-card h3 {
   margin: 0;
   font-size: 28px;
+}
+
+.portal-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.portal-stage-panel {
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(121, 155, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(12, 24, 49, 0.88), rgba(8, 18, 37, 0.94)),
+    radial-gradient(circle at top right, rgba(76, 201, 255, 0.08), transparent 38%);
+}
+
+.portal-stage-header {
+  margin-bottom: 14px;
+}
+
+.portal-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.portal-stage-item {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(121, 155, 255, 0.08);
+}
+
+.portal-stage-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.portal-stage-item h4 {
+  margin: 0 0 6px;
+}
+
+.portal-stage-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(46, 106, 255, 0.24), rgba(76, 201, 255, 0.18));
+  color: #f4f8ff;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
 }
 
 .portal-entry-cta {
@@ -441,6 +556,17 @@ button {
   margin-top: 26px;
 }
 
+.portal-metric-rack {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.portal-metric-card {
+  min-height: 176px;
+}
+
 .hero-stat {
   padding: 18px;
   border-radius: 20px;
@@ -459,6 +585,20 @@ button {
   margin: 0;
   color: var(--text-soft);
   line-height: 1.7;
+}
+
+.section-lead h2 {
+  margin: 0;
+  font-size: clamp(30px, 4.4vw, 48px);
+  line-height: 1.08;
+  letter-spacing: -0.05em;
+}
+
+.section-lead p {
+  max-width: 640px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.8;
 }
 
 .action-row,
@@ -710,6 +850,103 @@ button {
   border: 1px solid rgba(76, 201, 255, 0.16);
 }
 
+.panel-header-top {
+  align-items: start;
+}
+
+.page-hero-title {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 54px);
+  line-height: 1.08;
+  letter-spacing: -0.05em;
+}
+
+.hero-lead-compact {
+  max-width: 760px;
+  margin: 0;
+}
+
+.publish-shell-grid,
+.message-shell-grid {
+  align-items: start;
+}
+
+.preset-grid,
+.room-summary-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.preset-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.room-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.room-summary-value {
+  font-size: 28px;
+  letter-spacing: -0.05em;
+}
+
+.preset-card,
+.room-card-button {
+  width: 100%;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(121, 155, 255, 0.12);
+  background: rgba(10, 22, 44, 0.72);
+  color: inherit;
+  text-align: left;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.preset-card:hover,
+.room-card-button:hover,
+.preset-card.is-active,
+.room-card-button.is-active {
+  transform: translateY(-2px);
+  border-color: rgba(76, 201, 255, 0.26);
+  box-shadow: inset 0 0 0 1px rgba(76, 201, 255, 0.08);
+}
+
+.preset-card-head,
+.room-card-head,
+.message-bubble-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.message-room-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.message-panel-meta {
+  align-items: end;
+}
+
+.conversation-feed-tall {
+  min-height: 420px;
+  max-height: 620px;
+  padding-right: 6px;
+  overflow: auto;
+}
+
+.message-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message-input {
+  min-height: 120px;
+}
+
 .case-card {
   padding: 22px;
   border-radius: 24px;
@@ -719,6 +956,192 @@ button {
 
 .case-result {
   margin-top: auto;
+}
+
+.portal-story-grid,
+.portal-contact-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.portal-story-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+}
+
+.portal-contact-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+}
+
+.portal-pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.portal-pillar-card {
+  position: relative;
+  min-height: 220px;
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(11, 22, 45, 0.78);
+  border: 1px solid rgba(121, 155, 255, 0.12);
+}
+
+.portal-pillar-card h3 {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 14px;
+  font-size: 24px;
+}
+
+.portal-pillar-card p {
+  position: relative;
+  z-index: 1;
+}
+
+.portal-pillar-glow {
+  position: absolute;
+  top: -18px;
+  right: -24px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(76, 201, 255, 0.18), transparent 70%);
+}
+
+.journey-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.journey-lane {
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(121, 155, 255, 0.12);
+  background: rgba(10, 22, 44, 0.72);
+}
+
+.journey-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.journey-head h3 {
+  margin: 0 0 8px;
+}
+
+.journey-step-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.journey-step-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(14, 28, 56, 0.78);
+  border: 1px solid rgba(121, 155, 255, 0.08);
+}
+
+.journey-step-card p {
+  margin: 0;
+  line-height: 1.75;
+  color: var(--text-soft);
+}
+
+.journey-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(46, 106, 255, 0.22);
+  color: #f5f8ff;
+  font-weight: 700;
+}
+
+.portal-case-board {
+  padding: 34px 30px;
+}
+
+.portal-case-header {
+  margin-bottom: 20px;
+}
+
+.portal-case-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.portal-case-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 280px;
+  padding: 24px;
+  border-radius: 26px;
+  border: 1px solid rgba(121, 155, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(11, 23, 46, 0.86), rgba(8, 18, 36, 0.94)),
+    radial-gradient(circle at top right, rgba(157, 124, 255, 0.12), transparent 30%);
+}
+
+.portal-case-card h3 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.portal-case-result {
+  margin-top: auto;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(76, 201, 255, 0.08);
+  border: 1px solid rgba(76, 201, 255, 0.14);
+}
+
+.portal-memory-panel,
+.portal-contact-panel {
+  padding-top: 30px;
+}
+
+.portal-memory-list {
+  display: grid;
+  gap: 14px;
+}
+
+.portal-memory-item {
+  padding: 20px 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(121, 155, 255, 0.12);
+  background: rgba(10, 22, 44, 0.72);
+}
+
+.portal-memory-item h3 {
+  margin: 0 0 10px;
+}
+
+.portal-contact-list {
+  display: grid;
+  gap: 14px;
+}
+
+.portal-contact-card {
+  min-height: 110px;
+}
+
+.portal-contact-actions {
+  margin-top: 8px;
 }
 
 .contact-card {
@@ -864,11 +1287,28 @@ button {
   .tri-grid,
   .hero-grid,
   .portal-hero-grid,
-  .hero-stats-bar {
+  .hero-stats-bar,
+  .portal-stage-grid,
+  .portal-story-grid,
+  .portal-contact-grid,
+  .portal-case-grid,
+  .portal-note-strip,
+  .portal-role-grid,
+  .portal-pillar-grid,
+  .portal-metric-rack {
+    grid-template-columns: 1fr;
+  }
+
+  .journey-step-list {
     grid-template-columns: 1fr;
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .preset-grid,
+  .room-summary-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -888,6 +1328,13 @@ button {
     padding: 20px;
   }
 
+  .portal-stage,
+  .portal-case-board,
+  .portal-memory-panel,
+  .portal-contact-panel {
+    padding: 22px;
+  }
+
   .metric-grid,
   .quad-grid {
     grid-template-columns: 1fr;
@@ -899,6 +1346,20 @@ button {
   }
 
   .hero-topbar {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .journey-head,
+  .portal-contact-card {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .preset-card-head,
+  .room-card-head,
+  .message-bubble-head,
+  .panel-header-top {
     flex-direction: column;
     align-items: start;
   }
@@ -917,6 +1378,12 @@ button {
     margin-bottom: 24px;
   }
 
+  .section-lead h2,
+  .portal-case-card h3,
+  .portal-entry-card h3 {
+    font-size: 24px;
+  }
+
   .calendar-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -931,8 +1398,8 @@ button {
     align-items: start;
   }
 
-  .contact-card {
-    flex-direction: column;
-    align-items: start;
+  .portal-stage-item,
+  .journey-step-card {
+    grid-template-columns: 1fr;
   }
 }
