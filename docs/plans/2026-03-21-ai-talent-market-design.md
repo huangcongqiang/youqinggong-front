@@ -1,4 +1,15 @@
-# AI 人才协作市场 MVP 设计
+# AI 人才协作市场 MVP 基线快照
+
+> 说明
+>
+> 这份文档保留为阶段基线快照，适合回看当时的 MVP 方案和分阶段目标。
+>
+> 当前实时事实源请优先看：
+>
+> - [需求文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/requirements/2026-03-21-ai-talent-market-requirements.md)
+> - [设计文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/design/2026-03-21-ai-talent-market-design.md)
+> - [技术文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-ai-talent-market-technical.md)
+> - [开发文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-21-ai-talent-market-development.md)
 
 ## 1. 项目目标
 
@@ -20,7 +31,7 @@
 - 发起任务：支持语音输入、文本输入
 - AI 拆解：自动输出任务模块、建议工期、技能标签、风险提醒
 - 人工确认：企业端确认 AI 输出后进入匹配
-- 匹配人才：系统推荐候选人，企业端可筛选和选择
+- 匹配人才：系统先推荐 4 位候选人，企业端可直接选择，也可进入人才广场补充筛选
 - 协同交付：与人才确认需求、排期、里程碑
 - 验收与评价：工作完成后验收并评分
 
@@ -151,13 +162,13 @@
 - `/enterprise/onboarding` 企业端入驻
 - `/enterprise/publish` 任务发布
 - `/enterprise/talents/:slug` 人才详情
-- `/enterprise/messages` 项目沟通
+- `/enterprise/chat` 聊天页
 - `/enterprise/workspace` 协作工作区
 - `/talent` 人才端工作台
 - `/talent/onboarding` 人才端入驻
 - `/talent/tasks` 任务广场
 - `/talent/profile/:slug` 人才对外名片
-- `/talent/messages` 项目沟通
+- `/talent/chat` 聊天页
 - `/talent/workspace` 协作工作区
 
 ### Admin 路由

@@ -1,77 +1,55 @@
 # 文档索引
 
-这份文档库现在有两种看法：
+这份文件只做两件事：
 
-- 按“你现在要做什么”看
-- 按“文档目录到底负责什么”看
+- 告诉你文档库里有什么
+- 告诉你每个目录谁是主文档
 
-## 先看这里
+如果你想按“角色 / 任务”来找阅读顺序，直接看 [START-HERE.md](./START-HERE.md)。
 
-- [文档阅读指南](./START-HERE.md)
+## 主入口
 
-## 按任务看
+- 快速阅读顺序：[START-HERE.md](./START-HERE.md)
+- 需求主文档：[requirements/2026-03-21-ai-talent-market-requirements.md](./requirements/2026-03-21-ai-talent-market-requirements.md)
+- 设计主文档：[design/2026-03-21-ai-talent-market-design.md](./design/2026-03-21-ai-talent-market-design.md)
+- 技术主文档：[technical/2026-03-21-ai-talent-market-technical.md](./technical/2026-03-21-ai-talent-market-technical.md)
+- 接口主文档：[technical/2026-03-21-api-contract.md](./technical/2026-03-21-api-contract.md)
+- 开发主文档：[development/2026-03-21-ai-talent-market-development.md](./development/2026-03-21-ai-talent-market-development.md)
+- 版本与状态总览：[development/2026-03-25-version-status-overview.md](./development/2026-03-25-version-status-overview.md)
+- 部署主文档：[development/2026-03-21-deployment-guide.md](./development/2026-03-21-deployment-guide.md)
+- 后端上线前能力清单：[development/2026-03-25-backend-launch-readiness-checklist.md](./development/2026-03-25-backend-launch-readiness-checklist.md)
+- 测试清单与验收清单：[development/2026-03-25-test-acceptance-checklist.md](./development/2026-03-25-test-acceptance-checklist.md)
+- 文档维护规范：[development/2026-03-25-documentation-maintenance.md](./development/2026-03-25-documentation-maintenance.md)
 
-### 我要快速了解这个项目
-
-- [需求文档](./requirements/2026-03-21-ai-talent-market-requirements.md)
-- [设计文档](./design/2026-03-21-ai-talent-market-design.md)
-- [技术文档](./technical/2026-03-21-ai-talent-market-technical.md)
-
-### 我要看页面流程和角色边界
-
-- [设计文档](./design/2026-03-21-ai-talent-market-design.md)
-- [总体设计 / MVP 计划](./plans/2026-03-21-ai-talent-market-design.md)
-
-### 我要联调接口
-
-- [API 详细契约文档](./technical/2026-03-21-api-contract.md)
-- [技术文档](./technical/2026-03-21-ai-talent-market-technical.md)
-- [Spring App 结构说明](./technical/2026-03-21-spring-app-structure.md)
-
-### 我要部署上线
-
-- [部署文档](./development/2026-03-21-deployment-guide.md)
-- [部署模板目录](../deploy/README.md)
-
-### 我要理解关键架构决策
-
-- [ADR-0001：采用模块化单体作为后端起步架构](./adr/0001-adopt-modular-monolith.md)
-- [ADR-0002：前台与后台管理采用双 Vue 应用](./adr/0002-split-web-and-admin-frontends.md)
-
-## 按目录看
+## 目录边界
 
 ### `requirements/`
 
-回答“这个产品要做什么、范围到哪里”。
-
-- [requirements 目录说明](./requirements/README.md)
+主问题：产品要做什么，范围到哪里。  
+入口：[requirements/README.md](./requirements/README.md)
 
 ### `design/`
 
-回答“页面、角色、流程怎么组织”。
-
-- [design 目录说明](./design/README.md)
+主问题：页面、角色和流程怎么组织。  
+入口：[design/README.md](./design/README.md)
 
 ### `technical/`
 
-回答“系统怎么实现、接口怎么对接、第三方怎么接”。
-
-- [technical 目录说明](./technical/README.md)
+主问题：系统怎么实现、接口怎么对接、第三方怎么接。  
+入口：[technical/README.md](./technical/README.md)
 
 ### `development/`
 
-回答“开发如何推进、怎么交接、怎么部署”。
-
-- [development 目录说明](./development/README.md)
+主问题：怎么开发、怎么联调、怎么交接、怎么部署。  
+入口：[development/README.md](./development/README.md)
 
 ### `plans/`
 
-回答“阶段路线和 MVP 计划怎么排”。
-
-- [plans 目录说明](./plans/README.md)
+主问题：阶段计划和历史快照怎么看。  
+说明：这里的内容不是实时事实源，更适合放“阶段方案基线”和历史版本。  
+入口：[plans/README.md](./plans/README.md)
 
 ### `adr/`
 
-回答“为什么做出这些架构决定”。
-
-- [adr 目录说明](./adr/README.md)
+主问题：为什么做这些关键架构决策。  
+入口：[adr/README.md](./adr/README.md)

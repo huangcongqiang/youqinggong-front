@@ -26,17 +26,17 @@ const items = computed(() => {
   if (audience === 'enterprise') {
     return [
       { to: '/enterprise', label: '工作台', hint: '总览' },
+      { to: '/enterprise/chat', label: '聊天', hint: '会话' },
       { to: '/enterprise/publish', label: '发布', hint: '任务' },
-      { to: '/enterprise/talents', label: '人才', hint: '广场' },
-      { to: '/enterprise/messages', label: '协作', hint: '沟通' }
+      { to: '/enterprise/talents', label: '人才', hint: '广场' }
     ];
   }
 
   if (audience === 'talent') {
     return [
       { to: '/talent', label: '我的', hint: '工作台' },
+      { to: '/talent/chat', label: '聊天', hint: '会话' },
       { to: '/talent/tasks', label: '任务', hint: '广场' },
-      { to: '/talent/messages', label: '消息', hint: '沟通' },
       { to: '/talent/workspace', label: '协作', hint: '进度' }
     ];
   }

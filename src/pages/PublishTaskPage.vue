@@ -1,267 +1,536 @@
 <template>
-  <section class="page-stack">
-    <article class="hero-card">
+  <section class="page-stack publish-page">
+    <article class="hero-card publish-hero-card">
       <div class="panel-header panel-header-top">
         <div class="stack-sm">
           <span class="eyebrow">AI 协助发任务</span>
-          <h1 class="page-hero-title">先选一个测试场景，再让 AI 把模糊需求拆成可确认的交付方案。</h1>
+          <h1 class="page-hero-title publish-hero-title">按步骤发布，最后统一确认 AI 结果。</h1>
           <p class="hero-lead hero-lead-compact">
-            这里已经补了多组文本和语音样例。你可以直接切换模板，测试 AI 拆解、工期评估、推荐人才和发布确认的完整链路。
+            前面三步只负责选场景、补需求和确认输入，最后一步再统一展示 AI 拆解、候选人才和正式发布动作。这样页面会更干净，操作也更顺。
           </p>
         </div>
 
-        <div class="chip-row">
-          <span class="tag-pill">任务模板切换</span>
-          <span class="tag-pill">语音 / 文字输入</span>
-          <span class="tag-pill">AI 拆解与工期评估</span>
-          <span class="tag-pill">匹配人才预览</span>
+        <div class="publish-top-actions">
+          <div class="chip-row">
+            <span class="tag-pill">步骤式操作</span>
+            <span class="tag-pill">单列主流程</span>
+            <span class="tag-pill">最后一步看 AI 输出</span>
+          </div>
+          <button class="button-secondary" type="button" @click="overviewOpen = true">发布概览</button>
         </div>
       </div>
     </article>
 
-    <section class="split-grid publish-shell-grid">
-      <article class="glass-panel stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">任务模板</span>
-            <h3>先选一组测试需求</h3>
-          </div>
-          <span class="soft-pill">{{ presets.length }} 个样例</span>
-        </div>
-
-        <div class="preset-grid">
+    <section class="publish-wizard-shell">
+      <article class="glass-panel stack-md publish-wizard-main">
+        <div class="publish-stepper">
           <button
-            v-for="preset in presets"
-            :key="preset.id"
+            v-for="step in steps"
+            :key="step.id"
             type="button"
-            class="preset-card"
-            :class="{ 'is-active': preset.id === selectedPresetId }"
-            @click="applyPreset(preset)"
+            class="publish-stepper-item"
+            :class="stepClass(step.id)"
+            @click="jumpToStep(step.id)"
           >
-            <div class="preset-card-head">
-              <div>
-                <h4>{{ preset.title }}</h4>
-                <p class="muted">{{ preset.focus }}</p>
-              </div>
-              <span class="soft-pill">{{ preset.period }}</span>
-            </div>
-            <div class="tag-row">
-              <span v-for="tag in preset.tags || []" :key="tag" class="tag-pill tag-pill-muted">{{ tag }}</span>
+            <span class="publish-stepper-index">{{ step.id }}</span>
+            <div>
+              <strong>{{ step.title }}</strong>
+              <small>{{ step.note }}</small>
             </div>
           </button>
         </div>
 
-        <form class="form-grid" @submit.prevent="handlePublish">
-          <div class="form-field">
-            <label for="publisher-id">发布人 ID</label>
-            <input id="publisher-id" v-model="publishForm.publisherUserId" class="text-input" />
-          </div>
-          <div class="form-field">
-            <label for="organization-id">企业 ID</label>
-            <input id="organization-id" v-model="publishForm.organizationId" class="text-input" />
-          </div>
-          <div class="form-field full">
-            <label for="task-title">任务标题</label>
-            <input id="task-title" v-model="publishForm.title" class="text-input" placeholder="例如：AI 协作后台首版" />
-          </div>
-          <div class="form-field">
-            <label for="task-source">输入来源</label>
-            <select id="task-source" v-model="publishForm.source" class="select-input">
-              <option value="TEXT">文字输入</option>
-              <option value="VOICE">语音输入</option>
-            </select>
-          </div>
-          <div class="form-field full">
-            <label for="task-brief">任务需求</label>
-            <textarea id="task-brief" v-model="publishForm.brief" class="textarea"></textarea>
-          </div>
+        <div class="publish-step-panel">
+          <template v-if="currentStep === 1">
+            <SectionTitle
+              eyebrow="第 1 步"
+              title="先选一个任务场景"
+              description="用模板快速起步就够了。这里先定大方向，后面一步还会继续改任务标题、来源和详细需求。"
+            />
 
-          <div v-if="publishForm.source === 'VOICE' && publishForm.voiceTranscript" class="form-field full">
-            <div class="result-card stack-sm">
-              <span class="eyebrow">语音转写参考</span>
-              <p class="muted">{{ publishForm.voiceTranscript }}</p>
+            <div class="preset-grid">
+              <button
+                v-for="preset in presets"
+                :key="preset.id"
+                type="button"
+                class="preset-card"
+                :class="{ 'is-active': preset.id === selectedPresetId }"
+                @click="applyPreset(preset)"
+              >
+                <div class="preset-card-head">
+                  <div>
+                    <h4>{{ preset.title }}</h4>
+                    <p class="muted">{{ preset.focus }}</p>
+                  </div>
+                  <span class="soft-pill">{{ preset.period }}</span>
+                </div>
+                <div class="tag-row">
+                  <span v-for="tag in preset.tags || []" :key="tag" class="tag-pill tag-pill-muted">{{ tag }}</span>
+                </div>
+              </button>
             </div>
-          </div>
 
-          <div class="form-field full">
-            <div class="toolbar">
-              <button class="button-primary" type="button" @click="handleAnalyze">先做 AI 拆解</button>
-              <button class="button-secondary" type="submit">发布任务</button>
-              <button class="button-secondary" type="button" @click="resetForm">恢复当前模板</button>
+            <div v-if="selectedPreset" class="result-card stack-sm">
+              <span class="eyebrow">当前模板</span>
+              <h3>{{ selectedPreset.title }}</h3>
+              <p class="muted">{{ selectedPreset.brief || '这一项不会预填需求，你可以直接把模糊想法写给 AI，让它帮你先梳理。' }}</p>
+              <p v-if="selectedPreset.isCustom" class="muted">这一项不会帮你预填标题和需求，适合边想边写，再交给 AI 一起梳理。</p>
             </div>
-          </div>
-        </form>
+          </template>
+
+          <template v-else-if="currentStep === 2">
+            <SectionTitle
+              eyebrow="第 2 步"
+              title="把任务需求写清楚"
+              description="这一步只看发布内容本身：当前账号、任务标题、输入方式和需求描述。先把话说明白，再交给 AI 处理。"
+            />
+
+            <form class="form-grid" @submit.prevent>
+              <div class="form-field full">
+                <div class="result-card stack-sm">
+                  <span class="eyebrow">当前发布账号</span>
+                  <h4>{{ accountLabel }}</h4>
+                  <div class="tag-row">
+                    <span class="soft-pill">发布人：{{ publishForm.publisherUserId || '待识别' }}</span>
+                    <span class="soft-pill">企业：{{ publishForm.organizationId || '待识别' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-field full">
+                <label for="task-title">任务标题</label>
+                <input id="task-title" v-model="publishForm.title" class="text-input" placeholder="例如：AI 协作后台首版" />
+              </div>
+
+              <div class="form-field">
+                <label for="task-source">输入来源</label>
+                <select id="task-source" v-model="publishForm.source" class="select-input">
+                  <option value="TEXT">文字输入</option>
+                  <option value="VOICE">语音输入</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="task-budget">任务预算</label>
+                <input id="task-budget" v-model="publishForm.budget" class="text-input" placeholder="例如：12000 或 ￥12000" />
+              </div>
+
+              <div class="form-field full">
+                <label for="task-brief">任务需求</label>
+                <textarea id="task-brief" v-model="publishForm.brief" class="textarea publish-textarea"></textarea>
+              </div>
+
+              <div v-if="publishForm.source === 'VOICE' && publishForm.voiceTranscript" class="form-field full">
+                <div class="result-card stack-sm">
+                  <span class="eyebrow">语音转写参考</span>
+                  <p class="muted">{{ publishForm.voiceTranscript }}</p>
+                </div>
+              </div>
+            </form>
+          </template>
+
+          <template v-else-if="currentStep === 3">
+            <SectionTitle
+              eyebrow="第 3 步"
+              title="最后确认一遍输入内容"
+              description="这一步不展示 AI 结果，只确认你即将提交给 AI 的输入是否准确。确认后再进入最后一步集中看拆解结果。"
+            />
+
+            <div class="stack-md">
+              <div class="result-card stack-sm">
+                <span class="eyebrow">任务标题</span>
+                <h3>{{ publishForm.title || '待补充任务标题' }}</h3>
+                <div class="tag-row">
+                  <span class="soft-pill">来源：{{ publishForm.source === 'VOICE' ? '语音输入' : '文字输入' }}</span>
+                  <span class="soft-pill">模板：{{ selectedPreset?.isCustom ? '自由输入' : selectedPreset?.title || '未选择模板' }}</span>
+                  <span class="soft-pill">预算：{{ publishForm.budget || '未填写预算' }}</span>
+                </div>
+              </div>
+
+              <div class="mini-card stack-sm">
+                <span class="eyebrow">需求内容</span>
+                <p class="muted">{{ effectiveBrief() || '待补充任务需求' }}</p>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <SectionTitle
+              eyebrow="第 4 步"
+              title="统一查看 AI 结果并正式发布"
+              description="最后一步才展示 AI 拆解、工期、风险和候选人才。看完没有问题，再正式发布并进入人才匹配。"
+            />
+
+            <div v-if="isAnalyzing" class="result-card publish-loading-card stack-md">
+              <span class="eyebrow">AI 正在生成结果</span>
+              <h3>正在拆解任务、估算工期并筛选推荐人才</h3>
+              <p class="muted">这一步可能需要几秒到十几秒。页面会先理解需求，再按 AI 人才效率估算工期，最后从人才库筛出更合适的候选人。</p>
+
+              <div class="publish-loading-orb" aria-hidden="true"></div>
+
+              <div class="publish-loading-timeline">
+                <div v-for="(item, index) in analysisLoadingSteps" :key="item" class="publish-loading-step">
+                  <span class="publish-loading-step-index">{{ index + 1 }}</span>
+                  <div>
+                    <strong>{{ item }}</strong>
+                    <small>结果生成完成后会直接展示在当前页面。</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="analysis.originalBrief" class="stack-md">
+              <div class="result-card stack-sm">
+                <span class="eyebrow">原始需求摘要</span>
+                <p class="muted">{{ analysis.originalBrief }}</p>
+                <div class="tag-row">
+                  <span class="soft-pill">{{ analysis.schedule.total || '待估算' }}</span>
+                  <span v-if="analysis.provider" class="soft-pill">{{ analysis.provider }}</span>
+                  <span v-if="analysis.model" class="soft-pill">{{ analysis.model }}</span>
+                </div>
+                <p v-if="analysis.schedule.assumption" class="muted"><strong class="accent">估算口径：</strong>{{ analysis.schedule.assumption }}</p>
+                <p class="muted"><strong class="accent">风险提示：</strong>{{ analysis.schedule.risk }}</p>
+              </div>
+
+              <div class="mini-card stack-md">
+                <div class="panel-header">
+                  <div>
+                    <span class="eyebrow">需求修订</span>
+                    <h4>如果 AI 理解偏了，可以直接在这里改</h4>
+                  </div>
+                  <button class="button-secondary" type="button" @click="resetRevision">恢复本轮输入</button>
+                </div>
+
+                <div class="form-grid">
+                  <div class="form-field full">
+                    <label for="revision-title">修订后的标题</label>
+                    <input id="revision-title" v-model="revisionForm.title" class="text-input" placeholder="继续调整标题也可以" />
+                  </div>
+                  <div class="form-field full">
+                    <label for="revision-brief">修订后的需求</label>
+                    <textarea id="revision-brief" v-model="revisionForm.brief" class="textarea publish-textarea publish-textarea-compact"></textarea>
+                  </div>
+                </div>
+
+                <div class="toolbar">
+                  <button class="button-primary" type="button" @click="handleRegenerate">按修订内容重新生成</button>
+                  <button class="button-secondary" type="button" @click="currentStep = 2">返回前面继续改</button>
+                </div>
+              </div>
+
+              <div class="stack-sm">
+                <h4>模块拆解</h4>
+                <div v-for="module in analysis.modules" :key="module.name" class="list-row">
+                  <div>
+                    <h4>{{ module.name }}</h4>
+                    <p class="muted">{{ module.output }}</p>
+                  </div>
+                  <span class="soft-pill">{{ module.duration }}</span>
+                </div>
+              </div>
+
+              <div v-if="analysis.tags?.length" class="stack-sm">
+                <h4>推荐标签</h4>
+                <div class="tag-row">
+                  <span v-for="tag in analysis.tags" :key="tag" class="tag-pill">{{ tag }}</span>
+                </div>
+              </div>
+
+              <div v-if="analysis.recommendations?.length" class="stack-sm">
+                <h4>执行建议</h4>
+                <div class="stack-sm">
+                  <div v-for="item in analysis.recommendations" :key="item" class="mini-card stack-sm">
+                    <p class="muted">{{ item }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="publishResult" class="result-card stack-md">
+                <div class="panel-header">
+                  <div>
+                    <span class="eyebrow">发布状态</span>
+                    <h3>{{ publishResult.title }}</h3>
+                  </div>
+                  <span class="soft-pill">{{ publishResult.status }}</span>
+                </div>
+
+                <p class="muted">{{ publishResult.nextStep }}</p>
+
+                <div class="tag-row">
+                  <span class="soft-pill">任务：{{ publishResult.taskId }}</span>
+                  <span class="soft-pill">来源：{{ publishResult.source }}</span>
+                  <span class="soft-pill">预算：{{ publishResult.budget || '未填写预算' }}</span>
+                </div>
+
+                <div class="toolbar">
+                  <button
+                    v-if="analysis.matchingPreview?.length"
+                    class="button-primary"
+                    type="button"
+                    :disabled="isBusy"
+                    @click="talentPickerOpen = true"
+                  >
+                    查看推荐人才
+                  </button>
+                  <router-link class="button-secondary" to="/enterprise/talents">去看人才广场</router-link>
+                </div>
+              </div>
+
+              <div v-if="analysis.matchingPreview?.length" class="stack-sm">
+                <div class="panel-header">
+                  <div>
+                    <span class="eyebrow">AI 推荐候选人才</span>
+                    <h4>任务发布后，可直接从推荐名单里选人</h4>
+                  </div>
+                  <button class="button-secondary" type="button" @click="talentPickerOpen = true">打开推荐弹窗</button>
+                </div>
+                <p class="muted">发布成功后会自动弹出推荐名单。你可以立即选择，也可以跳过，后面再去人才广场慢慢筛选。</p>
+              </div>
+
+              <div v-if="assignmentResult" class="result-card stack-sm">
+                <span class="eyebrow">已选中的推荐人才</span>
+                <h3>{{ assignmentResult.selectedTalent?.name || '候选人才已选定' }}</h3>
+                <p class="muted">{{ assignmentResult.nextStep }}</p>
+                <div class="tag-row">
+                  <span class="soft-pill">任务：{{ assignmentResult.taskId }}</span>
+                  <span class="soft-pill">人才：{{ assignmentResult.talentUserId }}</span>
+                  <span class="soft-pill">{{ assignmentResult.status }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="result-card stack-sm">
+              <span class="eyebrow">还没有 AI 输出</span>
+              <h3>先生成一版拆解结果</h3>
+              <p class="muted">点击下方按钮后，平台会在当前页面集中展示模块拆解、工期评估和候选人才。工期默认按 AI 熟练人才的协同效率估算。</p>
+            </div>
+          </template>
+        </div>
+
+        <div class="publish-step-actions">
+          <button v-if="currentStep > 1" class="button-secondary" type="button" :disabled="isBusy" @click="prevStep">上一步</button>
+
+          <button
+            v-if="currentStep === 1"
+            class="button-primary"
+            type="button"
+            :disabled="isBusy"
+            @click="nextStep"
+          >
+            继续填写需求
+          </button>
+
+          <button
+            v-else-if="currentStep === 2"
+            class="button-primary"
+            type="button"
+            :disabled="isBusy"
+            @click="nextStep"
+          >
+            去确认输入内容
+          </button>
+
+          <button
+            v-else-if="currentStep === 3"
+            class="button-primary"
+            type="button"
+            :disabled="isBusy"
+            @click="proceedToAnalysis"
+          >
+            生成 AI 拆解
+          </button>
+
+          <button
+            v-else-if="!publishResult"
+            class="button-primary"
+            type="button"
+            :disabled="isBusy || isAnalyzing"
+            @click="proceedToPublish"
+          >
+            {{ isPublishing ? '正在发布...' : '确认并发布任务' }}
+          </button>
+
+          <button
+            v-else
+            class="button-primary"
+            type="button"
+            :disabled="isBusy"
+            @click="analysis.matchingPreview?.length ? (talentPickerOpen = true) : router.push('/enterprise/talents')"
+          >
+            {{ analysis.matchingPreview?.length ? '查看推荐人才' : '去人才广场' }}
+          </button>
+
+          <button class="button-secondary" type="button" :disabled="isBusy" @click="resetForm">恢复当前模板</button>
+        </div>
       </article>
+    </section>
 
-      <article class="glass-panel stack-md">
+    <div v-if="overviewOpen" class="publish-overview-modal" @click.self="overviewOpen = false">
+      <article class="publish-overview-card">
         <div class="panel-header">
           <div>
-            <span class="eyebrow">AI 输出</span>
-            <h3>需求拆分与工期评估</h3>
+            <span class="eyebrow">发布概览</span>
+            <h3>当前任务的关键信息</h3>
           </div>
-          <div class="tag-row">
-            <span class="soft-pill">{{ analysis.schedule.total || '待生成' }}</span>
-            <span v-if="analysis.provider" class="soft-pill">{{ analysis.provider }}</span>
-            <span v-if="analysis.model" class="soft-pill">{{ analysis.model }}</span>
-          </div>
+          <button class="button-secondary" type="button" @click="overviewOpen = false">关闭</button>
         </div>
 
-        <div v-if="analysis.originalBrief" class="result-card stack-sm">
-          <span class="eyebrow">原始需求摘要</span>
-          <p class="muted">{{ analysis.originalBrief }}</p>
-          <p class="muted"><strong class="accent">风险提示：</strong>{{ analysis.schedule.risk }}</p>
-        </div>
+        <div class="publish-overview-grid">
+          <div class="mini-card stack-sm">
+            <span class="eyebrow">当前账号</span>
+            <h4>{{ accountLabel }}</h4>
+            <p class="muted">发布人 {{ publishForm.publisherUserId || '待识别' }}</p>
+          </div>
 
-        <div v-if="analysis.modules?.length" class="stack-sm">
-          <div v-for="module in analysis.modules" :key="module.name" class="list-row">
-            <div>
-              <h4>{{ module.name }}</h4>
-              <p class="muted">{{ module.output }}</p>
+            <div class="mini-card stack-sm">
+              <span class="eyebrow">当前模板</span>
+              <h4>{{ selectedPreset?.title || '待选择' }}</h4>
+              <p class="muted">{{ selectedPreset?.focus || '选择模板后会在这里显示一句摘要。' }}</p>
             </div>
-            <span class="soft-pill">{{ module.duration }}</span>
+
+          <div class="mini-card stack-sm">
+            <span class="eyebrow">当前步骤</span>
+            <h4>第 {{ currentStep }} 步</h4>
+            <p class="muted">{{ currentStepMeta.note }}</p>
+          </div>
+
+          <div class="mini-card stack-sm">
+            <span class="eyebrow">任务预算</span>
+            <h4>{{ publishForm.budget || '未填写预算' }}</h4>
+            <p class="muted">人才端会直接看到这项预算，用来判断是否值得接单。</p>
+          </div>
+
+          <div class="mini-card stack-sm">
+            <span class="eyebrow">AI 状态</span>
+            <h4>{{ analysis.schedule.total || '待分析' }}</h4>
+            <p class="muted">{{ analysis.schedule.assumption || (analysis.provider ? `${analysis.provider} · ${analysis.model}` : '还没有开始生成 AI 拆解。') }}</p>
+          </div>
+
+          <div class="mini-card stack-sm">
+            <span class="eyebrow">发布状态</span>
+            <h4>{{ publishResult?.status || '待发布' }}</h4>
+            <p class="muted">{{ publishResult?.taskId ? `任务编号 ${publishResult.taskId}` : '正式发布后，这里会显示任务编号。' }}</p>
+          </div>
+
+          <div class="mini-card stack-sm">
+            <span class="eyebrow">最近拆解记录</span>
+            <h4>{{ analysisHistory[0]?.title || '暂无记录' }}</h4>
+            <p class="muted">{{ analysisHistory[0]?.risk || '生成 AI 拆解后，这里会保留最近一次记录。' }}</p>
           </div>
         </div>
-        <p v-else class="muted">先点击“先做 AI 拆解”，平台会给出任务模块、工期和风险提示。</p>
+      </article>
+    </div>
 
-        <div v-if="analysis.tags?.length" class="stack-sm">
-          <h4>推荐标签</h4>
-          <div class="tag-row">
-            <span v-for="tag in analysis.tags" :key="tag" class="tag-pill">{{ tag }}</span>
+    <div v-if="talentPickerOpen && analysis.matchingPreview?.length" class="publish-overview-modal" @click.self="talentPickerOpen = false">
+      <article class="publish-overview-card publish-talent-picker-card">
+        <div class="panel-header">
+          <div>
+            <span class="eyebrow">推荐人才</span>
+            <h3>任务已发布，是否现在直接选人？</h3>
+            <p class="muted">这一步不是强制的。你可以直接从推荐名单中选择一位继续沟通，也可以先跳过，后面再去人才广场补充筛选。</p>
           </div>
+          <button class="button-secondary" type="button" @click="talentPickerOpen = false">跳过</button>
         </div>
 
-        <div v-if="analysis.recommendations?.length" class="stack-sm">
-          <h4>执行建议</h4>
-          <div class="stack-sm">
-            <div v-for="item in analysis.recommendations" :key="item" class="mini-card stack-sm">
-              <p class="muted">{{ item }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="analysis.matchingPreview?.length" class="stack-sm">
-          <h4>推荐人才预览</h4>
-          <div class="stack-sm">
-            <div v-for="talent in analysis.matchingPreview" :key="`${talent.name}-${talent.role}`" class="list-row">
+        <div class="publish-candidate-grid">
+          <article
+            v-for="talent in analysis.matchingPreview"
+            :key="talent.talentUserId || `${talent.name}-${talent.role}`"
+            class="publish-candidate-card"
+            :class="{ 'is-selected': assignmentResult?.talentUserId === talent.talentUserId }"
+          >
+            <div class="publish-candidate-head">
               <div>
-                <h4>{{ talent.name }} · {{ talent.role }}</h4>
-                <p class="muted">{{ talent.reason }}</p>
+                <h4>{{ talent.name }}</h4>
+                <p class="muted">{{ talent.role }}</p>
               </div>
-              <span class="soft-pill">可邀约</span>
+              <span class="soft-pill">{{ talent.matchScore || '候选' }}</span>
             </div>
-          </div>
+
+            <div class="tag-row">
+              <span v-if="talent.score" class="soft-pill">评分 {{ talent.score }}</span>
+              <span v-if="talent.responseTime" class="soft-pill">{{ talent.responseTime }} 响应</span>
+              <span v-if="talent.availability" class="soft-pill">{{ talent.availability }}</span>
+            </div>
+
+            <p class="muted">{{ talent.reason }}</p>
+
+            <div class="toolbar">
+              <router-link class="button-secondary" :to="`/enterprise/talents/${talent.slug}`">查看详情</router-link>
+              <button
+                class="button-primary"
+                type="button"
+                :disabled="!canChooseTalent(talent)"
+                @click="handleSelectTalent(talent)"
+              >
+                {{ talentActionLabel(talent) }}
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <div class="toolbar publish-talent-picker-toolbar">
+          <button class="button-secondary" type="button" @click="talentPickerOpen = false">暂时跳过</button>
+          <router-link class="button-secondary" to="/enterprise/talents">去人才广场筛选</router-link>
         </div>
       </article>
-    </section>
-
-    <section class="split-grid">
-      <article class="glass-panel stack-md">
-        <SectionTitle
-          eyebrow="测试记录"
-          title="AI 拆解历史"
-          description="每次换一个模板跑一下拆解，就能快速验证不同类型任务的分析结果有没有明显区别。"
-        />
-
-        <div v-if="analysisHistory.length" class="stack-sm">
-          <div v-for="item in analysisHistory" :key="item.id" class="mini-card stack-sm">
-            <div class="panel-header">
-              <div>
-                <h4>{{ item.title }}</h4>
-                <p class="muted">{{ item.time }}</p>
-              </div>
-              <span class="soft-pill">{{ item.total }}</span>
-            </div>
-            <p class="muted">{{ item.risk }}</p>
-          </div>
-        </div>
-        <p v-else class="muted">还没有测试记录，先跑一次 AI 拆解。</p>
-      </article>
-
-      <article class="glass-panel stack-md">
-        <SectionTitle
-          eyebrow="发布结果"
-          title="确认无误后进入人才匹配"
-          description="发布成功后，任务会进入待确认与匹配阶段。这里会保留最近一次的发布结果，方便你连续验证。"
-        />
-
-        <div v-if="publishResult" class="result-card stack-md">
-          <div class="panel-header">
-            <div>
-              <span class="eyebrow">发布状态</span>
-              <h3>{{ publishResult.title }}</h3>
-            </div>
-            <span class="soft-pill">{{ publishResult.status }}</span>
-          </div>
-
-          <p class="muted">{{ publishResult.nextStep }}</p>
-
-          <div class="tag-row">
-            <span class="soft-pill">任务：{{ publishResult.taskId }}</span>
-            <span class="soft-pill">来源：{{ publishResult.source }}</span>
-            <span v-if="publishResult.analysisSummary?.total" class="soft-pill">{{ publishResult.analysisSummary.total }}</span>
-            <span v-if="publishResult.analysisProvider" class="soft-pill">{{ publishResult.analysisProvider }}</span>
-            <span v-if="publishResult.analysisModel" class="soft-pill">{{ publishResult.analysisModel }}</span>
-          </div>
-
-          <div v-if="publishResult.matchingPreview?.length" class="stack-sm">
-            <h4>匹配人才预览</h4>
-            <div class="stack-sm">
-              <div v-for="talent in publishResult.matchingPreview" :key="`${talent.name}-${talent.role}`" class="list-row">
-                <div>
-                  <h4>{{ talent.name }} · {{ talent.role }}</h4>
-                  <p class="muted">{{ talent.reason }}</p>
-                </div>
-                <span class="soft-pill">推荐</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="toolbar">
-            <button class="button-primary" type="button" @click="handleConfirm">确认拆解并开始匹配</button>
-            <router-link class="button-secondary" to="/enterprise/talents">去看人才广场</router-link>
-          </div>
-        </div>
-
-        <div v-else class="mini-card stack-sm">
-          <h4>还没有发布结果</h4>
-          <p class="muted">先选一个模板跑 AI 拆解，再点击“发布任务”。</p>
-        </div>
-
-        <div v-if="confirmResult" class="result-card stack-sm">
-          <span class="eyebrow">确认结果</span>
-          <h3>{{ confirmResult.status }}</h3>
-          <p class="muted">{{ confirmResult.nextStep }}</p>
-          <div class="tag-row">
-            <span class="soft-pill">任务：{{ confirmResult.taskId }}</span>
-          </div>
-        </div>
-      </article>
-    </section>
+    </div>
   </section>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import SectionTitle from '../components/SectionTitle.vue';
 import {
   analyzeTaskBrief,
   confirmTaskAnalysis,
   getAiPublishPresets,
-  publishTask
+  publishTask,
+  selectTaskAssignment
 } from '../services/api';
+import { useAuthState } from '../stores/auth';
+
+const router = useRouter();
+const steps = [
+  { id: 1, title: '选场景', note: '先选一个合适模板' },
+  { id: 2, title: '填需求', note: '补任务标题和需求内容' },
+  { id: 3, title: '确认输入', note: '最后确认提交给 AI 的内容' },
+  { id: 4, title: '看结果并发布', note: '统一查看 AI 结果并正式发布' }
+];
 
 const presets = ref([]);
 const selectedPresetId = ref('');
+const currentStep = ref(1);
+const overviewOpen = ref(false);
 const analysis = ref({ modules: [], tags: [], schedule: {}, recommendations: [], matchingPreview: [] });
 const analysisHistory = ref([]);
 const publishResult = ref(null);
 const confirmResult = ref(null);
+const assignmentResult = ref(null);
+const talentPickerOpen = ref(false);
+const authState = useAuthState();
+const isAnalyzing = ref(false);
+const isPublishing = ref(false);
+const isSelectingTalent = ref(false);
+const selectedTalentUserId = ref('');
+const revisionForm = ref({
+  title: '',
+  brief: ''
+});
+
+const analysisLoadingSteps = [
+  '正在理解需求目标与交付边界',
+  '正在按 AI 人才效率估算工期与风险',
+  '正在从人才库筛出推荐候选人'
+];
 
 const publishForm = ref({
   publisherUserId: '1',
   organizationId: '1',
   title: '',
   brief: '',
+  budget: '',
   source: 'TEXT',
   voiceTranscript: ''
 });
@@ -270,6 +539,27 @@ const selectedPreset = computed(() =>
   presets.value.find((item) => item.id === selectedPresetId.value) || presets.value[0] || null
 );
 
+const currentStepMeta = computed(() => steps.find((item) => item.id === currentStep.value) || steps[0]);
+const isBusy = computed(() => isAnalyzing.value || isPublishing.value || isSelectingTalent.value);
+const canSelectTalent = computed(() => Boolean(publishResult.value?.taskId));
+
+const accountLabel = computed(() => {
+  const user = authState.user;
+  if (!user) {
+    return '当前账号未识别';
+  }
+  const primaryName = user.organizationName || user.displayName || '未命名账号';
+  return `${primaryName} · ${user.mobile}`;
+});
+
+function currentPublisherUserId() {
+  return authState.user?.platformUserId || '1';
+}
+
+function currentOrganizationId() {
+  return authState.user?.organizationId || '1';
+}
+
 function effectiveBrief() {
   if (publishForm.value.source === 'VOICE' && publishForm.value.voiceTranscript) {
     return publishForm.value.voiceTranscript;
@@ -277,23 +567,96 @@ function effectiveBrief() {
   return publishForm.value.brief;
 }
 
+function hasBasicTaskInfo() {
+  return Boolean(publishForm.value.title?.trim() && effectiveBrief()?.trim());
+}
+
+function stepClass(stepId) {
+  return {
+    'is-active': currentStep.value === stepId,
+    'is-complete': currentStep.value > stepId
+  };
+}
+
+function jumpToStep(stepId) {
+  if (isBusy.value) {
+    return;
+  }
+
+  if (stepId <= currentStep.value) {
+    currentStep.value = stepId;
+    return;
+  }
+
+  if (stepId === 2 && selectedPreset.value) {
+    currentStep.value = 2;
+    return;
+  }
+
+  if (stepId === 3 && hasBasicTaskInfo()) {
+    currentStep.value = 3;
+    return;
+  }
+
+  if (stepId === 4 && analysis.value.modules?.length) {
+    currentStep.value = 4;
+  }
+}
+
+function nextStep() {
+  if (isBusy.value) {
+    return;
+  }
+  if (currentStep.value < 4) {
+    currentStep.value += 1;
+  }
+}
+
+function prevStep() {
+  if (isBusy.value) {
+    return;
+  }
+  if (currentStep.value > 1) {
+    currentStep.value -= 1;
+  }
+}
+
 function applyPreset(preset) {
+  if (isBusy.value) {
+    return;
+  }
   selectedPresetId.value = preset.id;
   publishForm.value = {
-    publisherUserId: '1',
-    organizationId: '1',
-    title: preset.title,
-    brief: preset.brief,
-    source: preset.source,
+    publisherUserId: currentPublisherUserId(),
+    organizationId: currentOrganizationId(),
+    title: preset.isCustom ? '' : preset.title,
+    brief: preset.isCustom ? '' : preset.brief,
+    budget: '',
+    source: preset.source || 'TEXT',
     voiceTranscript: preset.voiceTranscript || ''
+  };
+  revisionForm.value = {
+    title: preset.isCustom ? '' : preset.title,
+    brief: preset.isCustom ? '' : preset.brief
   };
   publishResult.value = null;
   confirmResult.value = null;
+  assignmentResult.value = null;
+  talentPickerOpen.value = false;
+  selectedTalentUserId.value = '';
   analysis.value = { modules: [], tags: [], schedule: {}, recommendations: [], matchingPreview: [] };
 }
 
 async function handleAnalyze() {
   analysis.value = await analyzeTaskBrief(effectiveBrief());
+  revisionForm.value = {
+    title: publishForm.value.title,
+    brief: effectiveBrief()
+  };
+  publishResult.value = null;
+  confirmResult.value = null;
+  assignmentResult.value = null;
+  selectedTalentUserId.value = '';
   analysisHistory.value = [
     {
       id: `${Date.now()}-${analysisHistory.value.length}`,
@@ -309,28 +672,140 @@ async function handleAnalyze() {
 async function handlePublish() {
   publishResult.value = await publishTask({
     ...publishForm.value,
+    publisherUserId: currentPublisherUserId(),
+    organizationId: currentOrganizationId(),
     brief: effectiveBrief()
   });
+  if (publishResult.value?.taskId) {
+    confirmResult.value = await confirmTaskAnalysis(publishResult.value.taskId);
+    if (analysis.value.matchingPreview?.length) {
+      talentPickerOpen.value = true;
+    }
+  }
 }
 
 async function handleConfirm() {
-  const taskId = publishResult.value?.taskId || 'task-demo-latest';
-  confirmResult.value = await confirmTaskAnalysis(taskId);
+  if (!publishResult.value?.taskId) {
+    return;
+  }
+  confirmResult.value = await confirmTaskAnalysis(publishResult.value.taskId);
+}
+
+async function proceedToAnalysis() {
+  if (!hasBasicTaskInfo()) {
+    return;
+  }
+  currentStep.value = 4;
+  isAnalyzing.value = true;
+  try {
+    await handleAnalyze();
+  } finally {
+    isAnalyzing.value = false;
+  }
+}
+
+async function proceedToPublish() {
+  if (!analysis.value?.modules?.length) {
+    currentStep.value = 4;
+    isAnalyzing.value = true;
+    try {
+      await handleAnalyze();
+    } finally {
+      isAnalyzing.value = false;
+    }
+  }
+  isPublishing.value = true;
+  try {
+    await handlePublish();
+  } finally {
+    isPublishing.value = false;
+  }
+}
+
+function resetRevision() {
+  revisionForm.value = {
+    title: publishForm.value.title,
+    brief: effectiveBrief()
+  };
+}
+
+async function handleRegenerate() {
+  publishForm.value = {
+    ...publishForm.value,
+    title: revisionForm.value.title,
+    brief: revisionForm.value.brief
+  };
+  currentStep.value = 4;
+  isAnalyzing.value = true;
+  try {
+    await handleAnalyze();
+  } finally {
+    isAnalyzing.value = false;
+  }
+}
+
+function talentActionLabel(talent) {
+  if (isSelectingTalent.value && selectedTalentUserId.value === talent.talentUserId) {
+    return '正在选择...';
+  }
+  if (assignmentResult.value?.talentUserId === talent.talentUserId) {
+    return '已选中';
+  }
+  if (!publishResult.value?.taskId) {
+    return '发布后可选';
+  }
+  return '选择这位人才';
+}
+
+function canChooseTalent(talent) {
+  if (!talent?.talentUserId) {
+    return false;
+  }
+  if (!canSelectTalent.value) {
+    return false;
+  }
+  if (assignmentResult.value?.talentUserId === talent.talentUserId) {
+    return false;
+  }
+  if (!isSelectingTalent.value) {
+    return true;
+  }
+  return selectedTalentUserId.value === talent.talentUserId;
+}
+
+async function handleSelectTalent(talent) {
+  if (!publishResult.value?.taskId || !talent?.talentUserId) {
+    return;
+  }
+
+  selectedTalentUserId.value = talent.talentUserId;
+  isSelectingTalent.value = true;
+  try {
+    assignmentResult.value = await selectTaskAssignment(publishResult.value.taskId, talent.talentUserId);
+    talentPickerOpen.value = false;
+    if (assignmentResult.value?.nextRoute) {
+      await router.push(assignmentResult.value.nextRoute);
+    }
+  } finally {
+    isSelectingTalent.value = false;
+  }
 }
 
 function resetForm() {
   if (selectedPreset.value) {
     applyPreset(selectedPreset.value);
   }
+  currentStep.value = 1;
 }
 
 onMounted(async () => {
   const payload = await getAiPublishPresets();
   presets.value = payload.items || [];
+  publishForm.value.publisherUserId = authState.user?.platformUserId || payload.defaultPublisherUserId || '1';
+  publishForm.value.organizationId = authState.user?.organizationId || payload.defaultOrganizationId || '1';
 
   if (presets.value.length) {
     applyPreset(presets.value[0]);
-    await handleAnalyze();
   }
 });
 </script>

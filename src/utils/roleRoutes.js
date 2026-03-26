@@ -2,7 +2,11 @@ export const roleRouteMap = {
   portal: {
     home: '/',
     enterpriseEntry: '/enterprise',
-    talentEntry: '/talent'
+    talentEntry: '/talent',
+    register: (audience = 'enterprise') => ({
+      path: '/register',
+      query: { audience }
+    })
   },
   enterprise: {
     home: '/enterprise',
@@ -10,7 +14,7 @@ export const roleRouteMap = {
     publish: '/enterprise/publish',
     market: '/enterprise/talents',
     detail: (slug) => `/enterprise/talents/${slug}`,
-    messages: '/enterprise/messages',
+    messages: '/enterprise/chat',
     workspace: '/enterprise/workspace',
     acceptance: '/enterprise/acceptance'
   },
@@ -19,7 +23,7 @@ export const roleRouteMap = {
     onboarding: '/talent/onboarding',
     market: '/talent/tasks',
     profile: (slug) => `/talent/profile/${slug}`,
-    messages: '/talent/messages',
+    messages: '/talent/chat',
     workspace: '/talent/workspace',
     acceptance: '/talent/acceptance'
   }

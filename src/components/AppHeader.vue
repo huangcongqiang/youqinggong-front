@@ -21,10 +21,37 @@
       </nav>
 
       <div class="nav-actions">
-        <router-link v-if="headerModel.secondary" class="button-secondary nav-button" :to="headerModel.secondary.to">
+        <div v-if="authState.user" class="nav-user-chip">
+          <span class="nav-user-name">{{ authState.user.displayName }}</span>
+          <span class="nav-user-meta">{{ authState.user.audience === 'talent' ? '人才端' : '企业端' }}</span>
+        </div>
+        <button
+          v-if="headerModel.secondary?.action === 'login'"
+          class="button-secondary nav-button"
+          type="button"
+          @click="openLoginModal(headerModel.secondary.audience)"
+        >
+          {{ headerModel.secondary.label }}
+        </button>
+        <router-link
+          v-else-if="headerModel.secondary"
+          class="button-secondary nav-button"
+          :to="headerModel.secondary.to"
+        >
           {{ headerModel.secondary.label }}
         </router-link>
-        <router-link class="button-primary nav-button" :to="headerModel.primary.to">
+        <button v-if="showLogout" class="button-secondary nav-button" type="button" @click="handleLogout">
+          退出登录
+        </button>
+        <button
+          v-if="headerModel.primary?.action === 'login'"
+          class="button-primary nav-button"
+          type="button"
+          @click="openLoginModal(headerModel.primary.audience)"
+        >
+          {{ headerModel.primary.label }}
+        </button>
+        <router-link v-else class="button-primary nav-button" :to="headerModel.primary.to">
           {{ headerModel.primary.label }}
         </router-link>
       </div>
@@ -34,13 +61,35 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import { signOut, useAuthState } from '../stores/auth';
 import { resolveAudience, roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
+const router = useRouter();
+const authState = useAuthState();
+const showLogout = computed(() => Boolean(authState.user));
+
+async function handleLogout() {
+  await signOut();
+  router.push('/');
+}
+
+function openLoginModal(audience = 'enterprise') {
+  router.replace({
+    path: route.path,
+    query: {
+      ...route.query,
+      login: '1',
+      audience
+    },
+    hash: route.hash
+  });
+}
 
 const headerModel = computed(() => {
   const audience = resolveAudience(route);
+  const authUser = authState.user;
 
   if (audience === 'enterprise') {
     return {
@@ -48,12 +97,16 @@ const headerModel = computed(() => {
       copy: '企业端：发布需求、查看人才、推进协作与验收',
       links: [
         { to: '/enterprise', label: '工作台' },
+        { to: '/enterprise/chat', label: '聊天' },
         { to: '/enterprise/publish', label: '发布任务' },
-        { to: '/enterprise/talents', label: '人才广场' },
-        { to: '/enterprise/messages', label: '项目沟通' }
+        { to: '/enterprise/talents', label: '人才广场' }
       ],
-      primary: { to: '/enterprise/talents', label: '去找人才' },
-      secondary: { to: '/enterprise/onboarding', label: '企业入驻' }
+      primary: authUser
+        ? { to: '/enterprise/chat', label: '去聊天' }
+        : { action: 'login', audience: 'enterprise', label: '登录企业端' },
+      secondary: authUser
+        ? { to: '/enterprise/publish', label: '发布任务' }
+        : { to: roleRouteMap.portal.register('enterprise'), label: '去注册' }
     };
   }
 
@@ -63,12 +116,16 @@ const headerModel = computed(() => {
       copy: '人才端：完善资料、查看任务、持续协作与沉淀信用',
       links: [
         { to: '/talent', label: '工作台' },
+        { to: '/talent/chat', label: '聊天' },
         { to: '/talent/tasks', label: '任务广场' },
-        { to: '/talent/messages', label: '项目沟通' },
         { to: '/talent/workspace', label: '协作空间' }
       ],
-      primary: { to: '/talent/tasks', label: '去找任务' },
-      secondary: { to: '/talent/onboarding', label: '人才入驻' }
+      primary: authUser
+        ? { to: '/talent/chat', label: '去聊天' }
+        : { action: 'login', audience: 'talent', label: '登录人才端' },
+      secondary: authUser
+        ? { to: '/talent/tasks', label: '去找任务' }
+        : { to: roleRouteMap.portal.register('talent'), label: '去注册' }
     };
   }
 
@@ -81,8 +138,10 @@ const headerModel = computed(() => {
       { href: '#cases', label: '案例' },
       { href: '#contact', label: '联系方式' }
     ],
-    primary: { to: roleRouteMap.portal.enterpriseEntry, label: '企业端入口' },
-    secondary: { to: roleRouteMap.portal.talentEntry, label: '人才端入口' }
+    primary: authUser
+      ? { to: authUser.homeRoute || (authUser.audience === 'talent' ? '/talent' : '/enterprise'), label: '进入当前账号' }
+      : { to: roleRouteMap.portal.register('enterprise'), label: '立即注册' },
+    secondary: authUser ? null : { action: 'login', audience: 'enterprise', label: '登录' }
   };
 });
 </script>
@@ -180,6 +239,27 @@ const headerModel = computed(() => {
   min-height: 40px;
   padding: 0 14px;
   font-size: 14px;
+}
+
+.nav-user-chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(126, 157, 255, 0.16);
+  background: rgba(11, 24, 49, 0.86);
+}
+
+.nav-user-name {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.nav-user-meta {
+  color: var(--text-faint);
+  font-size: 11px;
 }
 
 @media (max-width: 900px) {

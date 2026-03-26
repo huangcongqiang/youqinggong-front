@@ -1,29 +1,27 @@
 # 文档阅读指南
 
-这份项目的文档现在建议用两种方式读：
+这份文件只回答一件事：你现在应该先看哪几份文档。
 
-- 按“你现在要做什么”读
-- 按“目录分别负责什么”读
-
-如果你只是想快速开始，优先按第一种。
+如果你想看“文档库里都有什么”，回到 [README.md](./README.md)。
 
 ## 1. 如果你第一次接手这个项目
 
 建议按这个顺序看：
 
-1. [需求文档](requirements/2026-03-21-ai-talent-market-requirements.md)
-2. [设计文档](design/2026-03-21-ai-talent-market-design.md)
-3. [技术文档](technical/2026-03-21-ai-talent-market-technical.md)
-4. [API 详细契约文档](technical/2026-03-21-api-contract.md)
-5. [开发文档](development/2026-03-21-ai-talent-market-development.md)
+1. [需求文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/requirements/2026-03-21-ai-talent-market-requirements.md)
+2. [设计文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/design/2026-03-21-ai-talent-market-design.md)
+3. [技术文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-ai-talent-market-technical.md)
+4. [API 详细契约文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-api-contract.md)
+5. [开发文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-21-ai-talent-market-development.md)
+6. [版本与状态总览](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-25-version-status-overview.md)
 
 ## 2. 如果你是产品 / 业务同学
 
 优先看这些：
 
-- [需求文档](requirements/2026-03-21-ai-talent-market-requirements.md)
-- [设计文档](design/2026-03-21-ai-talent-market-design.md)
-- [总体设计 / MVP 计划](plans/2026-03-21-ai-talent-market-design.md)
+- [需求文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/requirements/2026-03-21-ai-talent-market-requirements.md)
+- [设计文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/design/2026-03-21-ai-talent-market-design.md)
+- [总体设计 / MVP 计划](/Users/huangcongqiang/Desktop/products/youqinggong/docs/plans/2026-03-21-ai-talent-market-design.md)
 
 适合回答的问题：
 
@@ -36,9 +34,9 @@
 
 优先看这些：
 
-- [设计文档](design/2026-03-21-ai-talent-market-design.md)
-- [API 详细契约文档](technical/2026-03-21-api-contract.md)
-- [开发文档](development/2026-03-21-ai-talent-market-development.md)
+- [设计文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/design/2026-03-21-ai-talent-market-design.md)
+- [API 详细契约文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-api-contract.md)
+- [开发文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-21-ai-talent-market-development.md)
 
 适合回答的问题：
 
@@ -50,11 +48,13 @@
 
 优先看这些：
 
-- [技术文档](technical/2026-03-21-ai-talent-market-technical.md)
-- [API 详细契约文档](technical/2026-03-21-api-contract.md)
-- [Spring App 结构说明](technical/2026-03-21-spring-app-structure.md)
-- [腾讯 IM 集成说明](technical/2026-03-21-tencent-im-integration.md)
-- [开发文档](development/2026-03-21-ai-talent-market-development.md)
+- [技术文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-ai-talent-market-technical.md)
+- [API 详细契约文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-api-contract.md)
+- [Spring App 结构说明](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-spring-app-structure.md)
+- [腾讯 IM 集成说明](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-tencent-im-integration.md)
+- [开发文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-21-ai-talent-market-development.md)
+- [版本与状态总览](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-25-version-status-overview.md)
+- [后端上线前能力清单](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-25-backend-launch-readiness-checklist.md)
 
 适合回答的问题：
 
@@ -62,13 +62,14 @@
 - 哪些接口已经真实落库
 - 哪些还在 fallback
 - 腾讯 IM 应该放在哪一层
+- 后端距离正式上线还差哪些能力
 
 ## 5. 如果你是运维 / 部署同学
 
 优先看这些：
 
-- [部署文档](development/2026-03-21-deployment-guide.md)
-- [部署模板目录](../deploy/README.md)
+- [部署文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-21-deployment-guide.md)
+- [部署模板目录](/Users/huangcongqiang/Desktop/products/youqinggong/deploy/README.md)
 
 适合回答的问题：
 
@@ -81,25 +82,21 @@
 
 看这里：
 
-- [ADR-0001：采用模块化单体作为后端起步架构](adr/0001-adopt-modular-monolith.md)
-- [ADR-0002：前台与后台管理采用双 Vue 应用](adr/0002-split-web-and-admin-frontends.md)
+- [ADR-0001：采用模块化单体作为后端起步架构](/Users/huangcongqiang/Desktop/products/youqinggong/docs/adr/0001-adopt-modular-monolith.md)
+- [ADR-0002：前台与后台管理采用双 Vue 应用](/Users/huangcongqiang/Desktop/products/youqinggong/docs/adr/0002-split-web-and-admin-frontends.md)
 
-## 7. 当前文档分类建议
+## 7. 如果你要维护文档
 
-以后建议按下面这个理解方式来看，而不是只看目录名：
+优先看：
 
-- `requirements/`：这个产品要做什么
-- `design/`：产品怎么组织页面和流程
-- `technical/`：系统怎么实现
-- `development/`：怎么开发、怎么部署、怎么交接
-- `adr/`：关键架构决策为什么这么定
-- `plans/`：阶段计划和路线
+- [文档维护规范](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-25-documentation-maintenance.md)
+- [开发文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-21-ai-talent-market-development.md)
+- [后端上线前能力清单](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-25-backend-launch-readiness-checklist.md)
+- [版本与状态总览](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-25-version-status-overview.md)
+- [测试清单与验收清单](/Users/huangcongqiang/Desktop/products/youqinggong/docs/development/2026-03-25-test-acceptance-checklist.md)
 
-如果你对目录边界还有疑惑，可以继续看每个目录自己的说明：
+适合回答的问题：
 
-- [requirements 目录说明](requirements/README.md)
-- [design 目录说明](design/README.md)
-- [technical 目录说明](technical/README.md)
-- [development 目录说明](development/README.md)
-- [plans 目录说明](plans/README.md)
-- [adr 目录说明](adr/README.md)
+- 本次开发改动后，哪些文档必须同步更新
+- 哪份文档才是当前事实源
+- 根目录 `docs` 和三个子仓库 `docs` 怎么保持一致

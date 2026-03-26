@@ -126,8 +126,8 @@ mysql -u youqinggong -p youqinggong < seed.sql
 说明：
 
 - `schema.sql` 是表结构
-- `seed.sql` 是演示数据
-- 正式环境如果不想导入演示数据，只执行 `schema.sql` 即可
+- `seed.sql` 仅用于本地演示或初始化示例账号
+- 当前项目如果要保持真实业务数据环境，默认只执行 `schema.sql`
 
 ## 7. Spring Boot 服务部署
 
@@ -536,7 +536,7 @@ sudo systemctl restart youqinggong-spring
 - 前台：本地构建 `frontend` 后上传静态包
 - 后台：本地构建 `admin` 后上传静态包
 - 后端：优先本地构建 `backend/spring-app`，只上传 jar
-- 数据库：先导入 `schema.sql`，若需要演示数据再导入 `seed.sql`
+- 数据库：默认先导入 `schema.sql`，只有在本地演示时才额外导入 `seed.sql`
 
 如果只是演示页面联调，也可以先部署根目录 mock API。  
 但只建议用于演示或测试，不建议作为正式环境长期运行。
