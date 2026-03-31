@@ -450,11 +450,56 @@ bash build-release.sh
 
 ```bash
 curl https://api.example.com/actuator/health
+curl https://api.example.com/actuator/health/readiness
 curl https://api.example.com/api/landing
 curl https://api.example.com/api/business
 curl https://api.example.com/api/talent
 curl https://api.example.com/api/talents/marketplace
 ```
+
+重点检查：
+
+- `/actuator/health` 和 `/actuator/health/readiness` 必须返回 JSON，而不是前端 HTML
+- `components.requestProtection` 应存在，并且能回读：
+  - `loginRateLimitEnabled`
+  - `uploadPresignBurstGuardEnabled`
+  - `publishBurstGuardEnabled`
+  - `tencentImCallbackProtectionEnabled`
+- `components.businessRealtimeEvent.details` 应能回读：
+  - `emitFailureThreshold`
+  - `lastConnectAt`
+  - `lastPublishAt`
+  - `lastEmitFailureAt`
+- `components.uploadStorage.details.checkedAt` 应可回读
+- `components.tencentImConfig.details.callbackSecretConfigured` 与 `callbackProtectionEnabled` 应可回读
+
+### 本地最小验证命令
+
+如果本地没有单独启动 `spring-app`，或 `8081` 已被其它服务占用，优先使用下面这些最小测试命令验证运行手册依赖字段是否存在：
+
+```bash
+cd backend/spring-app
+mvn -q -Dtest=ActuatorHealthApiControllerTest test
+mvn -q -Dtest=TencentImCallbackControllerTest test
+mvn -q -Dtest=UploadApiControllerTest#presignReturnsTooManyRequestsAfterRepeatedBurstRequests test
+```
+
+这些命令当前对应验证：
+
+- actuator / readiness 明细字段
+- 腾讯 IM callback 保护
+- 上传 burst guard
+
+### 运行态排查顺序
+
+如果线上或预发环境出现“接口可访问，但链路不稳”的情况，建议按这个顺序排查：
+
+1. 先看 `/actuator/health/readiness` 是否返回 JSON
+2. 再看 `requestProtection` 是否全部处于启用态
+3. 再看 `businessRealtimeEvent` 是否已出现持续的 `lastEmitFailureAt`
+4. 再看 `uploadStorage.checkedAt` 是否持续刷新
+5. 再看 `tencentImConfig.callbackProtectionEnabled` 是否为 `true`
+6. 最后再看应用日志和前端 fallback 展示，不要跳过 readiness 直接猜问题
 
 ### 前台
 
@@ -488,6 +533,41 @@ curl https://api.example.com/api/talents/marketplace
 sudo systemctl restart youqinggong-spring
 ```
 
+高风险接口保护当前没有独立的运行时开关；最小回滚路径仍然是“恢复上一版 jar + 配置，再重启服务”，不要在生产环境临时改代码或手动删内存状态。
+
+建议按下面顺序回滚：
+
+1. 先确认当前异常属于哪一类：
+  - 登录限流误伤
+  - 上传 burst guard 误伤
+  - 发布 burst guard 误伤
+  - 腾讯 IM callback 校验不通过
+  - SSE / readiness 持续降级
+2. 备份当前 `app.jar` 与 `/etc/youqinggong/application-prod.yml`
+3. 恢复上一版 `app.jar`
+4. 如涉及 callback 配置，同时恢复上一版生产配置
+5. 重启 `youqinggong-spring`
+6. 重新检查 `/actuator/health/readiness`
+7. 再检查关键业务入口是否恢复
+
+### 高风险接口最小回滚动作
+
+- 登录限流异常：
+  - 当前无独立关闭开关；最小回滚是恢复上一版 jar
+  - 回滚后重点检查登录是否恢复、`requestProtection.loginRateLimitEnabled` 是否符合预期
+- 上传 burst guard 异常：
+  - 当前无独立关闭开关；最小回滚是恢复上一版 jar
+  - 回滚后重点检查 `POST /api/uploads/presign` 与 `uploadStorage.checkedAt`
+- 发布 burst guard 异常：
+  - 当前无独立关闭开关；最小回滚是恢复上一版 jar
+  - 回滚后重点检查 `POST /api/tasks/publish` 是否恢复
+- 腾讯 IM callback 校验异常：
+  - 先确认 `/etc/youqinggong/application-prod.yml` 里的 `app.tencent-im.callback-secret` 与 `app.tencent-im.callback-auth-header`
+  - 若本次发布同时改了代码和配置，必须一起回滚，不能只回滚其一
+- SSE / readiness 降级：
+  - 前端当前允许 fallback 到 polling
+  - 但后端若持续 `OUT_OF_SERVICE`，仍应按应用版本回滚而不是长期依赖 fallback 运行
+
 ### MySQL
 
 - 发布前做一次 `mysqldump`
@@ -520,6 +600,24 @@ sudo systemctl restart youqinggong-spring
 - 服务器防火墙
 - `mysql -u youqinggong -p -h 127.0.0.1 youqinggong`
 
+### readiness 不通过
+
+优先检查：
+
+- `curl https://api.example.com/actuator/health/readiness`
+- `components.requestProtection`
+- `components.businessRealtimeEvent`
+- `components.uploadStorage`
+- `components.tencentImConfig`
+- `/var/log/youqinggong/spring-app.log`
+
+常见判断方式：
+
+- 如果返回 HTML，不是打到了 `spring-app`
+- 如果 `tencentImConfig.callbackProtectionEnabled=false`，优先检查 callback 配置
+- 如果 `uploadStorage.checkedAt` 长时间不变，优先检查上传目录或存储根路径
+- 如果 `lastEmitFailureAt` 持续刷新，优先检查 SSE 事件流异常或连接被中断
+
 ### 静态资源更新后页面没变化
 
 优先检查：
@@ -549,7 +647,44 @@ sudo systemctl restart youqinggong-spring
 - 对象存储部署方案
 - Redis、消息队列、监控告警
 
-## 18. 文档维护建议
+## 18. 慢查询与索引关注点
+
+这一部分不是最终索引设计，而是上线前必须盯的热点。
+
+优先关注：
+
+- 聊天主链：
+  - `chat_conversations`
+  - `chat_messages`
+  - `task_im_rooms`
+  - 重点观察 `taskId / roomKey / providerRoomId / providerMessageId / updatedAt / createdAt`
+- 附件与上传链：
+  - `file_upload_sessions`
+  - `task_files`
+  - 重点观察 `uploadId / taskId / sourceType / createdAt`
+- 任务生命周期与协作链：
+  - `tasks`
+  - `task_lifecycle_events`
+  - `task_workspace_feedback`
+  - `task_progress_updates`
+  - 重点观察 `taskId / actorUserId / occurredAt / createdAt`
+- 财务与争议链：
+  - `claims`
+  - `invoices`
+  - `reconciliations`
+  - `settlements`
+  - `disputes`
+  - `risk_tickets`
+  - 重点观察 `taskId / claimId / reconciliationId / settlementId / targetType / targetId / updatedAt`
+
+上线前至少要确认：
+
+- 关键列表查询都有限定条件和排序字段
+- 关键表存在可支持主查询路径的索引
+- 慢查询日志已开启或有等价观测手段
+- 压测时这些热点表不会因为全表扫描拖慢主链
+
+## 19. 文档维护建议
 
 后续每次发生以下变化时，建议同步更新本文件：
 

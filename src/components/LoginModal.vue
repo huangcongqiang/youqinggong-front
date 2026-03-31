@@ -29,22 +29,6 @@
         </button>
       </div>
 
-      <div class="result-card stack-sm">
-        <span class="eyebrow">快速测试账号</span>
-        <div class="stack-sm">
-          <div class="mini-card stack-sm">
-            <h4>企业端演示账号</h4>
-            <p class="muted">手机号：13800000001</p>
-            <p class="muted">密码：demo123456</p>
-          </div>
-          <div class="mini-card stack-sm">
-            <h4>人才端演示账号</h4>
-            <p class="muted">手机号：13800000002</p>
-            <p class="muted">密码：demo123456</p>
-          </div>
-        </div>
-      </div>
-
       <div v-if="authState.user" class="result-card stack-sm">
         <span class="eyebrow">当前登录中</span>
         <h3>{{ authState.user.displayName }}</h3>
@@ -70,7 +54,6 @@
           <button class="button-primary" type="submit" :disabled="authState.loading">
             {{ authState.loading ? '登录中...' : '登录并进入' }}
           </button>
-          <button class="button-secondary" type="button" @click="fillDemoAccount">填入演示账号</button>
         </div>
       </form>
 
@@ -153,17 +136,6 @@ watch(
   }
 );
 
-function fillDemoAccount() {
-  if (audience.value === 'enterprise') {
-    mobile.value = '13800000001';
-    password.value = 'demo123456';
-    return;
-  }
-
-  mobile.value = '13800000002';
-  password.value = 'demo123456';
-}
-
 function targetRoute(user) {
   if (props.redirect) {
     return props.redirect;
@@ -201,7 +173,7 @@ async function handleLogin() {
 
   if (!result?.success) {
     resultTitle.value = '登录失败';
-    resultMessage.value = result?.message || '请确认账号、角色入口和密码是否一致。';
+    resultMessage.value = result?.requestError || result?.message || '请确认账号、角色入口和密码是否一致。';
     return;
   }
 

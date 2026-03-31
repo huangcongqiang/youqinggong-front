@@ -1,19 +1,14 @@
 <template>
-  <section class="page-stack onboarding-page" v-if="checklists">
-    <article class="hero-card">
-      <SectionTitle
-        eyebrow="入驻申请"
-        title="完成基础入驻后，再进入后续业务流程。"
-        description="企业端和人才端都从这里开始。"
-        tag="h1"
-      />
+  <section class="page-stack onboarding-page">
+    <article class="glass-panel stack-sm onboarding-shell onboarding-shell-hero">
+      <SectionTitle eyebrow="入驻" :title="mode === 'business' ? '企业入驻' : '人才入驻'" tag="h1" />
       <div class="chip-row">
         <router-link
           class="button-secondary"
           :class="{ 'is-active-tab': mode === 'business' }"
           to="/enterprise/onboarding"
         >
-          企业 / 虚拟企业
+          企业入驻
         </router-link>
         <router-link
           class="button-secondary"
@@ -28,9 +23,9 @@
     <template v-if="mode === 'business'">
       <article class="glass-panel stack-md onboarding-shell">
         <div class="panel-header panel-header-top">
-          <div class="stack-sm">
-            <span class="eyebrow">企业端步骤引导</span>
-            <h2 class="page-hero-title">按步骤完成企业入驻。</h2>
+          <div>
+            <span class="eyebrow">第 {{ businessStep }} 步</span>
+            <h2>{{ activeBusinessStep.title }}</h2>
           </div>
         </div>
 
@@ -44,20 +39,24 @@
             @click="jumpBusinessStep(step.id)"
           >
             <span class="publish-stepper-index">{{ step.id }}</span>
-            <div>
-              <strong>{{ step.title }}</strong>
-              <small>{{ step.note }}</small>
-            </div>
+            <strong>{{ step.title }}</strong>
           </button>
         </div>
 
+        <article class="mini-card stack-sm onboarding-step-summary">
+          <div class="title-line">
+            <div>
+              <span class="eyebrow">当前办理</span>
+              <h3>{{ activeBusinessStep.title }}</h3>
+            </div>
+            <span class="soft-pill">{{ businessStep }} / {{ businessSteps.length }}</span>
+          </div>
+          <p class="muted">{{ activeBusinessStep.note }}</p>
+        </article>
+
         <article class="mini-card stack-md onboarding-step-panel">
           <template v-if="businessStep === 1">
-            <SectionTitle
-              eyebrow="第 1 步"
-              title="先确认企业身份"
-              description="确认企业名称和入驻类型。"
-            />
+            <SectionTitle eyebrow="第 1 步" title="基本信息" />
 
             <div class="form-field">
               <label for="org-name">企业名称</label>
@@ -70,15 +69,15 @@
             </div>
 
             <div class="form-field">
-              <label for="org-type">入驻类型</label>
+              <label for="org-type">类型</label>
               <select id="org-type" v-model="businessForm.virtualCompany" class="select-input">
                 <option :value="false">企业入驻</option>
-                <option :value="true">个人申请虚拟企业</option>
+                <option :value="true">个人经营者 / 虚拟企业</option>
               </select>
             </div>
 
             <div class="form-field">
-              <label for="project-focus">你主要会发布什么类型的任务</label>
+              <label for="project-focus">任务方向</label>
               <textarea
                 id="project-focus"
                 v-model="businessForm.projectFocus"
@@ -89,11 +88,7 @@
           </template>
 
           <template v-else-if="businessStep === 2">
-            <SectionTitle
-              eyebrow="第 2 步"
-              title="补充联系人和合作方式"
-              description="填写后续联系和合作偏好。"
-            />
+            <SectionTitle eyebrow="第 2 步" title="联系人与偏好" />
 
             <div class="form-field">
               <label for="contact-name">联系人</label>
@@ -106,7 +101,7 @@
             </div>
 
             <div class="form-field">
-              <label for="contact-mobile">联系电话</label>
+              <label for="contact-mobile">手机号</label>
               <input
                 id="contact-mobile"
                 v-model="businessForm.contactMobile"
@@ -116,7 +111,7 @@
             </div>
 
             <div class="form-field">
-              <label for="contact-role">联系人身份</label>
+              <label for="contact-role">职位</label>
               <input
                 id="contact-role"
                 v-model="businessForm.contactRole"
@@ -139,16 +134,11 @@
                   {{ option }}
                 </button>
               </div>
-              <p class="muted">至少选择 1 项，后续平台会按这些偏好进行匹配与协作提示。</p>
             </div>
           </template>
 
           <template v-else-if="businessStep === 3">
-            <SectionTitle
-              eyebrow="第 3 步"
-              title="确认这次入驻信息"
-              description="确认当前填写内容无误。"
-            />
+            <SectionTitle eyebrow="第 3 步" title="确认信息" />
 
             <div class="onboarding-summary-list">
               <div class="onboarding-summary-row">
@@ -156,7 +146,7 @@
                 <strong>{{ businessForm.organizationName || '待填写' }}</strong>
               </div>
               <div class="onboarding-summary-row">
-                <span>入驻类型</span>
+                <span>类型</span>
                 <strong>{{ businessForm.virtualCompany ? '虚拟企业' : '企业入驻' }}</strong>
               </div>
               <div class="onboarding-summary-row">
@@ -164,11 +154,11 @@
                 <strong>{{ businessForm.contactName || '待填写' }}</strong>
               </div>
               <div class="onboarding-summary-row">
-                <span>联系电话</span>
+                <span>手机号</span>
                 <strong>{{ businessForm.contactMobile || '待填写' }}</strong>
               </div>
               <div class="onboarding-summary-row">
-                <span>联系人身份</span>
+                <span>职位</span>
                 <strong>{{ businessForm.contactRole || '待填写' }}</strong>
               </div>
               <div class="onboarding-summary-row">
@@ -176,44 +166,12 @@
                 <strong>{{ businessPreferenceSummary }}</strong>
               </div>
             </div>
-
-            <article class="result-card stack-sm">
-              <span class="eyebrow">拟提交资料</span>
-              <div class="tag-row">
-                <span v-for="item in businessMaterialChecklist" :key="item" class="soft-pill">{{ item }}</span>
-              </div>
-              <div class="tag-row">
-                <span
-                  v-for="item in businessForm.collaborationPreferences"
-                  :key="item"
-                  class="soft-pill"
-                >
-                  {{ item }}
-                </span>
-              </div>
-            </article>
           </template>
 
           <template v-else>
-            <SectionTitle
-              eyebrow="第 4 步"
-              title="最后再决定是否现在上传资料"
-              description="可现在上传，也可稍后补交。"
-            />
+            <SectionTitle eyebrow="第 4 步" title="资料上传" />
 
             <article class="mini-card stack-md onboarding-upload-box">
-              <div class="panel-header">
-                <div>
-                  <span class="eyebrow">建议上传</span>
-                  <h4>资料上传清单</h4>
-                </div>
-                <span class="soft-pill">{{ businessForm.virtualCompany ? '虚拟企业路径' : '企业路径' }}</span>
-              </div>
-
-              <ul class="dashboard-detail-list">
-                <li v-for="item in businessMaterialChecklist" :key="item">{{ item }}</li>
-              </ul>
-
               <input
                 ref="businessFileInput"
                 id="business-files"
@@ -225,31 +183,35 @@
 
               <div class="toolbar onboarding-upload-toolbar">
                 <button class="button-secondary" type="button" @click="openBusinessFilePicker">
-                  选择资料文件
+                  选择文件
                 </button>
                 <span class="soft-pill">
                   {{ businessSelectedFiles.length ? `已选 ${businessSelectedFiles.length} 个文件` : '暂未选择文件' }}
                 </span>
               </div>
-              <p class="muted onboarding-upload-note">可上传图片、PDF、扫描件等常见资料。</p>
 
               <div v-if="businessSelectedFiles.length" class="onboarding-upload-list">
                 <span v-for="file in businessSelectedFiles" :key="file.name" class="soft-pill">
                   {{ file.name }} · {{ formatFileSize(file.size) }}
                 </span>
               </div>
-            </article>
-
-            <article class="result-card stack-sm onboarding-defer-card">
-              <span class="eyebrow">可选路径</span>
-              <h3>先提交基础信息，后续在工作台补交</h3>
 
               <label class="onboarding-inline-check">
                 <input :checked="businessDeferredMaterials" type="checkbox" @change="handleDeferredToggle($event.target.checked)" />
-                <span>这次先不上传文件，后续在企业工作台补交材料</span>
+                <span>这次先不上传，后续在工作台补交</span>
               </label>
             </article>
           </template>
+        </article>
+
+        <article v-if="submitResult" class="result-card stack-sm">
+          <h3>{{ resultTitle }}</h3>
+          <p class="muted">{{ submitResult.requestError || submitResult.nextStep }}</p>
+          <div v-if="!isFailedResult(submitResult)" class="toolbar">
+            <router-link class="button-primary" :to="resultActionRoute">
+              {{ submitResult.deferMaterials ? '补交材料' : '去工作台' }}
+            </router-link>
+          </div>
         </article>
 
         <div class="publish-step-actions">
@@ -274,74 +236,21 @@
             :disabled="!canSubmitBusiness || businessSubmitting"
             @click="handleBusinessSubmit"
           >
-            {{ businessSubmitting ? '提交中...' : businessDeferredMaterials ? '提交基础信息，稍后补交材料' : '提交企业入驻申请' }}
+            {{ businessSubmitting ? '提交中...' : businessDeferredMaterials ? '先提交，后补' : '提交' }}
           </button>
 
-          <button class="button-secondary" type="button" @click="resetBusinessForm">重新填写</button>
-        </div>
-      </article>
-
-      <article class="glass-panel stack-md">
-        <SectionTitle
-          eyebrow="资料清单"
-          title="审核会查看这些内容。"
-        />
-
-        <div v-if="authState.user" class="result-card stack-sm">
-          <span class="eyebrow">当前账号</span>
-          <h3>{{ authState.user.displayName }}</h3>
-          <p class="muted">{{ authState.user.mobile }} · 企业端账号</p>
-          <div class="tag-row">
-            <span class="soft-pill">资料状态：{{ onboardingStatusText(authState.user.onboardingStatus) }}</span>
-            <span class="soft-pill">审核状态：{{ approvalStatusText(authState.user.approvalStatus) }}</span>
-          </div>
-        </div>
-
-        <div class="stack-sm">
-          <div v-for="(item, index) in businessMaterialChecklist" :key="item" class="list-row">
-            <div class="title-line">
-              <span class="badge-number">{{ index + 1 }}</span>
-              <div>
-                <h4>{{ item }}</h4>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="submitResult" class="result-card stack-sm">
-          <span class="eyebrow">提交结果</span>
-          <h3>{{ resultTitle }}</h3>
-          <p class="muted">{{ submitResult.nextStep }}</p>
-          <div class="tag-row">
-            <span v-for="(value, key) in resultSummary" :key="key" class="soft-pill">{{ key }}：{{ value }}</span>
-          </div>
-          <div class="toolbar">
-            <router-link
-              v-if="submitResult.deferMaterials"
-              class="button-primary"
-              :to="resultActionRoute"
-            >
-              去企业工作台补交
-            </router-link>
-            <router-link
-              v-else
-              class="button-primary"
-              :to="resultActionRoute"
-            >
-              去企业工作台查看状态
-            </router-link>
-          </div>
+          <button class="button-secondary" type="button" @click="resetBusinessForm">重置</button>
         </div>
       </article>
     </template>
 
     <template v-else>
-      <article class="glass-panel stack-md">
-        <SectionTitle
-          eyebrow="人才端入驻"
-          title="先补资料、技能和作品，再进入接单和推荐。"
-          description="先完成基础资料，再进入任务与协作。"
-        />
+      <article class="glass-panel stack-md onboarding-shell">
+        <article class="mini-card stack-sm onboarding-talent-hero">
+          <span class="eyebrow">当前办理</span>
+          <h3>先填身份、技能和作品。</h3>
+          <p class="muted">只保留会影响审核和匹配的关键信息。</p>
+        </article>
 
         <form class="stack-md" @submit.prevent="handleTalentSubmit">
           <div class="form-field">
@@ -360,6 +269,7 @@
               class="textarea onboarding-textarea"
               placeholder="用逗号分隔，例如：Vue 3, Java, MySQL, AI Agent"
             ></textarea>
+            <p class="muted onboarding-field-note">只填最能影响匹配的 3 到 6 个关键词即可。</p>
           </div>
           <div class="form-field">
             <label for="portfolio-urls">作品链接</label>
@@ -369,54 +279,21 @@
               class="textarea onboarding-textarea"
               placeholder="每行一个作品链接或作品说明"
             ></textarea>
+            <p class="muted onboarding-field-note">可以先放链接或一句作品说明，后续再补完整材料。</p>
           </div>
-          <div class="form-field">
-            <label for="virtual-company">虚拟企业申请</label>
-            <select id="virtual-company" v-model="talentForm.applyVirtualCompany" class="select-input">
-              <option :value="false">否</option>
-              <option :value="true">是</option>
-            </select>
-          </div>
-          <div class="toolbar">
-            <button class="button-primary" type="submit">提交人才入驻</button>
+          <div class="toolbar onboarding-form-actions">
+            <button class="button-primary" type="submit">提交</button>
             <button class="button-secondary" type="button" @click="resetTalentForm">重置</button>
           </div>
         </form>
-      </article>
-
-      <article class="glass-panel stack-md">
-        <SectionTitle
-          eyebrow="资料清单"
-          title="平台会重点查看这些内容。"
-        />
-
-        <div v-if="authState.user" class="result-card stack-sm">
-          <span class="eyebrow">当前账号</span>
-          <h3>{{ authState.user.displayName }}</h3>
-          <p class="muted">{{ authState.user.mobile }} · 人才端账号</p>
-          <div class="tag-row">
-            <span class="soft-pill">资料状态：{{ onboardingStatusText(authState.user.onboardingStatus) }}</span>
-            <span class="soft-pill">审核状态：{{ approvalStatusText(authState.user.approvalStatus) }}</span>
-          </div>
-        </div>
-
-        <div class="stack-sm">
-          <div v-for="(item, index) in checklistItems" :key="item" class="list-row">
-            <div class="title-line">
-              <span class="badge-number">{{ index + 1 }}</span>
-              <div>
-                <h4>{{ item }}</h4>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div v-if="submitResult" class="result-card stack-sm">
-          <span class="eyebrow">提交结果</span>
           <h3>{{ resultTitle }}</h3>
-          <p class="muted">{{ submitResult.nextStep }}</p>
-          <div class="tag-row">
-            <span v-for="(value, key) in resultSummary" :key="key" class="soft-pill">{{ key }}：{{ value }}</span>
+          <p class="muted">{{ submitResult.requestError || submitResult.nextStep }}</p>
+          <div v-if="!isFailedResult(submitResult)" class="toolbar">
+            <router-link class="button-primary" :to="resultActionRoute">
+              去工作台
+            </router-link>
           </div>
         </div>
       </article>
@@ -428,7 +305,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SectionTitle from '../components/SectionTitle.vue';
-import { getOnboardingChecklists, submitBusinessOnboarding, submitTalentOnboarding } from '../services/api';
+import { submitBusinessOnboarding, submitTalentOnboarding } from '../services/api';
 import { refreshAuthSession, useAuthState } from '../stores/auth';
 import { roleRouteMap } from '../utils/roleRoutes';
 
@@ -436,7 +313,6 @@ const route = useRoute();
 const router = useRouter();
 const authState = useAuthState();
 const mode = ref('business');
-const checklists = ref(null);
 const submitResult = ref(null);
 const businessStep = ref(1);
 const businessDeferredMaterials = ref(false);
@@ -454,10 +330,10 @@ const businessPreferenceOptions = [
 ];
 
 const businessSteps = [
-  { id: 1, title: '企业身份', note: '先确认企业名称与入驻类型' },
-  { id: 2, title: '联系人', note: '补充沟通方式与合作偏好' },
-  { id: 3, title: '确认信息', note: '确认当前入驻内容无误' },
-  { id: 4, title: '资料上传', note: '最后决定现在上传还是稍后补交' }
+  { id: 1, title: '基本信息', note: '先确认企业名称、类型和方向。' },
+  { id: 2, title: '联系人', note: '补齐联系人和合作偏好。' },
+  { id: 3, title: '确认信息', note: '再看一遍核心内容。' },
+  { id: 4, title: '资料上传', note: '材料可现在上传，也可后补。' }
 ];
 
 const businessForm = ref({
@@ -472,43 +348,29 @@ const businessForm = ref({
 
 const talentForm = ref({
   displayName: '',
-  headline: '',
-  applyVirtualCompany: false
+  headline: ''
 });
 const talentSkillsInput = ref('');
 const talentPortfolioInput = ref('');
 
-const checklistItems = computed(() => (mode.value === 'business' ? checklists.value.business : checklists.value.talent));
+const activeBusinessStep = computed(() => businessSteps.find((step) => step.id === businessStep.value) || businessSteps[0]);
 
 const resultTitle = computed(() => {
-  if (mode.value === 'business') {
-    return submitResult.value?.deferMaterials ? '企业基础信息已提交' : '企业入驻申请已提交';
+  if (!submitResult.value) {
+    return '';
   }
-  return '人才入驻申请已提交';
+  if (isFailedResult(submitResult.value)) {
+    return '提交失败';
+  }
+  if (mode.value === 'business') {
+    return submitResult.value?.deferMaterials ? '基础信息已提交' : '入驻申请已提交';
+  }
+  return '入驻申请已提交';
 });
 
 const resultActionRoute = computed(() =>
   mode.value === 'business' ? roleRouteMap.enterprise.home : roleRouteMap.talent.home
 );
-
-const resultSummary = computed(() => {
-  if (!submitResult.value) {
-    return {};
-  }
-  if (mode.value === 'business') {
-    return {
-      企业: submitResult.value.organizationName,
-      联系人: submitResult.value.contactName,
-      状态: onboardingResultStatusText(submitResult.value.status),
-      资料: materialStatusText(submitResult.value.materialStatus)
-    };
-  }
-  return {
-    人才: submitResult.value.displayName,
-    方向: submitResult.value.headline,
-    状态: onboardingResultStatusText(submitResult.value.status)
-  };
-});
 
 const businessMaterialChecklist = computed(() => {
   if (businessForm.value.virtualCompany) {
@@ -542,71 +404,6 @@ const isBusinessStepValid = computed(() => {
 });
 
 const canSubmitBusiness = computed(() => isBusinessStepValid.value);
-
-function onboardingStatusText(status) {
-  switch (status) {
-    case 'SUBMITTED':
-      return '已提交';
-    case 'MATERIALS_PENDING':
-      return '待补材料';
-    case 'NOT_SUBMITTED':
-    case '':
-    case null:
-    case undefined:
-      return '未提交';
-    default:
-      return '处理中';
-  }
-}
-
-function approvalStatusText(status) {
-  switch (status) {
-    case 'APPROVED':
-      return '已通过';
-    case 'PENDING_REVIEW':
-      return '审核中';
-    case 'WAITING_MATERIALS':
-      return '待补材料';
-    case 'REJECTED':
-      return '未通过';
-    case 'UNREVIEWED':
-    case '':
-    case null:
-    case undefined:
-      return '未开始';
-    default:
-      return '处理中';
-  }
-}
-
-function onboardingResultStatusText(status) {
-  switch (status) {
-    case 'PENDING_REVIEW':
-      return '已提交，待审核';
-    case 'PENDING_MATERIALS':
-      return '已提交，待补材料';
-    case 'APPROVED':
-      return '已通过';
-    default:
-      return '处理中';
-  }
-}
-
-function materialStatusText(status) {
-  switch (status) {
-    case 'UPLOADED':
-      return '已上传';
-    case 'WAITING_UPLOAD':
-      return '待上传';
-    case 'NOT_PROVIDED':
-    case '':
-    case null:
-    case undefined:
-      return '未提供';
-    default:
-      return '处理中';
-  }
-}
 
 function syncModeFromRoute() {
   mode.value = route.meta.onboardingMode || 'business';
@@ -644,8 +441,7 @@ function prefillFormFromUser() {
 
   talentForm.value = {
     displayName: user.displayName || '',
-    headline: user.headline || '',
-    applyVirtualCompany: false
+    headline: user.headline || ''
   };
 }
 
@@ -670,8 +466,7 @@ function resetBusinessForm() {
 function resetTalentForm() {
   talentForm.value = {
     displayName: '',
-    headline: '',
-    applyVirtualCompany: false
+    headline: ''
   };
   talentSkillsInput.value = '';
   talentPortfolioInput.value = '';
@@ -748,6 +543,10 @@ function formatFileSize(size) {
   return `${size} B`;
 }
 
+function isFailedResult(result) {
+  return Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED');
+}
+
 async function handleBusinessSubmit() {
   if (businessSubmitting.value) {
     return;
@@ -767,6 +566,9 @@ async function handleBusinessSubmit() {
         size: file.size || 0
       }))
     });
+    if (isFailedResult(submitResult.value)) {
+      return;
+    }
     await refreshAuthSession();
     await router.push(submitResult.value?.nextRoute || roleRouteMap.enterprise.home);
   } finally {
@@ -786,14 +588,57 @@ async function handleTalentSubmit() {
       .map((item) => item.trim())
       .filter(Boolean)
   });
+  if (isFailedResult(submitResult.value)) {
+    return;
+  }
   await refreshAuthSession();
 }
 
-onMounted(async () => {
+onMounted(() => {
   syncModeFromRoute();
-  checklists.value = await getOnboardingChecklists();
 });
 
 watch(() => route.meta.onboardingMode, syncModeFromRoute);
 watch(() => authState.user, prefillFormFromUser, { deep: true });
 </script>
+
+<style scoped>
+.onboarding-page {
+  gap: 12px;
+}
+
+.onboarding-shell-hero {
+  padding: 14px;
+}
+
+.onboarding-step-summary,
+.onboarding-talent-hero {
+  border: 1px solid rgba(120, 190, 255, 0.14);
+  background:
+    linear-gradient(180deg, rgba(9, 18, 33, 0.88), rgba(9, 17, 30, 0.94)),
+    radial-gradient(circle at top right, rgba(57, 196, 255, 0.08), transparent 34%);
+}
+
+.onboarding-step-summary h3,
+.onboarding-talent-hero h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+}
+
+.onboarding-talent-hero .muted {
+  margin: 0;
+  font-size: 12px;
+}
+
+.onboarding-field-note {
+  margin: 0;
+  font-size: 11px;
+}
+
+.onboarding-form-actions {
+  gap: 10px;
+}
+</style>

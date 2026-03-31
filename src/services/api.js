@@ -1,120 +1,46 @@
-import {
-  aiPublishPresetMockData,
-  mockAnalyzeTaskBrief,
-  buildWorkspaceFallback,
-  buildWorkspaceFeedbackFallback,
-  webMockData
-} from '../data/mock';
 import { roleRouteMap } from '../utils/roleRoutes';
+import { normalizeWorkspacePayload } from './workspacePayload.js';
+import {
+  clearStoredAuthSession,
+  getStoredAuthExpiresAt,
+  getStoredAuthToken,
+  getStoredAuthUser,
+  hasFreshStoredAuthSession,
+  isAuthSessionExpired,
+  persistAuthSession
+} from './authSession.js';
+import { attachRequestError, buildAuthHeaders, readResponsePayload } from './httpClient.js';
+import { resolveApiBase } from './apiBase.js';
+import { uploadTaskAttachmentRuntime } from './uploadWorkflow.js';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
-const AUTH_TOKEN_KEY = 'youqinggong.auth.token';
-const AUTH_USER_KEY = 'youqinggong.auth.user';
-const AUTH_EXPIRES_KEY = 'youqinggong.auth.expiresAt';
+export {
+  clearStoredAuthSession,
+  getStoredAuthExpiresAt,
+  getStoredAuthToken,
+  getStoredAuthUser,
+  hasFreshStoredAuthSession,
+  isAuthSessionExpired,
+  persistAuthSession
+} from './authSession.js';
 
-function hasStorage() {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-}
-
-export function getStoredAuthToken() {
-  if (!hasStorage()) {
-    return '';
-  }
-  return window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
-}
-
-export function getStoredAuthUser() {
-  if (!hasStorage()) {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(AUTH_USER_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    return null;
-  }
-}
-
-export function getStoredAuthExpiresAt() {
-  if (!hasStorage()) {
-    return '';
-  }
-  return window.localStorage.getItem(AUTH_EXPIRES_KEY) || '';
-}
-
-export function isAuthSessionExpired(expiresAt) {
-  if (!expiresAt) {
-    return false;
-  }
-  const expiresAtMs = Date.parse(expiresAt);
-  if (Number.isNaN(expiresAtMs)) {
-    return false;
-  }
-  return expiresAtMs <= Date.now();
-}
-
-export function hasFreshStoredAuthSession() {
-  const token = getStoredAuthToken();
-  if (!token) {
-    return false;
-  }
-  return !isAuthSessionExpired(getStoredAuthExpiresAt());
-}
-
-export function persistAuthSession(token, user, expiresAt) {
-  if (!hasStorage()) {
-    return;
-  }
-
-  if (token) {
-    window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-  }
-
-  if (user) {
-    window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
-  }
-
-  if (expiresAt) {
-    window.localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt);
-  }
-}
-
-export function clearStoredAuthSession() {
-  if (!hasStorage()) {
-    return;
-  }
-
-  window.localStorage.removeItem(AUTH_TOKEN_KEY);
-  window.localStorage.removeItem(AUTH_USER_KEY);
-  window.localStorage.removeItem(AUTH_EXPIRES_KEY);
-}
-
-function buildHeaders(extraHeaders = {}) {
-  const headers = { ...extraHeaders };
-  const token = getStoredAuthToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
-}
+const API_BASE = resolveApiBase(import.meta.env || {}, typeof window === 'undefined' ? globalThis : window);
 
 async function readJson(path, fallback, options) {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
       ...options,
-      headers: buildHeaders(options?.headers || {})
+      headers: buildAuthHeaders(getStoredAuthToken, options?.headers || {})
     });
+    const payload = await readResponsePayload(response);
     if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
+      const error = new Error(`Request failed: ${response.status}`);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
     }
-    return await response.json();
+    return payload;
   } catch (error) {
-    return fallback;
+    return attachRequestError(fallback, error);
   }
 }
 
@@ -122,23 +48,269 @@ async function writeJson(path, fallback, body) {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
       method: 'POST',
-      headers: buildHeaders({
+      headers: buildAuthHeaders(getStoredAuthToken, {
         'Content-Type': 'application/json'
       }),
       body: JSON.stringify(body)
     });
+    const payload = await readResponsePayload(response);
     if (!response.ok) {
-      throw new Error(`Request failed: ${response.status}`);
+      const error = new Error(`Request failed: ${response.status}`);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
     }
-    return await response.json();
+    return payload;
   } catch (error) {
-    return typeof fallback === 'function' ? fallback() : fallback;
+    return attachRequestError(fallback, error);
   }
+}
+
+function buildMutationFailure(nextStep, state = {}) {
+  return {
+    success: false,
+    status: 'FAILED',
+    nextStep,
+    ...state
+  };
+}
+
+function buildEmptyLandingData() {
+  return {
+    badges: [],
+    entryNotes: [],
+    metrics: [],
+    pillars: [],
+    stages: [],
+    roles: [],
+    rolePaths: [],
+    cases: [],
+    contacts: [],
+    differentiators: []
+  };
+}
+
+function buildEmptyTaskMarketplace() {
+  return {
+    summary: {
+      title: '任务广场',
+      description: '当前没有可展示的真实任务，稍后再回来看看。'
+    },
+    filters: ['全部'],
+    filterGroups: {
+      tag: ['全部'],
+      period: ['全部'],
+      budget: ['全部'],
+      companyRating: ['全部']
+    },
+    metrics: [
+      { label: '当前任务总数', value: '0', note: '这里只展示仍在招募中的真实任务。' }
+    ],
+    items: []
+  };
+}
+
+function buildEmptyTalentMarketplace() {
+  return {
+    summary: {
+      title: '人才广场',
+      description: '当前没有可展示的真实人才资料，稍后再回来看看。'
+    },
+    filters: ['全部'],
+    metrics: [],
+    items: []
+  };
+}
+
+function buildEmptyTalentDetail(slug = '') {
+  return {
+    slug,
+    name: '暂无资料',
+    role: '待补充',
+    location: '',
+    score: '',
+    completionRate: '',
+    responseTime: '',
+    intro: '当前没有读取到这位人才的真实资料。',
+    headlineTags: [],
+    strengths: [],
+    services: [],
+    portfolio: [],
+    reviews: [],
+    availability: [],
+    process: []
+  };
+}
+
+function buildEmptyWorkspaceState(taskId = '') {
+  return {
+    taskOptions: [],
+    summary: {
+      taskId: taskId || '',
+      taskName: '',
+      business: '',
+      businessUserId: '',
+      talent: '',
+      talentUserId: '',
+      range: '',
+      status: '待开始'
+    },
+    taskDetail: null,
+    focus: '当前还没有可以展示的真实协作任务。',
+    pulse: [],
+    executionChecklist: [],
+    milestones: [],
+    collaborationNodes: [],
+    progressFeed: [],
+    assetLibrary: [],
+    aiReviewHistory: [],
+    reviewHistory: [],
+    earlyCompletion: {
+      status: '未发起',
+      aiReviewStatus: '',
+      aiReviewSummary: '',
+      aiReviewSuggestions: [],
+      grade: '',
+      payoutRatio: '',
+      gradeNote: '',
+      talentDecisionNote: '',
+      requestNote: ''
+    },
+    cancellationRequest: {
+      status: '未发起',
+      initiatorAudience: '',
+      reason: '',
+      counterpartyDecision: '',
+      counterpartyDecisionNote: ''
+    },
+    supportOptions: [],
+    acceptance: [],
+    celebrationBanner: null
+  };
+}
+
+function buildEmptyTaskClosure(taskId = '') {
+  return {
+    summary: {
+      taskId,
+      title: '',
+      status: '待验收',
+      nextStep: '',
+      acceptedAt: '',
+      business: '',
+      talent: '',
+      businessUserId: '',
+      talentUserId: '',
+      deliveryGrade: '',
+      deliveryPayoutRatio: '',
+      settlementStatus: '',
+      settledAt: '',
+      disputeStatus: '',
+      disputeOpenedAt: ''
+    },
+    earlyCompletion: {
+      status: '未发起',
+      grade: '',
+      payoutRatio: '',
+      gradeNote: '',
+      aiReviewSummary: '',
+      aiReviewSuggestions: []
+    },
+    acceptance: {
+      status: '待验收',
+      note: '',
+      acceptedAt: '',
+      accepterUserId: ''
+    },
+    claimSummary: {},
+    invoiceSummary: {},
+    reconciliationSummary: {},
+    settlementSummary: {},
+    disputeSummary: {},
+    metrics: [],
+    timeline: [],
+    reviewSummary: [],
+    reviewHistory: [],
+    creditImpact: []
+  };
+}
+
+function buildEmptyAiPublishPresets() {
+  const authUser = getStoredAuthUser();
+  return {
+    defaultPublisherUserId: authUser?.platformUserId || '',
+    defaultOrganizationId: authUser?.organizationId || '',
+    items: []
+  };
+}
+
+function buildEmptyOrderRecords(audience = 'enterprise', tab = 'all') {
+  return {
+    role: audience,
+    title: audience === 'talent' ? '接单记录' : '发单记录',
+    summary: {
+      title: audience === 'talent' ? '接单记录' : '发单记录',
+      description: audience === 'talent'
+        ? '按接单、执行和验收节奏查看每一单合作。'
+        : '按发单、执行和结算节奏查看每一单合作。',
+      total: 0,
+      ongoing: 0,
+      completed: 0,
+      activeTab: tab,
+      latestTaskId: '',
+      latestTitle: '',
+      latestUpdatedAt: ''
+    },
+    tabs: [
+      { key: 'all', label: '全部', count: 0, active: tab === 'all' },
+      { key: 'ongoing', label: '进行中', count: 0, active: tab === 'ongoing' },
+      { key: 'completed', label: '已完成', count: 0, active: tab === 'completed' }
+    ],
+    activeTab: tab,
+    items: []
+  };
+}
+
+function buildEmptyOrderRecordDetail(audience = 'enterprise', taskId = '') {
+  return {
+    role: audience,
+    title: audience === 'talent' ? '接单记录' : '发单记录',
+    summary: {
+      title: '',
+      taskId,
+      statusGroup: '',
+      stage: '',
+      amountLabel: '',
+      amountValue: '',
+      ratingLabel: '',
+      ratingValue: '',
+      updatedAt: '',
+      route: ''
+    },
+    record: null
+  };
+}
+
+function buildEmptyAnalysisResult(brief = '') {
+  return {
+    brief,
+    title: '',
+    provider: '',
+    model: '',
+    modules: [],
+    tags: [],
+    recommendations: [],
+    matchingPreview: [],
+    schedule: {
+      total: '',
+      risk: ''
+    }
+  };
 }
 
 const onboardingFallback = {
   business: ['上传营业执照或企业证明', '补充联系人与合作偏好', '等待后台审核通过后再发布任务'],
-  talent: ['填写简介、技能和作品', '设置接单日历', '若申请虚拟企业则补身份证等实名材料']
+  talent: ['填写简介、技能和作品', '补充作品与服务方向', '设置接单日历']
 };
 
 function buildEmptyTaskRoomFallback(roomKey = '') {
@@ -215,7 +387,7 @@ function buildBusinessFallback() {
     onboardingChecklist: [
       '上传企业营业执照 / 品牌证明',
       '上传项目联系人与合作偏好',
-      '个人入驻时补充身份证、实名信息与虚拟企业申请',
+      '若走个人经营者 / 虚拟企业路径，则补充身份证与实名材料',
       '通过后台审核后启用发布权限与项目沟通权限'
     ],
     sampleBrief: '',
@@ -258,102 +430,39 @@ function buildTaskMarketplaceFallback() {
   return {
     summary: {
       title: '任务广场',
-      description: '当前还没有真实已发布任务，企业发布后会在这里实时出现。'
+      description: '这里展示企业真实发布、仍在招募中的任务。可按标签、工期、预算和企业评级快速筛选。'
     },
-    filters: ['全部', 'AI 产品', '前端开发', '品牌设计', '数据分析', '内容增长'],
+    filters: ['全部'],
+    filterGroups: {
+      tag: ['全部', '官网升级', 'AI 产品', '品牌设计', '内容增长'],
+      period: ['全部', '3天内', '4-7天', '8天以上'],
+      budget: ['全部', '3000以下', '3000-8000', '8000-15000', '15000以上'],
+      companyRating: ['全部', 'S级', 'A级', 'B级']
+    },
     metrics: [
-      { label: '当前任务总数', value: '0', note: '这里不再展示预置演示任务。' },
-      { label: '待选人才', value: '0', note: '企业发布并确认拆解后会进入待选人才阶段。' },
-      { label: '协商进行中', value: '0', note: '聊天确认后的任务会同步到这里。' },
-      { label: '最近新增', value: '0', note: '新任务会自动排在最前面。' }
+      { label: '当前任务总数', value: '0', note: '这里只展示仍在招募中的真实任务，不再混入企业侧流程指标。' }
     ],
     items: []
   };
 }
 
 function buildTalentCalendarFallback(userId = '2') {
-  const items = (webMockData.talent.calendar || []).map((item, index) => ({
-    date: `2026-03-${String(21 + index).padStart(2, '0')}`,
-    day: item.day,
-    state: item.state,
-    note: item.note
-  }));
-  const openDays = items.filter((item) => item.state === 'open').length;
-  const busyDays = items.filter((item) => item.state === 'busy').length;
-  const closedDays = items.filter((item) => item.state === 'closed').length;
   return {
     userId: String(userId),
     summary: {
-      range: '03/21 - 03/27',
-      openDays: String(openDays),
-      busyDays: String(busyDays),
-      closedDays: String(closedDays),
-      headline: openDays > 0 ? `本周剩余可接单 ${openDays} 天` : '本周档期已基本排满'
+      range: '',
+      openDays: '0',
+      busyDays: '0',
+      closedDays: '0',
+      headline: '当前还没有同步真实档期'
     },
-    items
+    items: []
   };
 }
 
 function normalizeWorkspaceData(rawData, taskId = '') {
-  const fallback = buildWorkspaceFallback(taskId || rawData?.summary?.taskId || '');
-  const raw = rawData && typeof rawData === 'object' ? rawData : null;
-
-  if (!raw) {
-    return fallback;
-  }
-
-  const requestedTaskId = String(taskId || '').trim();
-  const rawTaskId = String(raw?.summary?.taskId || raw?.taskDetail?.taskId || '').trim();
-  const hasTaskOptions = Object.prototype.hasOwnProperty.call(raw, 'taskOptions');
-  const hasCollaborationNodes = Object.prototype.hasOwnProperty.call(raw, 'collaborationNodes');
-  const hasEnterpriseCollections = hasTaskOptions || hasCollaborationNodes;
-
-  if (requestedTaskId && rawTaskId && rawTaskId !== requestedTaskId && !hasEnterpriseCollections) {
-    return buildWorkspaceFallback(requestedTaskId);
-  }
-
-  const mergedTaskDetail = Object.prototype.hasOwnProperty.call(raw, 'taskDetail') ? raw.taskDetail : fallback.taskDetail;
-  const mergedTaskOptions = hasTaskOptions ? (Array.isArray(raw.taskOptions) ? raw.taskOptions : []) : fallback.taskOptions;
-  const mergedNodes = hasCollaborationNodes
-    ? (Array.isArray(raw.collaborationNodes) ? raw.collaborationNodes : [])
-    : fallback.collaborationNodes;
-
-  return {
-    ...fallback,
-    ...raw,
-    summary: {
-      ...fallback.summary,
-      ...(raw.summary || {})
-    },
-    taskDetail: mergedTaskDetail,
-    taskOptions: mergedTaskOptions,
-    collaborationNodes: mergedNodes,
-    focus: raw.focus || fallback.focus,
-    pulse: Object.prototype.hasOwnProperty.call(raw, 'pulse')
-      ? (Array.isArray(raw.pulse) ? raw.pulse : [])
-      : fallback.pulse,
-    executionChecklist: Object.prototype.hasOwnProperty.call(raw, 'executionChecklist')
-      ? (Array.isArray(raw.executionChecklist) ? raw.executionChecklist : [])
-      : fallback.executionChecklist,
-    progressFeed: Object.prototype.hasOwnProperty.call(raw, 'progressFeed')
-      ? (Array.isArray(raw.progressFeed) ? raw.progressFeed : [])
-      : fallback.progressFeed,
-    assetLibrary: Object.prototype.hasOwnProperty.call(raw, 'assetLibrary')
-      ? (Array.isArray(raw.assetLibrary) ? raw.assetLibrary : [])
-      : fallback.assetLibrary,
-    aiReviewHistory: Object.prototype.hasOwnProperty.call(raw, 'aiReviewHistory')
-      ? (Array.isArray(raw.aiReviewHistory) ? raw.aiReviewHistory : [])
-      : fallback.aiReviewHistory,
-    reviewHistory: Object.prototype.hasOwnProperty.call(raw, 'reviewHistory')
-      ? (Array.isArray(raw.reviewHistory) ? raw.reviewHistory : [])
-      : fallback.reviewHistory,
-    supportOptions: Object.prototype.hasOwnProperty.call(raw, 'supportOptions')
-      ? (Array.isArray(raw.supportOptions) ? raw.supportOptions : [])
-      : fallback.supportOptions,
-    acceptance: Object.prototype.hasOwnProperty.call(raw, 'acceptance')
-      ? (Array.isArray(raw.acceptance) ? raw.acceptance : [])
-      : fallback.acceptance
-  };
+  const fallback = buildEmptyWorkspaceState(taskId || rawData?.summary?.taskId || '');
+  return normalizeWorkspacePayload(rawData, fallback, taskId);
 }
 
 export function registerAuth(payload) {
@@ -383,11 +492,18 @@ export function getAuthMe() {
 }
 
 export function logoutAuth() {
-  return writeJson('/auth/logout', { success: true }, {});
+  return writeJson(
+    '/auth/logout',
+    {
+      success: false,
+      message: '当前退出接口暂不可用，本地会话会继续按退出处理。'
+    },
+    {}
+  );
 }
 
 export function getLandingData() {
-  return readJson('/landing', webMockData.landing);
+  return readJson('/landing', buildEmptyLandingData());
 }
 
 export function getBusinessData() {
@@ -405,15 +521,17 @@ export function getTalentCalendar(userId) {
 export function updateTalentCalendar(payload) {
   return writeJson(
     '/talent/calendar',
-    () => ({
+    () => buildMutationFailure(
+      '当前暂时无法更新真实档期，请稍后再试。',
+      {
       userId: String(payload.userId),
       availableDate: payload.availableDate,
       availabilityStatus: payload.availabilityStatus,
       state: String(payload.availabilityStatus || 'CLOSED').toLowerCase(),
-      note: payload.note || '档期已更新',
-      nextStep: '档期已更新，后续任务匹配和人才展示会优先参考这份日历。',
+      note: payload.note || '',
       calendar: buildTalentCalendarFallback(payload.userId)
-    }),
+      }
+    ),
     payload
   );
 }
@@ -423,23 +541,22 @@ export function getTaskMarketplaceData() {
 }
 
 export function getTalentMarketplaceData() {
-  return readJson('/talents/marketplace', webMockData.talentMarketplace);
+  return readJson('/talents/marketplace', buildEmptyTalentMarketplace());
 }
 
 export function getTalentDetail(slug) {
-  const fallback = webMockData.talentProfiles[slug] || webMockData.talentProfiles['chen-yining'];
-  return readJson(`/talents/${slug}`, fallback);
+  return readJson(`/talents/${slug}`, buildEmptyTalentDetail(slug));
 }
 
 export function getWorkspaceData(taskId = '') {
   const query = taskId ? `?taskId=${encodeURIComponent(taskId)}` : '';
-  return readJson(`/workspace${query}`, buildWorkspaceFallback(taskId), undefined).then((raw) =>
+  return readJson(`/workspace${query}`, buildEmptyWorkspaceState(taskId), undefined).then((raw) =>
     normalizeWorkspaceData(raw, taskId)
   );
 }
 
 export function getTaskClosureData(taskId) {
-  return readJson(`/tasks/${taskId}/closure`, webMockData.taskClosure);
+  return readJson(`/tasks/${taskId}/closure`, buildEmptyTaskClosure(taskId));
 }
 
 export function getOnboardingChecklists() {
@@ -449,21 +566,20 @@ export function getOnboardingChecklists() {
 export function submitBusinessOnboarding(payload) {
   return writeJson(
     '/onboarding/business',
-    () => ({
+    () => buildMutationFailure(
+      '当前暂时无法提交企业入驻，请稍后再试。',
+      {
       organizationName: payload.organizationName,
       contactName: payload.contactName,
       contactMobile: payload.contactMobile,
-      status: payload.deferMaterials ? 'PENDING_MATERIALS' : 'PENDING_REVIEW',
-      materialStatus: payload.deferMaterials ? 'WAITING_UPLOAD' : 'UPLOADED',
+      materialStatus: payload.deferMaterials ? 'WAITING_UPLOAD' : 'PENDING_UPLOAD',
       deferMaterials: Boolean(payload.deferMaterials),
       collaborationPreferences: Array.isArray(payload.collaborationPreferences) ? payload.collaborationPreferences : [],
       materialNames: Array.isArray(payload.materialFiles) ? payload.materialFiles.map((file) => file.name).filter(Boolean) : [],
       materialFiles: Array.isArray(payload.materialFiles) ? payload.materialFiles : [],
-      nextStep: payload.deferMaterials
-        ? '基础信息已提交，你可以后续回企业工作台补交材料，补齐后再进入审核。'
-        : '后台审核企业材料，审核通过后开放发布任务权限。',
-      nextRoute: roleRouteMap.enterprise.home
-    }),
+      nextRoute: ''
+      }
+    ),
     payload
   );
 }
@@ -471,50 +587,61 @@ export function submitBusinessOnboarding(payload) {
 export function submitTalentOnboarding(payload) {
   return writeJson(
     '/onboarding/talent',
-    () => ({
+    () => buildMutationFailure(
+      '当前暂时无法提交人才入驻，请稍后再试。',
+      {
       displayName: payload.displayName,
       headline: payload.headline,
-      status: 'PENDING_REVIEW',
-      nextStep: '平台将校验作品与实名材料，审核通过后开放接单和推荐资格。'
-    }),
+      skills: Array.isArray(payload.skills) ? payload.skills : [],
+      portfolioUrls: Array.isArray(payload.portfolioUrls) ? payload.portfolioUrls : [],
+      nextRoute: ''
+      }
+    ),
     payload
   );
 }
 
 export function publishTask(payload) {
+  const authUser = getStoredAuthUser();
   return writeJson(
     '/tasks/publish',
-    () => ({
+    () => buildMutationFailure(
+      '当前服务不可用，暂时无法生成真实任务，请稍后重试。',
+      {
       taskId: '',
-      publisherUserId: String(payload.publisherUserId || ''),
-      organizationId: String(payload.organizationId || ''),
+      publisherUserId: String(authUser?.platformUserId || payload.publisherUserId || ''),
+      organizationId: String(authUser?.organizationId || payload.organizationId || ''),
       title: payload.title,
       brief: payload.brief,
       source: payload.source,
       budget: payload.budget || '未填写预算',
-      status: '发布失败',
       nextStep: '当前服务不可用，暂时无法生成真实任务，请稍后重试。',
       analysisProvider: '本地分析',
       analysisModel: 'rule-based',
       analysisSummary: {
-        total: '4 个 AI 协同工作日',
-        assumption: '按熟练使用 AI 工具的人才估算，传统一周左右工作量可能被压缩到 1 天左右。',
-        risk: '建议先锁第一阶段交付范围，再进入人才匹配。'
+        total: '',
+        assumption: '',
+        risk: ''
       },
       matchingPreview: []
-    }),
-    payload
+      }
+    ),
+    {
+      title: payload.title,
+      brief: payload.brief,
+      source: payload.source,
+      budget: payload.budget
+    }
   );
 }
 
 export function confirmTaskAnalysis(taskId) {
   return writeJson(
     `/tasks/${taskId}/analysis/confirm`,
-    {
+    buildMutationFailure('当前暂时无法确认分析结果，请稍后重试。', {
       taskId,
-      status: 'MATCHING',
-      nextStep: 'AI 分析已确认，平台开始按技能、评分和档期匹配人才。'
-    },
+      matchingPreview: []
+    }),
     {}
   );
 }
@@ -524,7 +651,7 @@ export function selectTaskAssignment(taskId, talentUserId) {
     `/tasks/${taskId}/assignments/select`,
     () => ({
       taskId,
-      talentUserId,
+      talentUserId: '',
       selectedTalent: null,
       roomKey: '',
       taskRoom: buildEmptyTaskRoomFallback('').taskRoom,
@@ -561,9 +688,10 @@ export function initiateTaskRoom(payload) {
   return writeJson(
     '/messages/task-room/initiate',
     () => ({
-      success: false,
-      roomKey: '',
-      room: buildEmptyTaskRoomFallback(''),
+      ...buildMutationFailure('当前暂时无法建立聊天房间，请稍后再试。', {
+        roomKey: '',
+        room: null
+      }),
       message: '当前暂时无法建立聊天房间，请稍后再试。'
     }),
     payload
@@ -573,7 +701,7 @@ export function initiateTaskRoom(payload) {
 export function sendTaskRoomMessage(roomKey, payload) {
   return writeJson(
     `/messages/task-room/${roomKey}/messages`,
-    () => buildEmptyTaskRoomFallback(roomKey),
+    () => buildMutationFailure('当前暂时无法发送消息，请稍后再试。', { roomKey }),
     payload
   );
 }
@@ -581,7 +709,7 @@ export function sendTaskRoomMessage(roomKey, payload) {
 export function refreshTaskRoomCommunicationRecord(roomKey) {
   return writeJson(
     `/messages/task-room/${roomKey}/communication-record`,
-    () => buildEmptyTaskRoomFallback(roomKey),
+    () => buildMutationFailure('当前暂时无法生成沟通纪要，请稍后再试。', { roomKey }),
     {}
   );
 }
@@ -589,11 +717,7 @@ export function refreshTaskRoomCommunicationRecord(roomKey) {
 export function getAiPublishPresets() {
   return readJson(
     '/ai/publish-presets',
-    {
-      defaultPublisherUserId: '1',
-      defaultOrganizationId: '1',
-      items: aiPublishPresetMockData
-    }
+    buildEmptyAiPublishPresets()
   );
 }
 
@@ -619,7 +743,7 @@ export function getTencentImRuntimeConfig(audience, roomKey) {
   const fallback = {
     provider: 'Tencent IM',
     enabled: false,
-    status: 'MOCK_FALLBACK',
+    status: 'DISABLED',
     audience: normalizedAudience,
     sdkAppId: '',
     platformUserId: currentUser.platformUserId,
@@ -637,7 +761,7 @@ export function getTencentImRuntimeConfig(audience, roomKey) {
     counterpartUser,
     members: [],
     taskRoom,
-    useMockFallback: true,
+    useMockFallback: false,
     notes: [
       '尚未建立真实房间或 IM 通道，当前页面会继续显示已保存的聊天记录。',
       '当前 userId 来源于平台用户身份映射，任务群来源于任务房间绑定。'
@@ -652,25 +776,57 @@ export function getTencentImRuntimeConfig(audience, roomKey) {
   return readJson(`/im/tencent/config?${params.toString()}`, fallback);
 }
 
+export function getOrderRecords(audience, tab = 'all') {
+  const normalizedAudience = audience === 'talent' ? 'talent' : 'enterprise';
+  const normalizedTab = tab === 'ongoing' || tab === 'completed' ? tab : 'all';
+  const fallback = buildEmptyOrderRecords(normalizedAudience, normalizedTab);
+  return readJson(`/${normalizedAudience}/orders?tab=${normalizedTab}`, fallback);
+}
+
+export function getOrderRecordDetail(audience, taskId) {
+  const normalizedAudience = audience === 'talent' ? 'talent' : 'enterprise';
+  const normalizedTaskId = String(taskId || '');
+  const fallback = buildEmptyOrderRecordDetail(normalizedAudience, normalizedTaskId);
+  return readJson(`/${normalizedAudience}/orders/${normalizedTaskId}`, fallback);
+}
+
+export function uploadTaskAttachmentAsset(taskId, file, options = {}) {
+  return uploadTaskAttachmentRuntime(
+    {
+      apiBase: API_BASE,
+      getToken: getStoredAuthToken
+    },
+    {
+      taskId,
+      file,
+      scene: options.scene || 'TASK_PROGRESS',
+      source: options.source || options.scene || 'TASK_PROGRESS',
+      fileType: options.fileType || ''
+    }
+  );
+}
+
 export function confirmNegotiation(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/negotiations/confirm`,
-    {
+    buildMutationFailure('当前暂时无法确认协商结果，请稍后再试。', {
       taskId,
-      businessUserId: String(payload.businessUserId),
       talentUserId: String(payload.talentUserId),
-      agreementNote: payload.agreementNote,
-      status: 'IN_PROGRESS',
-      nextStep: '若双方均确认，则正式进入执行阶段并开启项目沟通。'
-    },
-    payload
+      agreementNote: payload.agreementNote
+    }),
+    {
+      talentUserId: payload.talentUserId,
+      requirementConfirmed: payload.requirementConfirmed,
+      scheduleConfirmed: payload.scheduleConfirmed,
+      agreementNote: payload.agreementNote
+    }
   );
 }
 
 export function updateTaskConfirmation(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/negotiations/task-confirmation`,
-    () => buildEmptyTaskRoomFallback(`negotiation-${taskId}`),
+    () => buildMutationFailure('当前暂时无法更新任务确认单，请稍后再试。', { taskId }),
     payload
   );
 }
@@ -678,9 +834,8 @@ export function updateTaskConfirmation(taskId, payload) {
 export function submitTaskProgress(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/progress`,
-    {
+    buildMutationFailure('当前暂时无法提交进度，请稍后再试。', {
       taskId,
-      submitterUserId: String(payload.submitterUserId),
       stage: payload.stage,
       progressText: payload.progressText,
       supportNeeded: payload.supportNeeded,
@@ -689,28 +844,34 @@ export function submitTaskProgress(taskId, payload) {
       attachmentNames: Array.isArray(payload.attachmentFiles)
         ? payload.attachmentFiles.map((item) => item.name).filter(Boolean)
         : [],
-      status: 'AI_REVIEW_PENDING',
-      nextStep: '进度已提交，AI 将生成审查建议并提醒企业端查看。',
-      aiSuggestions: [
-        '优先把本轮新增附件和进展说明对应起来，方便企业快速核对。',
-        '如果还需要企业补充素材，建议同步到聊天页，避免等待过久。'
-      ],
-      submittedAt: new Intl.DateTimeFormat('zh-CN', {
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }).format(new Date()).replace(',', '')
-    },
-    payload
+      aiSuggestions: [],
+      submittedAt: ''
+    }),
+    {
+      stage: payload.stage,
+      milestoneId: payload.milestoneId,
+      progressText: payload.progressText,
+      supportNeeded: payload.supportNeeded,
+      completionPercent: payload.completionPercent,
+      files: Array.isArray(payload.files) ? payload.files : [],
+      attachmentFiles: Array.isArray(payload.attachmentFiles) ? payload.attachmentFiles : []
+    }
   );
 }
 
 export function submitWorkspaceFeedback(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/workspace-feedback`,
-    () => buildWorkspaceFeedbackFallback(taskId, payload),
+    () => buildMutationFailure('当前暂时无法保存企业建议，请稍后再试。', {
+      taskId,
+      nodeId: payload?.nodeId || '',
+      businessSuggestion: {
+        summary: payload?.summary || '',
+        aiSupplement: '',
+        updatedAt: '',
+        author: ''
+      }
+    }),
     payload
   );
 }
@@ -718,13 +879,11 @@ export function submitWorkspaceFeedback(taskId, payload) {
 export function submitEarlyCompletion(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/early-completion`,
-    () => ({
+    () => buildMutationFailure('当前服务不可用，暂时无法处理提前完成流程。', {
       taskId,
-      status: 'FAILED',
       earlyCompletion: {
         status: '未发起'
-      },
-      nextStep: '当前服务不可用，暂时无法处理提前完成流程。'
+      }
     }),
     payload
   );
@@ -733,13 +892,11 @@ export function submitEarlyCompletion(taskId, payload) {
 export function submitTaskCancellation(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/cancellation`,
-    () => ({
+    () => buildMutationFailure('当前服务不可用，暂时无法处理取消任务流程。', {
       taskId,
-      status: 'FAILED',
       cancellationRequest: {
         status: '未发起'
-      },
-      nextStep: '当前服务不可用，暂时无法处理取消任务流程。'
+      }
     }),
     payload
   );
@@ -748,34 +905,33 @@ export function submitTaskCancellation(taskId, payload) {
 export function submitAcceptance(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/acceptance`,
-    {
+    buildMutationFailure('当前暂时无法提交验收，请稍后再试。', {
       taskId,
-      accepterUserId: String(payload.accepterUserId),
-      acceptanceNote: payload.acceptanceNote,
-      status: 'ACCEPTED',
-      nextStep: '验收完成，进入双方评分和信用画像沉淀。'
-    },
-    payload
+      acceptanceNote: payload.acceptanceNote
+    }),
+    {
+      acceptanceNote: payload.acceptanceNote
+    }
   );
 }
 
 export function submitReview(taskId, payload) {
   return writeJson(
     `/tasks/${taskId}/reviews`,
-    {
+    buildMutationFailure('当前暂时无法提交评分，请稍后再试。', {
       taskId,
-      reviewerUserId: String(payload.reviewerUserId),
       revieweeUserId: String(payload.revieweeUserId),
       rating: String(payload.rating),
-      reviewContent: payload.reviewContent,
-      status: 'RECORDED',
-      nextStep: '评分已写入平台信用画像与后续推荐逻辑。'
-    },
-    payload
+      reviewContent: payload.reviewContent
+    }),
+    {
+      revieweeUserId: payload.revieweeUserId,
+      rating: payload.rating,
+      reviewContent: payload.reviewContent
+    }
   );
 }
 
 export function analyzeTaskBrief(brief) {
-  const fallback = mockAnalyzeTaskBrief(brief);
-  return writeJson('/ai/decompose', { ...fallback, provider: '本地分析', model: 'rule-based' }, { brief });
+  return writeJson('/ai/decompose', buildEmptyAnalysisResult(brief), { brief });
 }

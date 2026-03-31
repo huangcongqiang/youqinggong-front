@@ -234,7 +234,8 @@ function extractPayloadAttachments(message) {
         type: message?.payload?.filetype || 'image/*',
         kind: 'image',
         size: Number(imagePayload?.size || message?.payload?.fileSize || 0),
-        previewUrl: imagePayload?.url || message?.payload?.url || ''
+        previewUrl: imagePayload?.url || message?.payload?.url || '',
+        downloadUrl: imagePayload?.url || message?.payload?.url || ''
       }
     ];
   }
@@ -248,7 +249,8 @@ function extractPayloadAttachments(message) {
         type: message?.payload?.filetype || 'video/*',
         kind: 'video',
         size: Number(message?.payload?.fileSize || 0),
-        previewUrl: message?.payload?.videoUrl || message?.payload?.url || ''
+        previewUrl: message?.payload?.videoUrl || message?.payload?.url || '',
+        downloadUrl: message?.payload?.url || message?.payload?.videoUrl || ''
       }
     ];
   }
@@ -263,7 +265,8 @@ function extractPayloadAttachments(message) {
         type: fileType,
         kind: inferAttachmentKind(fileType, fileName),
         size: Number(message?.payload?.fileSize || 0),
-        previewUrl: message?.payload?.url || ''
+        previewUrl: message?.payload?.url || '',
+        downloadUrl: message?.payload?.url || ''
       }
     ];
   }

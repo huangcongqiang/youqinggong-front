@@ -88,7 +88,9 @@ com.youqinggong.spring
 - 管理台接口已经开始由 `AdminManagementService` 读取 `User / Organization / OrganizationVerification / Task / TaskAssignment / RiskTicket / AdminAction`
 - 入驻接口已经开始由 `OnboardingApplicationService` 写入 `User / Organization / OrganizationVerification / TalentProfile`
 - 任务生命周期接口已经开始由 `TaskLifecycleApplicationService` 写入 `Task / TaskAiAnalysis / TaskAssignment / TaskNegotiation / TaskProgressUpdate / TaskFile / Review / TaskImRoom`
+- 任务生命周期接口当前已完成第一批 actor 边界正式化：发布任务、AI 拆解确认、选人、协商确认、闭环摘要以及进度 / 验收 / 评分写链优先从 token 解 actor，不再信任前端当前操作者字段
 - 任务房间预览已经开始由 `TencentImFacadeService` 读取 `TaskImRoom / ChatConversation / ChatMessage`
+- `TencentImCallbackService` 当前已承接 callback 第一批房间反查、文本消息幂等入库与 provider 标识回写；后续继续扩到验签、附件 callback 与异常重试
 - 当前采用“数据库优先，缺数据时回退 demo”的方式，保证迁移过程中接口结构稳定
 
 ## 4. 当前已落下的业务主线

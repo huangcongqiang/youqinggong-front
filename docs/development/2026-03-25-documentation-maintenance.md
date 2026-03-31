@@ -5,11 +5,32 @@
 ## 1. 文档维护原则
 
 - 根目录 `docs/` 是主文档库，默认以这里为准。
-- `frontend/docs`、`admin/docs`、`backend/docs` 是同步副本，不单独长期编辑。
+- `frontend/docs`、`frontend_mobile_h5/docs`、`admin/docs`、`backend/docs` 是同步副本，不单独长期编辑。
 - 同一类信息只保留一个主事实源，不维护两份平行正文。
 - `plans/` 只保留阶段方案基线和历史快照，不作为当前实现的唯一事实源。
+- `superpowers/plans/` 同时承载“主线总计划文档”和“阶段快照文档”，两者不能混用。
+- 当前主线任务如采用阶段式推进，必须在每阶段完成后立刻同步根目录 `docs/` 和四个子项目 `docs` 副本。
+- 当前主线任务如采用连续推进，必须在阶段计划文档中记录“下一阶段默认继续”，避免单阶段完成后停在中间态。
+- 如果某个阶段跨度仍然较大，必须再建立切片级运行表，记录“当前活跃切片 / 下一切片 / 最小验证 / 默认继续动作”。
+- 当前主线任务如采用连续推进，必须同时回写主线总计划文档，明确当前主线状态和下一条默认主线。
+- 如果当前阶段已拆成切片，则每个切片都必须再记录“整端 UI 审查 / 全量主路径功能回归 / 阻断项清零”的过门结果；不过门不允许进入下一切片。
 
 ## 2. 各目录负责什么
+
+### `superpowers/plans/`
+
+什么时候更新：
+
+- 新开一条项目主线
+- 主线切换阶段
+- 阶段完成并需要回写主线状态
+- 需要记录“下一阶段默认继续”或“默认切入下一条主线”
+
+不要在这里写：
+
+- 产品规范正文
+- 接口字段主文档
+- 长期事实源的全部实现细节
 
 ### `requirements/`
 
@@ -110,13 +131,19 @@
 
 ### 产品事实源
 
-- [需求文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/requirements/2026-03-21-ai-talent-market-requirements.md)
-- [设计文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/design/2026-03-21-ai-talent-market-design.md)
+- [需求文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/requirements/2026-03-28-enterprise-employment-collaboration-requirements.md)
+- [全流程设计文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/design/2026-03-28-enterprise-employment-collaboration-design.md)
+- [H5 与 PC 界面规范](/Users/huangcongqiang/Desktop/products/youqinggong/docs/design/2026-03-28-h5-pc-ui-spec.md)
 
 ### 技术事实源
 
 - [技术文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-ai-talent-market-technical.md)
 - [接口文档](/Users/huangcongqiang/Desktop/products/youqinggong/docs/technical/2026-03-21-api-contract.md)
+
+补充说明：
+
+- 目标态蓝图、阶段方案、重构草案优先放 `plans/`
+- 只有在架构或实现边界已经确认后，再拆入 `technical/` 或 `adr/`
 
 ### 开发与交付事实源
 
@@ -135,19 +162,33 @@
 3. 这次改动有没有新增、删除或改变接口字段。
 4. 这次改动有没有改变当前实现边界。
 5. 根目录 `docs/` 是否已更新。
-6. `frontend/docs`、`admin/docs`、`backend/docs` 是否已同步。
+6. `frontend/docs`、`frontend_mobile_h5/docs`、`admin/docs`、`backend/docs` 是否已同步。
+
+如果当前是多阶段主线任务，再额外检查这 2 项：
+
+7. 当前阶段的计划文档是否已更新，并明确下一阶段入口。
+8. 如果当前阶段还会继续推进，是否已经存在切片级运行表，并明确当前活跃切片与下一切片。
+9. 是否已经按主线要求继续推进下一阶段，而不是停在单阶段完成状态。
+10. 如果当前阶段已拆成切片，是否已经记录本切片的整端 UI 审查结果、全量主路径功能回归结果和阻断项清零情况。
+
+如果当前采用项目维度连续推进，再额外检查这 2 项：
+
+11. 当前活跃主线是否已回写主线总计划文档。
+12. 如果当前主线已完成，是否已明确默认切换到哪条新主线。
+13. 当前阶段计划文档的最后一步，是否明确写成“继续下一阶段”或“切到下一条主线”。
 
 ## 6. 推荐同步方式
 
 当前建议流程：
 
 1. 先更新根目录 `docs/`
-2. 再把根目录 `docs/` 同步到三个子仓库副本
+2. 再把根目录 `docs/` 同步到四个子仓库副本
 
 推荐命令：
 
 ```bash
 rsync -a --delete docs/ frontend/docs/
+rsync -a --delete docs/ frontend_mobile_h5/docs/
 rsync -a --delete docs/ admin/docs/
 rsync -a --delete docs/ backend/docs/
 ```

@@ -1,456 +1,204 @@
 <template>
   <section class="page-stack workspace-page" v-if="page">
-    <article class="hero-card workspace-hero stack-md">
-      <span class="eyebrow">{{ isEnterprise ? '企业端协作空间' : '人才端执行台' }}</span>
-      <h1 class="dashboard-title">{{ isEnterprise ? '多任务协作总览' : '任务执行与进展同步' }}</h1>
-      <p class="hero-lead dashboard-lead">
-        {{ isEnterprise ? enterpriseLead : talentLead }}
-      </p>
+    <MobilePageScaffold
+      :eyebrow="isEnterprise ? '企业端协作空间' : '人才端执行台'"
+      :title="workspaceScaffoldTitle"
+      :subtitle="workspaceScaffoldSubtitle"
+    >
+      <template #meta>
+        <span class="soft-pill">{{ hasTask ? page.taskDetail.status : '未开始合作' }}</span>
+        <span v-if="taskOptions.length" class="soft-pill">{{ taskOptions.length }} 个任务</span>
+      </template>
 
-      <div class="dashboard-hero-actions">
-        <router-link class="button-primary" :to="chatRoute">去聊天</router-link>
-        <button class="button-secondary" type="button" @click="openTaskDetail">查看任务详情</button>
-      </div>
-    </article>
+      <article v-if="page.requestError" class="result-card stack-sm">
+        <span class="eyebrow">数据同步失败</span>
+        <h3>当前展示的是空态协作页</h3>
+        <p class="muted">{{ page.requestError }}</p>
+      </article>
 
-    <article v-if="taskOptions.length" class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">任务切换</span>
-          <h3>{{ isEnterprise ? '协作中的任务' : '我当前承接的任务' }}</h3>
+      <SummarySection
+        :eyebrow="hasTask ? '当前任务' : '协作准备'"
+        :title="hasTask ? workspaceSummaryTitle : emptyWorkspaceHeadline"
+        :description="hasTask ? workspaceSummaryDescription : emptyWorkspaceDescription"
+        :highlight-label="workspaceHighlightLabel"
+        :highlight-value="workspaceHighlightValue"
+      >
+        <div v-if="hasTask" class="tag-row workspace-summary-tags">
+          <span class="soft-pill">
+            {{ isEnterprise ? '协作人才' : '合作企业' }} · {{ isEnterprise ? page.summary.talent : page.summary.business }}
+          </span>
+          <span class="soft-pill">预算 · {{ page.taskDetail.budget || '未填写预算' }}</span>
+          <span class="soft-pill">周期 · {{ page.taskDetail.period || page.summary.range || '待确认' }}</span>
         </div>
-        <span class="soft-pill">{{ taskOptions.length }} 个任务</span>
-      </div>
 
-      <div class="workspace-task-strip">
-        <button
+        <div v-if="hasTask" class="workspace-summary-stack stack-sm">
+          <article class="mini-card stack-sm workspace-focus-card workspace-focus-card-inline">
+            <div class="workspace-focus-head">
+              <div class="stack-xs">
+                <span class="eyebrow">{{ workspaceFocusEyebrow }}</span>
+                <strong>{{ workspaceFocusTitle }}</strong>
+              </div>
+              <span v-if="workspaceFocusMeta" class="soft-pill">{{ workspaceFocusMeta }}</span>
+            </div>
+            <p class="muted">{{ workspaceFocusSummary }}</p>
+            <div v-if="workspaceFocusTags.length" class="tag-row workspace-focus-tags">
+              <span v-for="item in workspaceFocusTags" :key="item" class="tag-pill tag-pill-muted">{{ item }}</span>
+            </div>
+          </article>
+
+          <div class="workspace-primary-actions workspace-summary-primary-actions">
+            <button class="button-primary" type="button" @click="handleWorkspaceHeroPrimaryAction">
+              {{ workspaceHeroPrimaryLabel }}
+            </button>
+            <button
+              v-if="workspaceHeroSecondaryLabel"
+              class="button-secondary"
+              type="button"
+              @click="handleWorkspaceHeroSecondaryAction"
+            >
+              {{ workspaceHeroSecondaryLabel }}
+            </button>
+          </div>
+
+          <button
+            v-if="workspaceHeroTertiaryLabel"
+            class="button-secondary workspace-tertiary-action"
+            type="button"
+            @click="handleWorkspaceHeroTertiaryAction"
+          >
+            {{ workspaceHeroTertiaryLabel }}
+          </button>
+
+          <div class="workspace-summary-actions workspace-summary-actions-compact">
+            <button
+              v-if="focusedNode"
+              class="button-secondary"
+              type="button"
+              @click="openNode(focusedNode)"
+            >
+              当前节点详情
+            </button>
+            <button class="button-secondary" type="button" @click="openRecordSheet">最近记录</button>
+            <button
+              v-if="normalizedNodes.length > 1"
+              class="button-secondary"
+              type="button"
+              @click="openNodeOverview"
+            >
+              节点时间线
+            </button>
+            <button
+              v-if="taskOptions.length > 1"
+              class="button-secondary"
+              type="button"
+              @click="openTaskSwitcher"
+            >
+              切换任务
+            </button>
+            <button class="button-secondary" type="button" @click="openTaskDetail">任务详情</button>
+            <router-link v-if="workspaceBackRoute" class="button-secondary" :to="workspaceBackRoute">
+              {{ workspaceBackLabel }}
+            </router-link>
+          </div>
+        </div>
+        <div v-else class="workspace-empty-primary">
+          <div class="workspace-empty-primary-card">
+            <span class="eyebrow">{{ isEnterprise ? '当前状态' : '执行准备' }}</span>
+            <strong>{{ isEnterprise ? '还没有进入协作的任务' : '还没有确认执行中的任务' }}</strong>
+            <p class="muted">
+              {{ isEnterprise ? '先发布并选中人才，再回这里盯当前节点。' : '先确认一单任务，再回来同步本轮进展。' }}
+            </p>
+          </div>
+
+          <div class="workspace-summary-actions workspace-summary-actions-single">
+            <router-link
+              v-if="isEnterprise"
+              class="button-primary"
+              :to="roleRouteMap.enterprise.publish"
+            >
+              去发布任务
+            </router-link>
+            <router-link
+              v-else
+              class="button-primary"
+              :to="roleRouteMap.talent.market"
+            >
+              去任务广场
+            </router-link>
+            <router-link
+              class="button-secondary"
+              :to="isEnterprise ? roleRouteMap.enterprise.home : roleRouteMap.talent.home"
+            >
+              返回工作台
+            </router-link>
+          </div>
+        </div>
+        <p v-if="workspaceInlineResult" class="soft-pill workspace-inline-result">{{ workspaceInlineResult }}</p>
+      </SummarySection>
+
+      <MobileLiveSyncStatus
+        v-if="liveSyncError || (liveSyncStatus && liveSyncStatus.state !== 'open')"
+        :snapshot="liveSyncStatus"
+        :error-note="liveSyncError"
+      />
+
+    </MobilePageScaffold>
+
+    <MobileSheet
+      :open="taskSwitcherVisible"
+      title="切换任务"
+      subtitle="多任务协作时，先切到当前要处理的这一单。"
+      size="medium"
+      @close="closeTaskSwitcher"
+    >
+      <div class="stack-sm">
+        <UnifiedListCard
           v-for="task in taskOptions"
           :key="task.taskId"
-          class="workspace-task-chip"
-          :class="{ 'is-active': task.taskId === currentTaskId }"
-          type="button"
-          @click="selectTask(task.taskId)"
-        >
-          <span class="workspace-task-chip-title">{{ task.title }}</span>
-          <span class="workspace-task-chip-meta">{{ task.status }} · {{ task.progress || task.completion || '待同步' }}</span>
-        </button>
+          eyebrow="任务切换"
+          :title="task.title"
+          :subtitle="task.status || '待同步'"
+          :meta="task.progress || task.completion || '待同步'"
+          :status="task.taskId === currentTaskId ? '当前任务' : '可切换'"
+          :status-tone="task.taskId === currentTaskId ? 'info' : 'neutral'"
+          :tags="[task.taskId || '未生成任务号']"
+          clickable
+          @select="selectTask(task.taskId)"
+        />
       </div>
-    </article>
+    </MobileSheet>
 
-    <article v-if="hasTask" class="glass-panel stack-md">
-      <div class="panel-header panel-header-top">
-        <div>
-          <span class="eyebrow">当前任务</span>
-          <h3>{{ page.taskDetail.title }}</h3>
-        </div>
-        <span class="soft-pill">{{ page.taskDetail.status }}</span>
-      </div>
+    <MobileSheet
+      :open="taskDetailVisible"
+      title="任务详情"
+      :subtitle="page.taskDetail?.title || '当前任务'"
+      size="large"
+      @close="closeTaskDetail"
+    >
+      <p class="muted">{{ page.taskDetail?.brief || '待补充' }}</p>
+      <DetailAccordion
+        :items="taskDetailAccordionItems"
+        :default-open-keys="['basic']"
+      />
+    </MobileSheet>
 
-      <p class="muted workspace-task-brief">{{ page.taskDetail.brief }}</p>
-
-      <section class="metric-grid workspace-overview-grid">
-        <article class="metric-card workspace-overview-card">
-          <span class="eyebrow">{{ isEnterprise ? '协作人才' : '合作企业' }}</span>
-          <div class="metric-value">{{ isEnterprise ? page.summary.talent : page.summary.business }}</div>
-          <p>{{ isEnterprise ? '当前任务已绑定的人才' : '当前任务的企业需求方' }}</p>
-        </article>
-        <article class="metric-card workspace-overview-card">
-          <span class="eyebrow">预算</span>
-          <div class="metric-value">{{ page.taskDetail.budget || '未填写预算' }}</div>
-          <p>预算会在任务详情、聊天确认和验收时持续同步。</p>
-        </article>
-        <article class="metric-card workspace-overview-card">
-          <span class="eyebrow">周期</span>
-          <div class="metric-value">{{ page.taskDetail.period || page.summary.range }}</div>
-          <p>周期按当前确认单和 AI 熟练人才执行效率估算。</p>
-        </article>
-        <article class="metric-card workspace-overview-card">
-          <span class="eyebrow">当前重点</span>
-          <strong class="workspace-overview-highlight">{{ page.focus || '继续推进当前节点' }}</strong>
-          <p>点击节点可以查看计划、提交、审核和反馈。</p>
-        </article>
-      </section>
-    </article>
-
-    <article v-if="hasTask" class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">任务动作</span>
-          <h3>{{ isEnterprise ? '提前完成、取消与验收入口' : '确认提前完成、处理取消申请与查看评级' }}</h3>
-        </div>
-      </div>
-
-      <div class="dashboard-detail-dual">
-        <article class="mini-card stack-sm">
-          <div class="panel-header">
-            <div>
-              <h4>提前完成</h4>
-              <p class="muted">{{ earlyCompletionStatusText }}</p>
-            </div>
-            <span class="soft-pill">{{ earlyCompletion.status || '未发起' }}</span>
-          </div>
-
-          <p class="muted">{{ earlyCompletionSummary }}</p>
-
-          <div class="tag-row" v-if="earlyCompletion.aiReviewStatus || earlyCompletion.grade || earlyCompletion.payoutRatio">
-            <span v-if="earlyCompletion.aiReviewStatus" class="soft-pill">{{ earlyCompletion.aiReviewStatus }}</span>
-            <span v-if="earlyCompletion.grade" class="soft-pill">评级 {{ earlyCompletion.grade }}</span>
-            <span v-if="earlyCompletion.payoutRatio" class="soft-pill">结算 {{ earlyCompletion.payoutRatio }}</span>
-          </div>
-
-          <div class="dashboard-module-actions">
-            <button
-              v-if="canRequestEarlyCompletion"
-              class="button-primary"
-              type="button"
-              @click="openTaskFlowModal('early_request')"
-            >
-              发起提前完成
-            </button>
-            <router-link
-              v-if="canOpenAcceptance"
-              class="button-primary"
-              :to="acceptanceRoute"
-            >
-              {{ isEnterprise ? '去验收与评级' : '查看评级结果' }}
-            </router-link>
-            <button
-              v-if="canApproveEarlyCompletion"
-              class="button-primary"
-              type="button"
-              @click="openTaskFlowModal('early_approve')"
-            >
-              同意提前完成
-            </button>
-            <button
-              v-if="canRejectEarlyCompletion"
-              class="button-secondary"
-              type="button"
-              @click="openTaskFlowModal('early_reject')"
-            >
-              继续执行
-            </button>
-            <span v-if="isEnterpriseWaitingGrade" class="soft-pill is-warning">等待企业评级</span>
-          </div>
-        </article>
-
-        <article class="mini-card stack-sm">
-          <div class="panel-header">
-            <div>
-              <h4>取消任务</h4>
-              <p class="muted">{{ cancellationStatusText }}</p>
-            </div>
-            <span class="soft-pill">{{ cancellationRequest.status || '未发起' }}</span>
-          </div>
-
-          <p class="muted">{{ cancellationSummary }}</p>
-
-          <div class="dashboard-module-actions">
-            <button
-              v-if="canRequestCancellation"
-              class="button-secondary"
-              type="button"
-              @click="openTaskFlowModal('cancel_request')"
-            >
-              申请取消任务
-            </button>
-            <button
-              v-if="canApproveCancellation"
-              class="button-primary"
-              type="button"
-              @click="openTaskFlowModal('cancel_approve')"
-            >
-              同意取消
-            </button>
-            <button
-              v-if="canRejectCancellation"
-              class="button-secondary"
-              type="button"
-              @click="openTaskFlowModal('cancel_reject')"
-            >
-              继续执行
-            </button>
-            <span v-if="cancellationWaitingCounterpart" class="soft-pill is-warning">等待对方确认</span>
-          </div>
-        </article>
-      </div>
-
-      <article v-if="page.celebrationBanner" class="result-card workspace-celebration-card">
-        <span class="eyebrow">高光时刻</span>
-        <h3>{{ page.celebrationBanner.title }}</h3>
-        <p class="muted">{{ page.celebrationBanner.summary }}</p>
-        <div class="tag-row">
-          <span class="soft-pill">{{ page.celebrationBanner.badge }}</span>
-        </div>
-      </article>
-
-      <p v-if="taskFlowResult" class="soft-pill">{{ taskFlowResult }}</p>
-    </article>
-
-    <article v-if="hasTask" class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">阶段节点</span>
-          <h3>{{ isEnterprise ? '按计划查看交付与反馈' : '按计划提交进展并查看审核' }}</h3>
-        </div>
-      </div>
-
-      <div class="workspace-node-timeline">
-        <button
-          v-for="(node, index) in normalizedNodes"
-          :key="node.id"
-          class="workspace-node-card"
-          type="button"
-          @click="openNode(node)"
-        >
-          <span class="workspace-node-rail">
-            <span class="workspace-node-index">{{ String(index + 1).padStart(2, '0') }}</span>
-            <span class="workspace-node-line"></span>
-          </span>
-            <div class="workspace-node-main">
-              <div class="workspace-node-head">
-                <div>
-                  <h4>{{ node.title }}</h4>
-                  <p>{{ node.summary }}</p>
-                </div>
-                <span class="soft-pill">{{ node.status }}</span>
-              </div>
-              <div class="tag-row">
-                <span class="soft-pill">{{ node.workdayLabel || '待排期' }}</span>
-                <span class="soft-pill">{{ node.plannedDate || '待排期' }}</span>
-                <span class="soft-pill">{{ node.stageType || '执行节点' }}</span>
-              </div>
-              <div class="workspace-node-meta">
-                <span>{{ node.progress || '待同步' }}</span>
-                <span>{{ node.updatedAt || '待更新' }}</span>
-                <span>{{ node.attachments.length ? `${node.attachments.length} 个附件` : '暂无附件' }}</span>
-              </div>
-              <p class="muted workspace-node-deliverable">计划交付：{{ node.expectedDeliverables || '待补充' }}</p>
-            </div>
-          </button>
-      </div>
-    </article>
-
-    <article v-if="hasTask && isEnterprise" class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">最近提交</span>
-          <h3>人才最近一轮同步</h3>
-        </div>
-      </div>
-
-      <article v-if="latestProgress" class="mini-card stack-sm">
-        <div class="panel-header">
-          <div>
-            <h4>{{ latestProgress.stage || '最新进展' }}</h4>
-            <p class="muted">{{ latestProgress.time || latestProgress.submittedAt || '刚刚更新' }}</p>
-          </div>
-          <span class="soft-pill">{{ latestProgress.completion || '待同步' }}</span>
-        </div>
-        <p class="muted">{{ latestProgress.summary }}</p>
-        <div class="tag-row" v-if="listOf(latestProgress.attachments).length">
-          <span v-for="item in listOf(latestProgress.attachments)" :key="item" class="tag-pill tag-pill-muted">{{ item }}</span>
-        </div>
-      </article>
-      <p v-else class="muted">当前还没有新的进展提交，节点详情会在人才更新后自动补齐。</p>
-    </article>
-
-    <article v-if="hasTask && !isEnterprise" class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">本轮进展</span>
-          <h3>提交进展、协助需求和附件</h3>
-        </div>
-      </div>
-
-      <form class="workspace-progress-form" @submit.prevent="submitProgressForm">
-        <label class="form-field">
-          <span>阶段名称</span>
-          <input v-model.trim="progressForm.stageName" type="text" placeholder="例如：首版页面交付" />
-        </label>
-
-        <div class="workspace-progress-grid">
-          <label class="form-field">
-            <span>完成度</span>
-            <input v-model.trim="progressForm.completion" type="text" placeholder="例如：68%" />
-          </label>
-          <label class="form-field">
-            <span>需要的协助</span>
-            <select v-model="progressForm.supportNeeded">
-              <option value="">暂不需要</option>
-              <option v-for="option in page.supportOptions || []" :key="option" :value="option">{{ option }}</option>
-            </select>
-          </label>
+    <MobileSheet
+      :open="Boolean(activeNode)"
+      title="阶段节点"
+      :subtitle="activeNode?.title || '当前节点'"
+      size="large"
+      @close="closeNode"
+    >
+        <div class="mini-card stack-sm workspace-node-sheet-hero">
+          <span class="eyebrow">节点结论</span>
+          <strong>{{ activeNode?.status || '待开始' }}</strong>
+          <p class="muted">{{ compactText(activeNode?.summary, 80) }}</p>
         </div>
 
-        <label class="form-field">
-          <span>进展说明</span>
-          <textarea
-            v-model.trim="progressForm.progressSummary"
-            rows="4"
-            placeholder="说明本轮做了什么、产出了什么、下一步准备怎么推进。"
-          ></textarea>
-        </label>
-
-        <label class="form-field">
-          <span>上传进度附件</span>
-          <input type="file" multiple @change="handleProgressFiles" />
-        </label>
-
-        <div v-if="progressFiles.length" class="tag-row">
-          <span v-for="file in progressFiles" :key="file.name" class="tag-pill tag-pill-muted">
-            {{ file.name }}
-          </span>
-        </div>
-
-        <div class="dashboard-module-actions">
-          <button class="button-primary" type="submit" :disabled="submittingProgress">
-            {{ submittingProgress ? '提交中…' : '提交本轮进展' }}
-          </button>
-          <span v-if="progressResult" class="soft-pill">{{ progressResult }}</span>
-        </div>
-      </form>
-    </article>
-
-    <article v-if="hasTask" class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">最近记录</span>
-          <h3>{{ isEnterprise ? '最近几轮进展与 AI 审核' : '最近几轮提交与审核结果' }}</h3>
-        </div>
-      </div>
-
-      <div class="workspace-record-list">
-        <article v-for="item in recordItems" :key="item.key" class="mini-card stack-sm workspace-record-card">
-          <div class="panel-header">
-            <div>
-              <h4>{{ item.title }}</h4>
-              <p class="muted">{{ item.time }}</p>
-            </div>
-            <span class="soft-pill">{{ item.badge }}</span>
-          </div>
-          <p class="muted">{{ item.summary }}</p>
-        </article>
-      </div>
-    </article>
-
-    <article v-if="!hasTask" class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">暂无协作任务</span>
-          <h3>{{ isEnterprise ? '先发布任务，再进入协作空间' : '先接单，再在这里同步进展' }}</h3>
-        </div>
-      </div>
-
-      <p class="muted">
-        {{ isEnterprise ? '企业发布任务并选中人才后，多任务协作会自动出现在这里。' : '人才接单并确认任务后，执行进展、协助需求和附件都会沉淀在这里。' }}
-      </p>
-
-      <div class="dashboard-hero-actions">
-        <router-link v-if="isEnterprise" class="button-primary" :to="roleRouteMap.enterprise.publish">去发布任务</router-link>
-        <router-link v-else class="button-primary" :to="roleRouteMap.talent.market">查看任务广场</router-link>
-      </div>
-    </article>
-
-    <div v-if="taskDetailVisible" class="dashboard-detail-modal" @click.self="closeTaskDetail">
-      <article class="dashboard-detail-card stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">任务详情</span>
-            <h3>{{ page.taskDetail.title }}</h3>
-          </div>
-          <button class="button-secondary" type="button" @click="closeTaskDetail">关闭</button>
-        </div>
-
-        <p class="muted">{{ page.taskDetail.brief }}</p>
-
-        <div class="dashboard-detail-dual">
-          <div class="mini-card stack-sm">
-            <h4>基础信息</h4>
-            <ul class="dashboard-detail-list">
-              <li>预算：{{ page.taskDetail.budget || '未填写预算' }}</li>
-              <li>周期：{{ page.taskDetail.period || page.summary.range }}</li>
-              <li>协作安排：{{ page.taskDetail.scheduleNote || '待补充' }}</li>
-              <li>状态：{{ page.taskDetail.status }}</li>
-              <li>{{ isEnterprise ? '人才' : '企业' }}：{{ isEnterprise ? page.summary.talent : page.summary.business }}</li>
-            </ul>
-          </div>
-
-          <div class="mini-card stack-sm">
-            <h4>交付件</h4>
-            <ul class="dashboard-detail-list">
-              <li v-for="item in listOf(page.taskDetail.deliverables)" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-        </div>
-
-        <div v-if="page.taskDetail.calendarPreview?.headline || listOf(page.taskDetail.calendarPreview?.items).length" class="mini-card stack-sm">
-          <h4>人才档期</h4>
-          <p class="muted">{{ page.taskDetail.calendarPreview?.headline || '待同步' }}</p>
-          <div class="tag-row" v-if="listOf(page.taskDetail.calendarPreview?.items).length">
-            <span
-              v-for="item in listOf(page.taskDetail.calendarPreview?.items)"
-              :key="`${item.day}-${item.note}`"
-              class="soft-pill"
-            >
-              {{ item.day }} · {{ item.note }}
-            </span>
-          </div>
-        </div>
-
-        <div class="mini-card stack-sm">
-          <h4>AI 拆解模块</h4>
-          <ul class="dashboard-detail-list">
-            <li v-for="item in listOf(page.taskDetail.modules)" :key="item.name || item">{{ item.name || item }}</li>
-          </ul>
-        </div>
-      </article>
-    </div>
-
-    <div v-if="activeNode" class="dashboard-detail-modal" @click.self="closeNode">
-      <article class="dashboard-detail-card stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">阶段节点</span>
-            <h3>{{ activeNode.title }}</h3>
-          </div>
-          <button class="button-secondary" type="button" @click="closeNode">关闭</button>
-        </div>
-
-        <div class="dashboard-detail-dual workspace-node-modal-grid">
-          <div class="mini-card stack-sm">
-            <h4>计划信息</h4>
-            <ul class="dashboard-detail-list">
-              <li>工作日：{{ activeNode.workdayLabel || '待排期' }}</li>
-              <li>计划日期：{{ activeNode.plannedDate || '待排期' }}</li>
-              <li>节点类型：{{ activeNode.stageType || '执行节点' }}</li>
-              <li>计划交付：{{ activeNode.expectedDeliverables || '待补充' }}</li>
-            </ul>
-          </div>
-
-          <div class="mini-card stack-sm">
-            <h4>{{ isEnterprise ? '人才提交' : '本轮提交' }}</h4>
-            <p class="muted">{{ activeNode.submissionContent }}</p>
-            <div class="tag-row" v-if="activeNode.attachments.length">
-              <span v-for="item in activeNode.attachments" :key="item" class="tag-pill tag-pill-muted">{{ item }}</span>
-            </div>
-            <p class="muted" v-if="activeNode.supportNeeded">协助需求：{{ activeNode.supportNeeded }}</p>
-            <p class="muted">{{ activeNode.submissionTime || activeNode.updatedAt }}</p>
-          </div>
-
-          <div class="mini-card stack-sm">
-            <h4>AI 审核</h4>
-            <p class="muted">{{ activeNode.aiReview.summary || '当前还没有 AI 审核摘要。' }}</p>
-            <div class="tag-row">
-              <span class="soft-pill">{{ activeNode.aiReview.status || '待生成' }}</span>
-              <span class="soft-pill" v-if="activeNode.aiReview.score">评分 {{ activeNode.aiReview.score }}</span>
-              <span class="soft-pill" v-if="activeNode.aiReview.focus">{{ activeNode.aiReview.focus }}</span>
-            </div>
-            <ul class="dashboard-detail-list" v-if="listOf(activeNode.aiReview.suggestions).length">
-              <li v-for="item in listOf(activeNode.aiReview.suggestions)" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-        </div>
+        <DetailAccordion
+          :items="activeNodeAccordionItems"
+          :default-open-keys="['plan']"
+        />
 
         <div class="mini-card stack-sm">
           <h4>{{ isEnterprise ? '企业改进建议' : '企业反馈与 AI 补充' }}</h4>
@@ -479,18 +227,125 @@
             <span v-if="feedbackResult" class="soft-pill">{{ feedbackResult }}</span>
           </div>
         </form>
-      </article>
-    </div>
+    </MobileSheet>
 
-    <div v-if="taskFlowModalOpen" class="dashboard-detail-modal" @click.self="closeTaskFlowModal">
-      <article class="dashboard-detail-card stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">任务动作</span>
-            <h3>{{ taskFlowTitle }}</h3>
+    <MobileSheet
+      :open="recordSheetVisible"
+      title="最近记录"
+      :subtitle="page.taskDetail?.title || '当前任务'"
+      size="medium"
+      @close="closeRecordSheet"
+    >
+      <div class="workspace-record-list">
+        <article v-for="item in recordItems" :key="item.key" class="mini-card stack-sm workspace-record-card">
+          <div class="panel-header">
+            <div>
+              <h4>{{ item.title }}</h4>
+              <p class="muted">{{ item.time }}</p>
+            </div>
+            <span class="soft-pill">{{ item.badge }}</span>
           </div>
-          <button class="button-secondary" type="button" @click="closeTaskFlowModal">关闭</button>
+          <p class="muted">{{ item.summary }}</p>
+        </article>
+      </div>
+    </MobileSheet>
+
+    <MobileSheet
+      :open="nodeOverviewVisible"
+      title="节点时间线"
+      :subtitle="page.taskDetail?.title || '当前任务'"
+      size="medium"
+      @close="closeNodeOverview"
+    >
+      <div class="stack-sm">
+        <UnifiedListCard
+          v-for="node in normalizedNodes"
+          :key="node.id"
+          eyebrow="阶段节点"
+          :title="node.title"
+          :subtitle="compactText(node.summary, 56) || '当前还没有更多节点说明。'"
+          :meta="node.workdayLabel || node.plannedDate || '待排期'"
+          :status="node.status || '待开始'"
+          :status-tone="node.id === focusedNode?.id ? 'info' : 'neutral'"
+          :tags="[node.progress || '待同步']"
+          clickable
+          @select="openNodeFromOverview(node)"
+        />
+      </div>
+    </MobileSheet>
+
+    <MobileSheet
+      :open="progressComposerVisible"
+      title="提交本轮进展"
+      :subtitle="focusedNode?.title || page.taskDetail?.title || '当前任务'"
+      size="large"
+      @close="closeProgressComposer"
+    >
+      <form class="stack-md workspace-progress-sheet" @submit.prevent="submitProgressForm">
+        <label class="form-field">
+          <span>当前阶段</span>
+          <input
+            v-model.trim="progressForm.stageName"
+            class="text-input"
+            type="text"
+            placeholder="例如：任务确认 / 视觉稿 / 页面开发"
+          >
+        </label>
+
+        <div class="form-grid">
+          <label class="form-field">
+            <span>完成度</span>
+            <input
+              v-model.trim="progressForm.completion"
+              class="text-input"
+              type="text"
+              placeholder="例如：68%"
+            >
+          </label>
+          <label class="form-field">
+            <span>附件</span>
+            <input class="text-input" type="file" multiple @change="handleProgressFiles">
+          </label>
         </div>
+
+        <label class="form-field">
+          <span>本轮说明</span>
+          <textarea
+            v-model.trim="progressForm.progressSummary"
+            rows="5"
+            placeholder="只写本轮最关键的进展、交付和待确认点。"
+          ></textarea>
+        </label>
+
+        <label class="form-field">
+          <span>需要协助</span>
+          <textarea
+            v-model.trim="progressForm.supportNeeded"
+            rows="3"
+            placeholder="例如：需要企业补充素材、确认验收口径或调整工期。"
+          ></textarea>
+        </label>
+
+        <div class="dashboard-module-actions">
+          <button class="button-secondary" type="button" :disabled="submittingProgress" @click="closeProgressComposer">
+            取消
+          </button>
+          <button class="button-primary" type="submit" :disabled="submittingProgress">
+            {{ submittingProgress ? '提交中…' : '提交本轮进展' }}
+          </button>
+        </div>
+
+        <p v-if="progressResult" class="soft-pill workspace-inline-result">{{ progressResult }}</p>
+      </form>
+    </MobileSheet>
+
+    <MobileSheet
+      :open="taskFlowModalOpen"
+      title="任务动作"
+      :subtitle="taskFlowTitle"
+      size="medium"
+      @close="closeTaskFlowModal"
+    >
 
         <p class="muted">{{ taskFlowDescription }}</p>
 
@@ -544,8 +399,7 @@
             {{ submittingTaskFlow ? '提交中…' : taskFlowPrimaryLabel }}
           </button>
         </div>
-      </article>
-    </div>
+    </MobileSheet>
   </section>
 
   <section v-else-if="loading" class="page-stack workspace-page">
@@ -562,13 +416,28 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import MobileLiveSyncStatus from '../components/mobile/MobileLiveSyncStatus.vue';
 import {
   getWorkspaceData,
   submitEarlyCompletion,
   submitTaskCancellation,
   submitTaskProgress,
-  submitWorkspaceFeedback
+  submitWorkspaceFeedback,
+  uploadTaskAttachmentAsset
 } from '../services/api';
+import { startBusinessLiveSync } from '../services/businessEventStream.js';
+import DetailAccordion from '../components/mobile/DetailAccordion.vue';
+import MobilePageScaffold from '../components/mobile/MobilePageScaffold.vue';
+import MobileSheet from '../components/mobile/MobileSheet.vue';
+import SummarySection from '../components/mobile/SummarySection.vue';
+import UnifiedListCard from '../components/mobile/UnifiedListCard.vue';
+import {
+  buildChildObjectPageContext,
+  labelForObjectPageSource,
+  readObjectPageContext,
+  resolveImmediateOriginContext,
+  serializeObjectPageContext
+} from '../utils/objectPageContext';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
@@ -576,19 +445,36 @@ const router = useRouter();
 
 const page = ref(null);
 const loading = ref(false);
+const taskSwitcherVisible = ref(false);
 const taskDetailVisible = ref(false);
+const recordSheetVisible = ref(false);
+const nodeOverviewVisible = ref(false);
+const progressComposerVisible = ref(false);
 const activeNode = ref(null);
 const progressFiles = ref([]);
 const progressResult = ref('');
 const feedbackResult = ref('');
 const taskFlowResult = ref('');
+const liveSyncStatus = ref(null);
+const liveSyncError = ref('');
 const submittingProgress = ref(false);
 const submittingFeedback = ref(false);
 const taskFlowModalOpen = ref(false);
 const taskFlowMode = ref('');
 const taskFlowError = ref('');
 const submittingTaskFlow = ref(false);
-let workspaceRefreshTimer = null;
+let stopBusinessLiveSync = null;
+
+function handleLiveSyncStatus(snapshot) {
+  liveSyncStatus.value = snapshot ? { ...snapshot } : null;
+  if (snapshot?.state === 'open') {
+    liveSyncError.value = '';
+  }
+}
+
+function handleLiveSyncError() {
+  liveSyncError.value = '最近一次实时同步出现波动，页面会自动重连或切到轮询。';
+}
 
 const progressForm = ref({
   stageName: '',
@@ -606,17 +492,179 @@ const taskFlowForm = ref({
 });
 
 const isEnterprise = computed(() => route.meta?.audience === 'enterprise');
-const currentTaskId = computed(() => String(route.query.taskId || page.value?.summary?.taskId || '').trim());
+const contextDefaults = computed(() => ({
+  taskId: page.value?.summary?.taskId || '',
+  room: route.query.room,
+  recordId: route.query.recordId,
+  nodeId: route.query.nodeId,
+  tab: route.query.tab
+}));
+const pageContext = computed(() => readObjectPageContext(route.query, contextDefaults.value));
+const originContext = computed(() =>
+  resolveImmediateOriginContext({
+    entrySource: pageContext.value.source,
+    query: route.query,
+    defaults: contextDefaults.value,
+    allowedSources: ['messages', 'record-detail', 'acceptance', 'records']
+  })
+);
+const currentTaskId = computed(() => pageContext.value.taskId || String(page.value?.summary?.taskId || '').trim());
+const currentRoomKey = computed(() => pageContext.value.room);
+const currentRecordId = computed(() => pageContext.value.recordId);
+const currentNodeId = computed(() => pageContext.value.nodeId);
+const currentRecordTab = computed(() => pageContext.value.tab);
+const workspaceEntrySource = computed(() => pageContext.value.source);
 const hasTask = computed(() => Boolean(page.value?.taskDetail?.taskId));
 const taskOptions = computed(() => listOf(page.value?.taskOptions));
-const chatRoute = computed(() => (isEnterprise.value ? roleRouteMap.enterprise.messages : roleRouteMap.talent.messages));
+function buildWorkspaceChildQuery(overrides = {}) {
+  return buildChildObjectPageContext({
+    current: pageContext.value,
+    origin: originContext.value,
+    overrides: {
+      source: 'workspace',
+      taskId: currentTaskId.value,
+      room: currentRoomKey.value,
+      recordId: currentRecordId.value,
+      nodeId: currentNodeId.value,
+      tab: currentRecordTab.value,
+      ...overrides
+    }
+  });
+}
+
+function messagesRoute(query) {
+  if (currentRoomKey.value) {
+    return isEnterprise.value
+      ? roleRouteMap.enterprise.messageRoom(currentRoomKey.value, query)
+      : roleRouteMap.talent.messageRoom(currentRoomKey.value, query);
+  }
+  return {
+    path: isEnterprise.value ? roleRouteMap.enterprise.messages : roleRouteMap.talent.messages,
+    query
+  };
+}
+
+const chatRoute = computed(() => messagesRoute(buildWorkspaceChildQuery()));
 const acceptanceRoute = computed(() => ({
   path: isEnterprise.value ? roleRouteMap.enterprise.acceptance : roleRouteMap.talent.acceptance,
-  query: currentTaskId.value ? { taskId: currentTaskId.value } : {}
+  query: buildWorkspaceChildQuery()
 }));
 
-const enterpriseLead = '按任务切换查看当前执行情况、节点交付和企业反馈。';
-const talentLead = '在这里集中查看任务计划、提交进展、补充协助需求和上传附件。';
+function routeForWorkspaceImmediateSource(source) {
+  if (source === 'messages') {
+    return messagesRoute(buildWorkspaceChildQuery({ source: 'workspace' }));
+  }
+
+  if (source === 'acceptance') {
+    return {
+      path: isEnterprise.value ? roleRouteMap.enterprise.acceptance : roleRouteMap.talent.acceptance,
+      query: buildWorkspaceChildQuery({
+        source: 'acceptance',
+        nodeId: undefined
+      })
+    };
+  }
+
+  if (source === 'records') {
+    return {
+      path: isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records,
+      query: currentRecordTab.value ? { tab: currentRecordTab.value } : {}
+    };
+  }
+
+  if (source === 'record-detail' && currentRecordId.value) {
+    return {
+      path: isEnterprise.value
+        ? roleRouteMap.enterprise.recordDetail(currentRecordId.value)
+        : roleRouteMap.talent.recordDetail(currentRecordId.value),
+      query: buildWorkspaceChildQuery({
+        source: 'record-detail',
+        nodeId: undefined
+      })
+    };
+  }
+
+  return null;
+}
+
+const workspaceBackRoute = computed(() => {
+  const directRoute = routeForWorkspaceImmediateSource(workspaceEntrySource.value);
+  if (directRoute) {
+    return directRoute;
+  }
+
+  if (workspaceEntrySource.value === 'workspace') {
+    return routeForWorkspaceImmediateSource(originContext.value.source);
+  }
+
+  return null;
+});
+
+const workspaceBackLabel = computed(() => {
+  const targetSource = workspaceEntrySource.value === 'workspace' ? originContext.value.source : workspaceEntrySource.value;
+  return labelForObjectPageSource(targetSource, '返回来源');
+});
+
+const enterpriseLead = '切换任务查看执行情况、节点交付、AI 审核和企业反馈。';
+const talentLead = '只同步当前任务、本轮进展和必要协助。';
+const workspaceScaffoldTitle = computed(() =>
+  hasTask.value
+    ? page.value?.taskDetail?.title || (isEnterprise.value ? '协作执行台' : '执行工作台')
+    : (isEnterprise.value ? '等待协作开始' : '等待开始执行')
+);
+const workspaceScaffoldSubtitle = computed(() =>
+  hasTask.value
+    ? (isEnterprise.value ? '只盯当前任务、关键节点和最新同步。' : talentLead)
+    : (isEnterprise.value
+      ? '先完成发布和选人，再回这里集中盯节点。'
+      : '先确认任务，再回这里同步进展与附件。')
+);
+const workspaceSummaryTitle = computed(() => {
+  if (!hasTask.value) {
+    return emptyWorkspaceHeadline.value;
+  }
+  return focusedNode.value?.title || '当前任务';
+});
+const workspaceSummaryDescription = computed(() => {
+  if (!hasTask.value) {
+    return emptyWorkspaceDescription.value;
+  }
+
+  const nodeSummary = compactText(focusedNode.value?.summary, 92);
+  if (nodeSummary) {
+    return nodeSummary;
+  }
+
+  const taskBrief = compactText(page.value?.taskDetail?.brief, 92);
+  if (taskBrief) {
+    return taskBrief;
+  }
+
+  return workspaceScaffoldSubtitle.value;
+});
+const workspaceHighlightLabel = computed(() => {
+  if (!hasTask.value) {
+    return '下一步';
+  }
+  return focusedNode.value ? '当前状态' : '下一步';
+});
+const workspaceHighlightValue = computed(() => {
+  if (!hasTask.value) {
+    return emptyWorkspaceNextStep.value;
+  }
+  return [focusedNode.value?.status, focusedNode.value?.progress].filter(Boolean).join(' · ') || emptyWorkspaceNextStep.value;
+});
+const emptyWorkspaceHeadline = computed(() =>
+  isEnterprise.value ? '先完成发布与选人' : '先确认任务再开始'
+);
+const emptyWorkspaceDescription = computed(() =>
+  isEnterprise.value
+    ? '协作空间只承接已进入合作的任务，不再在首页堆解释。'
+    : '这里专门承接已经确认的任务，同步进展时再回到这里。'
+);
+const emptyWorkspaceNextStep = computed(() =>
+  isEnterprise.value ? '发布任务后再回来查看节点' : '从任务广场进入并确认一单任务'
+);
 const earlyCompletion = computed(() => page.value?.earlyCompletion || { status: '未发起' });
 const cancellationRequest = computed(() => page.value?.cancellationRequest || { status: '未发起' });
 const currentAudience = computed(() => (isEnterprise.value ? 'enterprise' : 'talent'));
@@ -659,6 +707,22 @@ const deliveryGradeOptions = [
 ];
 
 const normalizedNodes = computed(() => listOf(page.value?.collaborationNodes).map(normalizeNode));
+const focusedNode = computed(() => {
+  if (!normalizedNodes.value.length) {
+    return null;
+  }
+  const inProgress = normalizedNodes.value.find((node) => !['已完成', '已取消'].includes(node.status || ''));
+  return inProgress || normalizedNodes.value[0];
+});
+const focusedNodeIndex = computed(() =>
+  focusedNode.value ? normalizedNodes.value.findIndex((node) => node.id === focusedNode.value.id) : -1
+);
+const upcomingNode = computed(() => {
+  if (!normalizedNodes.value.length || focusedNodeIndex.value < 0) {
+    return null;
+  }
+  return normalizedNodes.value[focusedNodeIndex.value + 1] || null;
+});
 
 const latestProgress = computed(() => {
   const items = listOf(page.value?.progressFeed);
@@ -666,20 +730,22 @@ const latestProgress = computed(() => {
 });
 
 const recordItems = computed(() => {
-  const progress = listOf(page.value?.progressFeed).slice(0, 2).map((item, index) => ({
+  const progressFeed = listOf(page.value?.progressFeed);
+  const reviewFeed = listOf(page.value?.aiReviewHistory);
+  const progress = progressFeed.slice(-2).reverse().map((item, index) => ({
     key: `progress-${index}`,
     title: item.stage || '最新进展',
     time: item.time || item.submittedAt || '刚刚更新',
     badge: item.completion || '进展',
-    summary: item.summary || '当前还没有更多进展说明。'
+    summary: compactText(item.summary, 72) || '当前还没有更多进展说明。'
   }));
 
-  const reviews = listOf(page.value?.aiReviewHistory).slice(0, 2).map((item, index) => ({
+  const reviews = reviewFeed.slice(-2).reverse().map((item, index) => ({
     key: `review-${index}`,
     title: item.title || 'AI 巡检',
     time: item.focus || 'AI 审核',
     badge: item.status || '已生成',
-    summary: item.summary || '当前还没有 AI 建议。'
+    summary: compactText(item.summary, 72) || '当前还没有 AI 建议。'
   }));
 
   return [...progress, ...reviews];
@@ -730,6 +796,216 @@ const cancellationSummary = computed(() =>
   cancellationRequest.value.reason ||
   '如果任务范围、预算或合作基础发生重大变化，可以发起取消流程。'
 );
+const workspacePrimaryLabel = computed(() =>
+  hasTask.value
+    ? '去聊天'
+    : (isEnterprise.value ? '去发布任务' : '查看任务广场')
+);
+const workspaceSecondaryLabel = computed(() => {
+  if (!hasTask.value) {
+    return '';
+  }
+  if (canOpenAcceptance.value) {
+    return isEnterprise.value ? '去验收与评级' : '查看评级结果';
+  }
+  if (isEnterprise.value && canRequestEarlyCompletion.value) {
+    return '发起提前完成';
+  }
+  if (canRequestCancellation.value) {
+    return '申请取消';
+  }
+  return '查看任务详情';
+});
+const showWorkspaceSecondaryAction = computed(() => Boolean(workspaceSecondaryLabel.value));
+const workspaceFocusEyebrow = computed(() => (isEnterprise.value ? '最新同步' : '当前结论'));
+const workspaceFocusTitle = computed(() => {
+  if (!hasTask.value) {
+    return '';
+  }
+  if (latestProgress.value?.stage) {
+    return latestProgress.value.stage;
+  }
+  return focusedNode.value?.title || page.value?.taskDetail?.title || '当前任务';
+});
+const workspaceFocusSummary = computed(() => {
+  if (!hasTask.value) {
+    return '';
+  }
+  return (
+    compactText(latestProgress.value?.summary, 96) ||
+    compactText(focusedNode.value?.summary, 96) ||
+    compactText(page.value?.taskDetail?.brief, 96) ||
+    '当前还没有更多同步说明。'
+  );
+});
+const workspaceFocusMeta = computed(() => {
+  if (!hasTask.value) {
+    return '';
+  }
+  return (
+    latestProgress.value?.time ||
+    latestProgress.value?.submittedAt ||
+    focusedNode.value?.plannedDate ||
+    focusedNode.value?.workdayLabel ||
+    ''
+  );
+});
+const workspaceFocusTags = computed(() => {
+  if (!hasTask.value) {
+    return [];
+  }
+
+  const tags = [];
+  if (focusedNode.value?.status) {
+    tags.push(`当前状态 · ${focusedNode.value.status}`);
+  }
+  if (focusedNode.value?.progress) {
+    tags.push(`完成度 · ${focusedNode.value.progress}`);
+  }
+  if (upcomingNode.value?.title) {
+    tags.push(`下一步 · ${upcomingNode.value.title}`);
+  }
+  if (focusedNode.value?.expectedDeliverablesText) {
+    tags.push(`交付 · ${compactText(focusedNode.value.expectedDeliverablesText, 24)}`);
+  }
+
+  return tags.slice(0, 3);
+});
+const workspaceInlineResult = computed(() => taskFlowResult.value || progressResult.value || '');
+const workspaceHeroPrimaryLabel = computed(() => {
+  if (!hasTask.value) {
+    return isEnterprise.value ? '去发布任务' : '去任务广场';
+  }
+  if (!isEnterprise.value) {
+    return '提交本轮进展';
+  }
+  if (showWorkspaceSecondaryAction.value) {
+    return workspaceSecondaryLabel.value;
+  }
+  return workspacePrimaryLabel.value;
+});
+const workspaceHeroSecondaryLabel = computed(() => {
+  if (!hasTask.value) {
+    return '';
+  }
+  if (!isEnterprise.value) {
+    return workspacePrimaryLabel.value;
+  }
+  if (showWorkspaceSecondaryAction.value) {
+    return workspacePrimaryLabel.value;
+  }
+  return '';
+});
+const workspaceHeroTertiaryLabel = computed(() => {
+  if (!hasTask.value || isEnterprise.value || !showWorkspaceSecondaryAction.value) {
+    return '';
+  }
+  return workspaceSecondaryLabel.value;
+});
+const taskDetailAccordionItems = computed(() => {
+  if (!hasTask.value) {
+    return [];
+  }
+
+  const taskDetail = page.value?.taskDetail || {};
+  const calendarItems = listOf(taskDetail.calendarPreview?.items).map((item) => `${item.day} · ${item.note || '待同步'}`);
+  const deliverables = listOf(taskDetail.deliverables);
+  const modules = listOf(taskDetail.modules).map((item) => item?.name || item);
+
+  return [
+    {
+      key: 'basic',
+      badge: '任务基础',
+      title: '范围、工期与协作安排',
+      summary: taskDetail.status || '待同步',
+      list: [
+        `预算：${taskDetail.budget || '未填写预算'}`,
+        `周期：${taskDetail.period || page.value?.summary?.range || '待确认'}`,
+        `协作安排：${taskDetail.scheduleNote || '待补充'}`,
+        `${isEnterprise.value ? '人才' : '企业'}：${isEnterprise.value ? page.value?.summary?.talent || '待同步' : page.value?.summary?.business || '待同步'}`
+      ]
+    },
+    {
+      key: 'deliverables',
+      badge: '交付件',
+      title: '本任务需要交付什么',
+      summary: deliverables.length ? `${deliverables.length} 项交付件` : '暂无交付件清单',
+      list: deliverables.length ? deliverables : ['当前还没有补充具体交付件。']
+    },
+    {
+      key: 'calendar',
+      badge: '档期',
+      title: '近期档期与节奏',
+      summary: taskDetail.calendarPreview?.headline || '当前还没有同步真实档期',
+      list: calendarItems.length ? calendarItems : ['当前还没有同步真实档期。']
+    },
+    {
+      key: 'modules',
+      badge: 'AI 拆解',
+      title: 'AI 拆解模块',
+      summary: modules.length ? `${modules.length} 个模块` : '暂无模块拆解',
+      list: modules.length ? modules : ['当前还没有补充 AI 拆解模块。']
+    }
+  ];
+});
+const activeNodeAccordionItems = computed(() => {
+  if (!activeNode.value) {
+    return [];
+  }
+
+  const node = activeNode.value;
+  const attachmentItems = listOf(node.attachments)
+    .map((item) => attachmentLabel(item))
+    .filter(Boolean);
+  const aiSuggestions = listOf(node.aiReview?.suggestions)
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+  const aiFocusList = listOf(node.aiReview?.focus)
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+
+  return [
+    {
+      key: 'plan',
+      badge: '计划',
+      title: '工作日与计划交付',
+      summary: node.workdayLabel || node.plannedDate || node.status || '待同步',
+      list: [
+        `工作日：${node.workdayLabel || '待排期'}`,
+        `计划日期：${node.plannedDate || '待排期'}`,
+        `节点类型：${node.stageType || '待同步'}`,
+        `计划交付：${node.expectedDeliverablesText || '当前还没有补充明确交付件。'}`
+      ]
+    },
+    {
+      key: 'submission',
+      badge: '提交',
+      title: '人才本轮提交',
+      summary: node.submissionTime || '当前还没有新的提交时间',
+      body: node.submissionContent || '当前还没有新的提交说明。',
+      list: [
+        ...(attachmentItems.length ? attachmentItems.map((item) => `附件：${item}`) : []),
+        ...(node.supportNeeded ? [`协助需求：${node.supportNeeded}`] : []),
+        ...(!attachmentItems.length && !node.supportNeeded ? ['当前还没有附件或协助需求。'] : [])
+      ]
+    },
+    {
+      key: 'ai',
+      badge: 'AI',
+      title: 'AI 审核与建议',
+      summary: node.aiReview?.summary || '当前还没有新的 AI 审核结论。',
+      list: [
+        ...(node.aiReview?.status ? [`审核状态：${node.aiReview.status}`] : []),
+        ...(node.aiReview?.score ? [`综合评分：${node.aiReview.score}`] : []),
+        ...aiFocusList.map((item) => `关注点：${item}`),
+        ...aiSuggestions.map((item) => `建议：${item}`),
+        ...(!node.aiReview?.status && !node.aiReview?.score && !aiFocusList.length && !aiSuggestions.length
+          ? ['当前还没有新的 AI 审核建议。']
+          : [])
+      ]
+    }
+  ];
+});
 
 const taskFlowTitle = computed(() => {
   switch (taskFlowMode.value) {
@@ -812,8 +1088,33 @@ const taskFlowPrimaryLabel = computed(() => {
   }
 });
 
+function isFailedResult(result) {
+  return Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED');
+}
+
 function listOf(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function compactText(value, limit = 72) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return '';
+  }
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, Math.max(0, limit - 3)).trim()}...`;
+}
+
+function attachmentLabel(item) {
+  if (typeof item === 'string') {
+    return item.trim();
+  }
+  if (item && typeof item === 'object') {
+    return String(item.fileName || item.name || item.label || item.url || '').trim();
+  }
+  return '';
 }
 
 function normalizeNode(node) {
@@ -825,6 +1126,13 @@ function normalizeNode(node) {
   const enterpriseFeedback =
     node?.enterpriseFeedback && typeof node.enterpriseFeedback === 'object' ? node.enterpriseFeedback : null;
 
+  const expectedDeliverablesList = listOf(node?.expectedDeliverables)
+    .map((item) => String(item || '').trim())
+    .filter(Boolean);
+  const expectedDeliverablesText = expectedDeliverablesList.length
+    ? expectedDeliverablesList.join(' / ')
+    : String(node?.expectedDeliverables || '').trim();
+
   return {
     id: node?.nodeId || node?.id || '',
     title: node?.title || '未命名节点',
@@ -835,6 +1143,7 @@ function normalizeNode(node) {
     workdayLabel: node?.workdayLabel || '',
     plannedDate: node?.plannedDate || '',
     expectedDeliverables: node?.expectedDeliverables || '',
+    expectedDeliverablesText,
     stageType: node?.stageType || '',
     supportNeeded: node?.supportNeeded || '',
     attachments: listOf(node?.attachments).length ? listOf(node.attachments) : listOf(node?.talentSubmission?.attachments),
@@ -877,14 +1186,20 @@ function selectTask(taskId) {
   if (!nextTaskId || nextTaskId === currentTaskId.value) {
     return;
   }
+  closeTaskSwitcher();
 
   router.replace({
     path: route.path,
-    query: {
-      ...route.query,
-      taskId: nextTaskId
-    }
+    query: serializeObjectPageContext({ taskId: nextTaskId })
   });
+}
+
+function openTaskSwitcher() {
+  taskSwitcherVisible.value = true;
+}
+
+function closeTaskSwitcher() {
+  taskSwitcherVisible.value = false;
 }
 
 function openTaskDetail() {
@@ -895,10 +1210,103 @@ function closeTaskDetail() {
   taskDetailVisible.value = false;
 }
 
+function openRecordSheet() {
+  recordSheetVisible.value = true;
+}
+
+function closeRecordSheet() {
+  recordSheetVisible.value = false;
+}
+
+function openNodeOverview() {
+  nodeOverviewVisible.value = true;
+}
+
+function closeNodeOverview() {
+  nodeOverviewVisible.value = false;
+}
+
+function openProgressComposer() {
+  progressComposerVisible.value = true;
+}
+
+function closeProgressComposer() {
+  progressComposerVisible.value = false;
+}
+
+function handleWorkspaceHeroPrimaryAction() {
+  if (!hasTask.value) {
+    handleWorkspacePrimaryAction();
+    return;
+  }
+  if (!isEnterprise.value) {
+    openProgressComposer();
+    return;
+  }
+  if (showWorkspaceSecondaryAction.value) {
+    handleWorkspaceSecondaryAction();
+    return;
+  }
+  handleWorkspacePrimaryAction();
+}
+
+function handleWorkspaceHeroSecondaryAction() {
+  if (!hasTask.value) {
+    return;
+  }
+  if (!isEnterprise.value) {
+    handleWorkspacePrimaryAction();
+    return;
+  }
+  if (showWorkspaceSecondaryAction.value) {
+    handleWorkspacePrimaryAction();
+  }
+}
+
+function handleWorkspaceHeroTertiaryAction() {
+  if (!hasTask.value || isEnterprise.value || !showWorkspaceSecondaryAction.value) {
+    return;
+  }
+  handleWorkspaceSecondaryAction();
+}
+
+function handleWorkspacePrimaryAction() {
+  if (hasTask.value) {
+    router.push(chatRoute.value);
+    return;
+  }
+
+  router.push(isEnterprise.value ? roleRouteMap.enterprise.publish : roleRouteMap.talent.market);
+}
+
+function handleWorkspaceSecondaryAction() {
+  if (!hasTask.value) {
+    return;
+  }
+  if (canOpenAcceptance.value) {
+    router.push(acceptanceRoute.value);
+    return;
+  }
+  if (isEnterprise.value && canRequestEarlyCompletion.value) {
+    openTaskFlowModal('early_request');
+    return;
+  }
+  if (canRequestCancellation.value) {
+    openTaskFlowModal('cancel_request');
+    return;
+  }
+  openTaskDetail();
+}
+
 function openNode(node) {
+  closeNodeOverview();
   activeNode.value = normalizeNode(node);
   feedbackForm.value.summary = '';
   feedbackResult.value = '';
+}
+
+function openNodeFromOverview(node) {
+  openNode(node);
 }
 
 function closeNode() {
@@ -936,18 +1344,36 @@ async function submitProgressForm() {
   submittingProgress.value = true;
   progressResult.value = '';
 
+  let attachmentFiles = [];
+  try {
+    attachmentFiles = await Promise.all(
+      progressFiles.value.map((file) =>
+        uploadTaskAttachmentAsset(page.value.summary.taskId, file, {
+          scene: 'TASK_PROGRESS',
+          source: 'TASK_PROGRESS'
+        })
+      )
+    );
+  } catch (error) {
+    progressResult.value = error?.requestError || error?.message || '本轮附件上传失败，请稍后再试。';
+    submittingProgress.value = false;
+    return;
+  }
+
   const result = await submitTaskProgress(page.value.summary.taskId, {
     submitterUserId: page.value.summary.talentUserId || page.value.summary.businessUserId || '',
     stage: progressForm.value.stageName,
     progressText: progressForm.value.progressSummary,
     supportNeeded: progressForm.value.supportNeeded,
     completionPercent: progressForm.value.completion,
-    attachmentFiles: progressFiles.value.map((file) => ({
-      name: file.name,
-      size: file.size,
-      type: file.type
-    }))
+    attachmentFiles
   });
+
+  if (isFailedResult(result)) {
+    progressResult.value = result?.requestError || result?.nextStep || '本轮进展提交失败，请稍后再试。';
+    submittingProgress.value = false;
+    return;
+  }
 
   progressResult.value = result?.nextStep || '本轮进展已提交。';
   progressForm.value = {
@@ -958,6 +1384,7 @@ async function submitProgressForm() {
   };
   progressFiles.value = [];
   await loadPage();
+  progressComposerVisible.value = false;
   submittingProgress.value = false;
 }
 
@@ -973,6 +1400,12 @@ async function submitNodeFeedback() {
     nodeId: activeNode.value.id,
     summary: feedbackForm.value.summary
   });
+
+  if (isFailedResult(result)) {
+    feedbackResult.value = result?.requestError || result?.nextStep || '企业建议保存失败，请稍后再试。';
+    submittingFeedback.value = false;
+    return;
+  }
 
   feedbackResult.value = result?.nextStep || '企业建议已记录。';
 
@@ -1023,6 +1456,11 @@ async function submitTaskFlowAction() {
       return;
     }
 
+    if (isFailedResult(result)) {
+      taskFlowError.value = result?.requestError || result?.nextStep || '任务动作提交失败，请稍后再试。';
+      return;
+    }
+
     taskFlowResult.value = result?.nextStep || '任务状态已更新。';
     closeTaskFlowModal();
     await loadPage();
@@ -1040,24 +1478,52 @@ watch(
 
 onMounted(async () => {
   await loadPage();
-  if (typeof window !== 'undefined') {
-    workspaceRefreshTimer = window.setInterval(() => {
-      if (
-        submittingProgress.value ||
-        submittingFeedback.value ||
-        submittingTaskFlow.value ||
-        (typeof document !== 'undefined' && document.visibilityState === 'hidden')
-      ) {
-        return;
-      }
-      void loadPage({ silent: true });
-    }, 6000);
-  }
+  stopBusinessLiveSync = startBusinessLiveSync({
+    refresh: () => loadPage({ silent: true }),
+    acceptsEvent(event) {
+      const taskId = String(currentTaskId.value || '').trim();
+      return !taskId || !event?.taskId || event.taskId === taskId;
+    },
+    shouldPause() {
+      return submittingProgress.value || submittingFeedback.value || submittingTaskFlow.value;
+    },
+    onStatusChange: handleLiveSyncStatus,
+    onSyncError: handleLiveSyncError
+  });
 });
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined' && workspaceRefreshTimer) {
-    window.clearInterval(workspaceRefreshTimer);
-  }
+  stopBusinessLiveSync?.();
+  stopBusinessLiveSync = null;
 });
 </script>
+
+<style scoped>
+.workspace-quick-entry-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workspace-quick-entry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(120, 190, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(8, 15, 28, 0.68);
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.workspace-node-card-focus {
+  width: 100%;
+}
+
+.workspace-node-followup {
+  margin: 0;
+}
+</style>

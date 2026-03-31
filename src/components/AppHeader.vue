@@ -1,15 +1,16 @@
 <template>
   <header class="nav-shell">
-    <div class="nav-inner">
+    <div class="nav-inner" :class="{ 'is-portal': isPortalAudience, 'is-app': !isPortalAudience }">
       <router-link to="/" class="brand-lockup">
-        <span class="brand-chip">{{ headerModel.chip }}</span>
+        <span v-if="isPortalAudience" class="brand-chip">{{ headerModel.chip }}</span>
         <div>
           <span class="brand-mark">有轻工</span>
-          <span class="brand-copy">{{ headerModel.copy }}</span>
+          <span class="brand-copy brand-copy-desktop">{{ headerModel.copy }}</span>
+          <span class="brand-copy brand-copy-mobile">{{ mobileSubtitle }}</span>
         </div>
       </router-link>
 
-      <nav class="nav-links">
+      <nav v-if="isPortalAudience" class="nav-links">
         <component
           :is="item.href ? 'a' : 'router-link'"
           v-for="item in headerModel.links"
@@ -20,38 +21,58 @@
         </component>
       </nav>
 
-      <div class="nav-actions">
-        <div v-if="authState.user" class="nav-user-chip">
+      <div class="nav-actions" :class="{ 'nav-actions-app': !isPortalAudience }">
+        <div v-if="authState.user" class="nav-user-chip" :class="{ 'is-app': !isPortalAudience }">
           <span class="nav-user-name">{{ authState.user.displayName }}</span>
-          <span class="nav-user-meta">{{ authState.user.audience === 'talent' ? '人才端' : '企业端' }}</span>
+          <span v-if="isPortalAudience" class="nav-user-meta">{{ authState.user.audience === 'talent' ? '人才端' : '企业端' }}</span>
         </div>
         <button
-          v-if="headerModel.secondary?.action === 'login'"
+          v-if="showAppGuestLogin"
+          class="button-secondary nav-button nav-button-compact nav-button-app-login"
+          type="button"
+          @click="openLoginPage(headerModel.primary.audience)"
+        >
+          {{ headerModel.primary.label }}
+        </button>
+        <router-link
+          v-else-if="!isPortalAudience && !authState.user && headerModel.secondary?.to"
+          class="button-secondary nav-button nav-button-compact"
+          :to="headerModel.secondary.to"
+        >
+          {{ headerModel.secondary.label }}
+        </router-link>
+        <button
+          v-else-if="isPortalAudience && headerModel.secondary?.action === 'login'"
           class="button-secondary nav-button"
           type="button"
-          @click="openLoginModal(headerModel.secondary.audience)"
+          @click="openLoginPage(headerModel.secondary.audience)"
         >
           {{ headerModel.secondary.label }}
         </button>
         <router-link
-          v-else-if="headerModel.secondary"
+          v-else-if="isPortalAudience && headerModel.secondary"
           class="button-secondary nav-button"
           :to="headerModel.secondary.to"
         >
           {{ headerModel.secondary.label }}
         </router-link>
-        <button v-if="showLogout" class="button-secondary nav-button" type="button" @click="handleLogout">
-          退出登录
+        <button
+          v-if="showLogout"
+          class="button-secondary nav-button nav-button-compact nav-button-logout"
+          type="button"
+          @click="handleLogout"
+        >
+          退出
         </button>
         <button
-          v-if="headerModel.primary?.action === 'login'"
+          v-if="isPortalAudience && headerModel.primary?.action === 'login'"
           class="button-primary nav-button"
           type="button"
-          @click="openLoginModal(headerModel.primary.audience)"
+          @click="openLoginPage(headerModel.primary.audience)"
         >
           {{ headerModel.primary.label }}
         </button>
-        <router-link v-else class="button-primary nav-button" :to="headerModel.primary.to">
+        <router-link v-else-if="isPortalAudience" class="button-primary nav-button" :to="headerModel.primary.to">
           {{ headerModel.primary.label }}
         </router-link>
       </div>
@@ -69,22 +90,25 @@ const route = useRoute();
 const router = useRouter();
 const authState = useAuthState();
 const showLogout = computed(() => Boolean(authState.user));
+const mobileTitle = computed(() => String(route.meta?.title || '有轻工'));
+const isPortalAudience = computed(() => resolveAudience(route) === 'portal');
+const showAppGuestLogin = computed(
+  () => !isPortalAudience.value && authState.initialized && !authState.user && headerModel.value.primary?.action === 'login'
+);
+const mobileSubtitle = computed(() => {
+  if (isPortalAudience.value) {
+    return mobileTitle.value;
+  }
+  return '';
+});
 
 async function handleLogout() {
   await signOut();
   router.push('/');
 }
 
-function openLoginModal(audience = 'enterprise') {
-  router.replace({
-    path: route.path,
-    query: {
-      ...route.query,
-      login: '1',
-      audience
-    },
-    hash: route.hash
-  });
+function openLoginPage(audience = 'enterprise') {
+  router.push(roleRouteMap.portal.login(audience));
 }
 
 const headerModel = computed(() => {
@@ -93,8 +117,8 @@ const headerModel = computed(() => {
 
   if (audience === 'enterprise') {
     return {
-      chip: 'Enterprise Side',
-      copy: '企业端：发布需求、查看人才、推进协作与验收',
+      chip: '企业端',
+      copy: '发单、选人、推进交付',
       links: [
         { to: '/enterprise', label: '工作台' },
         { to: '/enterprise/chat', label: '聊天' },
@@ -103,17 +127,17 @@ const headerModel = computed(() => {
       ],
       primary: authUser
         ? { to: '/enterprise/chat', label: '去聊天' }
-        : { action: 'login', audience: 'enterprise', label: '登录企业端' },
+        : { action: 'login', audience: 'enterprise', label: '登录' },
       secondary: authUser
-        ? { to: '/enterprise/publish', label: '发布任务' }
-        : { to: roleRouteMap.portal.register('enterprise'), label: '去注册' }
+        ? null
+        : { to: roleRouteMap.portal.register('enterprise'), label: '注册' }
     };
   }
 
   if (audience === 'talent') {
     return {
-      chip: 'Talent Side',
-      copy: '人才端：完善资料、查看任务、持续协作与沉淀信用',
+      chip: '人才端',
+      copy: '接单、协作、沉淀记录',
       links: [
         { to: '/talent', label: '工作台' },
         { to: '/talent/chat', label: '聊天' },
@@ -122,18 +146,18 @@ const headerModel = computed(() => {
       ],
       primary: authUser
         ? { to: '/talent/chat', label: '去聊天' }
-        : { action: 'login', audience: 'talent', label: '登录人才端' },
+        : { action: 'login', audience: 'talent', label: '登录' },
       secondary: authUser
-        ? { to: '/talent/tasks', label: '去找任务' }
-        : { to: roleRouteMap.portal.register('talent'), label: '去注册' }
+        ? null
+        : { to: roleRouteMap.portal.register('talent'), label: '注册' }
     };
   }
 
   return {
-    chip: 'Official Site',
-    copy: 'AI 驱动的人才协作平台，先选入口，再进入对应业务端',
+    chip: '官网',
+    copy: '企业与 AI 人才的协作平台',
     links: [
-      { to: '/', label: '首页' },
+      { to: roleRouteMap.portal.landing, label: '平台页' },
       { href: '#features', label: '平台介绍' },
       { href: '#cases', label: '案例' },
       { href: '#contact', label: '联系方式' }
@@ -152,114 +176,150 @@ const headerModel = computed(() => {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 12;
-  padding: 16px 20px;
+  z-index: 20;
+  padding: calc(6px + env(safe-area-inset-top)) 10px 4px;
 }
 
 .nav-inner {
-  max-width: 1240px;
+  max-width: 860px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 14px 18px;
+  gap: 7px;
+  padding: 6px 8px;
   background:
-    linear-gradient(180deg, rgba(8, 17, 34, 0.9), rgba(8, 15, 30, 0.94)),
-    radial-gradient(circle at top left, rgba(64, 112, 255, 0.18), transparent 36%);
-  border: 1px solid rgba(114, 154, 255, 0.16);
-  border-radius: 26px;
-  backdrop-filter: blur(22px);
-  box-shadow: 0 20px 48px rgba(2, 7, 19, 0.44);
+    linear-gradient(180deg, rgba(9, 15, 28, 0.96), rgba(11, 19, 34, 0.99)),
+    radial-gradient(circle at top right, rgba(96, 142, 255, 0.05), transparent 36%);
+  border: 1px solid rgba(145, 171, 220, 0.1);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 18px rgba(2, 8, 20, 0.18);
+}
+
+.nav-inner.is-app {
+  padding: 5px 8px;
+  border-radius: 14px;
 }
 
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .brand-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid rgba(126, 157, 255, 0.18);
-  background: rgba(13, 27, 54, 0.9);
-  color: rgba(184, 204, 255, 0.9);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  border: 1px solid rgba(145, 171, 220, 0.12);
+  background: rgba(20, 27, 42, 0.92);
+  color: rgba(226, 235, 248, 0.88);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
 }
 
 .brand-mark {
   display: block;
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 17px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #f5f8ff;
+  letter-spacing: -0.03em;
+  color: var(--text-strong);
 }
 
 .brand-copy {
   display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-faint);
-  letter-spacing: 0.06em;
+  margin-top: 1px;
+  font-size: 8px;
+  color: var(--text-soft);
+  letter-spacing: 0.03em;
+}
+
+.brand-copy-mobile {
+  display: none;
+}
+
+.nav-links a {
+  padding: 6px 8px;
+  border-radius: 999px;
+  color: var(--text-soft);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-links .router-link-exact-active,
+.nav-links .router-link-active {
+  background: rgba(102, 135, 214, 0.12);
+  color: var(--text-strong);
+  box-shadow: inset 0 0 0 1px rgba(145, 171, 220, 0.16);
+}
+
+.nav-links a:hover {
+  transform: translateY(-1px);
+  color: var(--text-strong);
 }
 
 .nav-links,
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-.nav-links a {
-  padding: 10px 12px;
-  border-radius: 12px;
-  color: var(--text-faint);
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
-}
-
-.nav-links .router-link-exact-active,
-.nav-links .router-link-active {
-  background: linear-gradient(180deg, rgba(30, 54, 108, 0.88), rgba(17, 33, 67, 0.88));
-  color: var(--text-main);
-  box-shadow: inset 0 0 0 1px rgba(93, 141, 255, 0.14);
-}
-
-.nav-links a:hover {
-  transform: translateY(-1px);
-  color: var(--text-main);
+.nav-actions-app {
+  gap: 6px;
 }
 
 .nav-button {
-  min-height: 40px;
-  padding: 0 14px;
-  font-size: 14px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 10px;
 }
 
 .nav-user-chip {
   display: inline-flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(126, 157, 255, 0.16);
-  background: rgba(11, 24, 49, 0.86);
+  gap: 1px;
+  padding: 4px 7px;
+  border-radius: 10px;
+  background: rgba(7, 13, 24, 0.82);
+  border: 1px solid rgba(145, 171, 220, 0.12);
+}
+
+.nav-user-chip.is-app {
+  padding: 4px 7px;
 }
 
 .nav-user-name {
-  color: var(--text-main);
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--text-strong);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .nav-user-meta {
-  color: var(--text-faint);
-  font-size: 11px;
+  color: var(--text-soft);
+  font-size: 8px;
+}
+
+.nav-button-compact {
+  min-width: 0;
+}
+
+.nav-button-app-login.button-secondary {
+  background: rgba(6, 12, 24, 0.42);
+  border-color: rgba(145, 171, 220, 0.08);
+  color: var(--text-soft);
+  box-shadow: none;
+}
+
+.nav-button-app-secondary,
+.nav-button-logout {
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {
@@ -281,11 +341,14 @@ const headerModel = computed(() => {
 
 @media (max-width: 640px) {
   .nav-shell {
-    padding: 12px;
+    padding: calc(6px + env(safe-area-inset-top)) 8px 0;
   }
 
   .nav-inner {
-    padding: 12px 14px;
+    gap: 6px;
+    padding: 6px 8px;
+    border-radius: 14px;
+    box-shadow: 0 8px 16px rgba(2, 8, 20, 0.16);
   }
 
   .brand-chip,
@@ -293,9 +356,53 @@ const headerModel = computed(() => {
     display: none;
   }
 
+  .brand-mark {
+    font-size: 16px;
+  }
+
+  .brand-copy-desktop {
+    display: none;
+  }
+
+  .brand-copy-mobile {
+    display: block;
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+    color: var(--text-soft);
+  }
+
   .nav-actions {
-    width: 100%;
-    justify-content: space-between;
+    width: auto;
+    justify-content: flex-end;
+    margin-left: auto;
+    gap: 4px;
+  }
+
+  .nav-user-chip {
+    padding: 4px 7px;
+    gap: 1px;
+  }
+
+  .nav-user-chip.is-app {
+    padding: 4px 7px;
+  }
+
+  .nav-button {
+    min-height: 28px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .nav-actions .button-primary {
+    display: none;
+  }
+
+  .nav-button-app-secondary {
+    display: none;
+  }
+
+  .nav-user-meta {
+    display: none;
   }
 }
 </style>

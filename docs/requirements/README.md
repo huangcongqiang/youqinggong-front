@@ -11,13 +11,15 @@
 
 建议先看：
 
-1. [需求文档](./2026-03-21-ai-talent-market-requirements.md)
+1. [需求文档](./2026-03-28-enterprise-employment-collaboration-requirements.md)
+2. [功能清单](./2026-03-30-product-feature-inventory.md)
 
 这个目录里应该放什么：
 
 - 功能范围
 - 角色定义
 - 核心业务链路
+- 面向业务的功能清单
 - MVP 边界
 - 非功能性约束
 

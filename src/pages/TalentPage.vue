@@ -1,323 +1,249 @@
 <template>
-  <section class="page-stack dashboard-page" v-if="page">
-    <article v-if="attentionItems.length" class="glass-panel stack-sm dashboard-attention-card dashboard-alert-card">
-      <div class="dashboard-attention-header">
-        <div>
-          <span class="eyebrow">优先处理</span>
-          <h3>待办提醒</h3>
-        </div>
-        <p class="muted">{{ page.attentionHeadline }}</p>
-      </div>
+  <MobilePageScaffold
+    v-if="page"
+    :title="heroTitle"
+    :subtitle="heroSubtitle"
+  >
+    <template #meta>
+      <span v-if="priorityCount" class="soft-pill">{{ priorityCount }} 项待确认</span>
+    </template>
 
-      <div class="dashboard-attention-list">
+    <article v-if="page.requestError" class="result-card stack-sm">
+      <h3>暂时没拉到工作台数据</h3>
+      <p class="muted">{{ page.requestError }}</p>
+    </article>
+
+    <SummarySection
+      title="待办"
+      :highlight-value="priorityCount ? String(priorityCount) : ''"
+      tone="cool"
+    >
+      <div v-if="priorityCards.length" class="mobile-dashboard-stack">
         <router-link
-          v-for="item in attentionItems"
+          v-for="item in priorityCards"
           :key="item.id"
-          class="dashboard-attention-item"
-          :to="item.route"
+          class="mobile-dashboard-link"
+          :to="item.route || roleRouteMap.talent.messages"
         >
-          <span class="dashboard-attention-dot"></span>
-          <span class="dashboard-attention-label">{{ item.label }}</span>
-          <span class="dashboard-attention-count">{{ item.count }}</span>
+          <UnifiedListCard
+            :title="item.label"
+            :meta="itemHint(item)"
+            :status="`${item.count}项`"
+            status-tone="warning"
+          />
         </router-link>
       </div>
-    </article>
-
-    <article class="hero-card dashboard-hero stack-md">
-      <span class="eyebrow">人才端工作台</span>
-      <h1 class="dashboard-title">{{ page.hero.name }} 的工作台总览</h1>
-      <p class="hero-lead dashboard-lead">
-        这里先看接单状态、当前任务和关键入口。任务广场、项目消息、协作进度、对外简历和档期详情，都放到各自模块里处理，不在工作台里堆完整内容。
+      <p v-else class="muted mobile-dashboard-empty">
+        当前没有待办，直接去聊天或看任务。
       </p>
+      <router-link v-if="!priorityCards.length" class="button-secondary" :to="roleRouteMap.talent.market">
+        去任务广场
+      </router-link>
+    </SummarySection>
 
-      <div class="dashboard-hero-actions">
-        <router-link class="button-primary" :to="roleRouteMap.talent.messages">去聊天</router-link>
-        <router-link class="button-secondary" :to="roleRouteMap.talent.market">查看任务广场</router-link>
-        <router-link class="button-secondary" :to="roleRouteMap.talent.profile('chen-yining')">查看对外简历</router-link>
-      </div>
-    </article>
-
-    <article class="glass-panel stack-md">
-      <div class="panel-header">
+    <article class="glass-panel stack-md mobile-dashboard-entry-panel">
+      <div class="panel-header panel-header-top">
         <div>
-          <span class="eyebrow">总览</span>
-          <h3>当前人才端的关键状态</h3>
+          <h3>常用入口</h3>
         </div>
-        <span class="soft-pill">{{ page.hero.availability }}</span>
+        <button class="button-secondary" type="button" @click="openInfo">更多</button>
       </div>
 
-      <section class="metric-grid dashboard-metric-grid">
-        <MetricCard
-          v-for="item in summaryMetrics"
-          :key="item.label"
-          :label="item.label"
-          :value="item.value"
-          :note="item.note"
-        />
+      <section class="mobile-dashboard-entry-grid">
+        <router-link class="mobile-dashboard-link" :to="roleRouteMap.talent.messages">
+          <UnifiedListCard
+            title="聊天"
+            :subtitle="messageSummary"
+            :meta="messageMeta"
+            :status="messageStatus"
+            :status-tone="messageStatusTone"
+          />
+        </router-link>
+
+        <router-link class="mobile-dashboard-link" :to="roleRouteMap.talent.market">
+          <UnifiedListCard
+            title="任务广场"
+            :subtitle="marketSummary"
+            :meta="marketMeta"
+            :status="marketStatus"
+            :status-tone="marketStatusTone"
+          />
+        </router-link>
       </section>
-
-      <p class="muted">
-        当前人才端最常用的就是聊天、看任务、看进度和看档期。工作台只负责把这几个入口放清楚，具体细节都放到对应页面里处理。
-      </p>
-
-      <div class="tag-row">
-        <span v-for="item in summaryChips" :key="item" class="soft-pill">{{ item }}</span>
-      </div>
     </article>
 
-    <section class="dashboard-module-list">
-      <article v-for="module in modules" :key="module.id" class="glass-panel dashboard-module-card stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">{{ module.eyebrow }}</span>
-            <h3>{{ module.title }}</h3>
+    <MobileSheet
+      :open="activeInfo"
+      title="更多入口"
+      subtitle=""
+      size="medium"
+      @close="closeInfo"
+    >
+      <div class="stack-md">
+        <section class="mobile-dashboard-sheet-section stack-sm">
+          <div class="stack-xs">
+            <h4>收起的信息</h4>
           </div>
-          <span class="soft-pill">{{ module.status }}</span>
-        </div>
-
-        <p class="muted">{{ module.description }}</p>
-
-        <div class="tag-row">
-          <span v-for="item in module.badges" :key="item" class="tag-pill tag-pill-muted">{{ item }}</span>
-        </div>
-
-        <div class="dashboard-preview-list">
-          <div v-for="item in module.preview" :key="item" class="dashboard-preview-item">
-            <span class="status-dot"></span>
-            <p class="muted">{{ item }}</p>
+          <div class="tag-row">
+            <span v-for="item in summaryHighlights" :key="item" class="soft-pill">{{ item }}</span>
           </div>
-        </div>
-
-        <div class="dashboard-module-actions">
-          <router-link v-if="module.route" class="button-primary" :to="module.route">
-            {{ module.actionLabel }}
-          </router-link>
-          <button v-else class="button-primary" type="button" @click="openModule(module)">
-            {{ module.actionLabel }}
-          </button>
-          <button class="button-secondary" type="button" @click="openModule(module)">查看摘要</button>
-        </div>
-      </article>
-    </section>
-
-    <div v-if="activeModule" class="dashboard-detail-modal" @click.self="closeModule">
-      <article class="dashboard-detail-card stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">{{ activeModule.eyebrow }}</span>
-            <h3>{{ activeModule.title }}</h3>
-          </div>
-          <button class="button-secondary" type="button" @click="closeModule">关闭</button>
-        </div>
-
-        <p class="muted">{{ activeModule.description }}</p>
-
-        <div class="tag-row">
-          <span v-for="item in activeModule.badges" :key="item" class="soft-pill">{{ item }}</span>
-        </div>
-
-        <div class="dashboard-detail-section">
-          <h4>模块摘要</h4>
           <ul class="dashboard-detail-list">
-            <li v-for="item in activeModule.details" :key="item">{{ item }}</li>
+            <li>{{ listOf(page.activeTasks).length }} 个执行中任务</li>
+            <li>{{ listOf(page.evaluations).length }} 条历史评价</li>
+            <li>{{ listOf(page.calendar).length }} 条档期记录</li>
           </ul>
-        </div>
+        </section>
 
-        <div class="dashboard-module-actions">
-          <router-link v-if="activeModule.route" class="button-primary" :to="activeModule.route" @click="closeModule">
-            {{ activeModule.actionLabel }}
-          </router-link>
-          <button v-else class="button-primary" type="button" @click="closeModule">已了解</button>
-        </div>
-      </article>
-    </div>
-  </section>
+        <section class="mobile-dashboard-sheet-section stack-sm">
+          <div class="stack-xs">
+            <h4>其他入口</h4>
+          </div>
+          <div class="mobile-dashboard-sheet-links">
+            <router-link class="mobile-dashboard-sheet-link" :to="roleRouteMap.talent.workspace" @click="closeInfo">
+              <strong>执行协作</strong>
+              <p class="muted">{{ workspaceSummary }}</p>
+            </router-link>
+            <router-link class="mobile-dashboard-sheet-link" :to="roleRouteMap.talent.records" @click="closeInfo">
+              <strong>接单记录</strong>
+              <p class="muted">{{ recordsSummary }}</p>
+            </router-link>
+            <router-link
+              v-if="page.hero?.slug"
+              class="mobile-dashboard-sheet-link"
+              :to="roleRouteMap.talent.profile(page.hero.slug)"
+              @click="closeInfo"
+            >
+              <strong>我的资料</strong>
+              <p class="muted">{{ profileSummary }}</p>
+            </router-link>
+          </div>
+        </section>
+      </div>
+    </MobileSheet>
+  </MobilePageScaffold>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import MetricCard from '../components/MetricCard.vue';
+import MobilePageScaffold from '../components/mobile/MobilePageScaffold.vue';
+import MobileSheet from '../components/mobile/MobileSheet.vue';
+import SummarySection from '../components/mobile/SummarySection.vue';
+import UnifiedListCard from '../components/mobile/UnifiedListCard.vue';
 import { getTalentData } from '../services/api';
+import { startBusinessLiveSync } from '../services/businessEventStream.js';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const page = ref(null);
-const activeModule = ref(null);
-let dashboardRefreshTimer = null;
+const activeInfo = ref(false);
+let stopBusinessLiveSync = null;
 
 function listOf(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function joinText(value, separator = ' / ') {
-  const items = listOf(value).filter(Boolean);
-  return items.length ? items.join(separator) : '标签待补充';
-}
-
-const summaryMetrics = computed(() => {
-  if (!page.value) {
-    return [];
-  }
-
-  const openDays = page.value.calendar.filter((item) => item.state === 'open').length;
-
-  return [
-    {
-      label: '综合评分',
-      value: page.value.hero.score,
-      note: '平台会结合评价、完工率和协作稳定性生成公开画像。'
-    },
-    {
-      label: '本月收入',
-      value: page.value.hero.income,
-      note: '收入会持续沉淀为个人品牌和接单背书。'
-    },
-    {
-      label: '开放档期',
-      value: `${openDays} 天`,
-      note: '根据当前日历状态自动统计本周剩余可接单时间。'
-    },
-    {
-      label: '进行中任务',
-      value: `${page.value.activeTasks.length} 个`,
-      note: '真正的进度详情放到协作空间查看。'
-    }
-  ];
-});
-
-const summaryChips = computed(() => {
-  if (!page.value) {
-    return [];
-  }
-
-  return [
-    `任务广场 ${page.value.marketplace.length} 个真实任务`,
-    page.value.pendingConfirmations?.length
-      ? `待确认任务 ${page.value.pendingConfirmations.length} 个`
-      : `未读沟通 ${page.value.messages.length} 条摘要`,
-    page.value.latestDeliveryGrade?.grade
-      ? `最近企业评级 ${page.value.latestDeliveryGrade.grade} 级${page.value.latestDeliveryGrade.payoutRatio ? ` · ${page.value.latestDeliveryGrade.payoutRatio}` : ''}`
-      : '',
-    page.value.evaluations?.length ? `最近评价 ${page.value.evaluations[0]}` : '完善资料后会逐步沉淀评价'
-  ].filter(Boolean);
-});
-
 const attentionItems = computed(() => listOf(page.value?.attentionItems));
+const pendingConfirmations = computed(() => listOf(page.value?.pendingConfirmations));
+const priorityCards = computed(() => {
+  if (attentionItems.value.length) {
+    return attentionItems.value.slice(0, 2);
+  }
+  if (pendingConfirmations.value.length) {
+    return [
+      {
+        id: 'pending-confirmations',
+        label: '待确认任务',
+        count: pendingConfirmations.value.length,
+        route: roleRouteMap.talent.messages
+      }
+    ];
+  }
+  return [];
+});
 
-const modules = computed(() => {
+const priorityCount = computed(() => {
+  if (attentionItems.value.length) {
+    return attentionItems.value.reduce((sum, item) => sum + Number(item?.count || 0), 0);
+  }
+  return pendingConfirmations.value.length;
+});
+
+const heroTitle = computed(() => (priorityCount.value > 0 ? '处理待办' : '开始工作'));
+const heroSubtitle = computed(() =>
+  priorityCount.value > 0
+    ? '先处理最重要的几项。'
+    : ''
+);
+
+const messageSummary = computed(() => {
+  const messages = listOf(page.value?.messages);
+  if (!messages.length) {
+    return '查看最近会话';
+  }
+  const latest = messages[0];
+  return `${latest.from}：${latest.text}`;
+});
+
+const messageMeta = computed(() => {
+  const messageCount = listOf(page.value?.messages).length;
+  return messageCount ? `${messageCount} 条会话` : '进入聊天';
+});
+
+const messageStatus = computed(() => (priorityCount.value > 0 ? '待处理' : ''));
+const messageStatusTone = computed(() => (priorityCount.value > 0 ? 'warning' : 'success'));
+
+const marketSummary = computed(() => {
+  const marketplace = listOf(page.value?.marketplace);
+  if (!marketplace.length) {
+    return '查看可接任务';
+  }
+  return `${marketplace[0].title} · ${marketplace[0].budget || '未填写预算'}`;
+});
+
+const marketMeta = computed(() => {
+  const marketCount = listOf(page.value?.marketplace).length;
+  return marketCount ? `${marketCount} 条任务` : '去看任务';
+});
+
+const marketStatus = computed(() => (listOf(page.value?.marketplace).length ? '有新任务' : '空闲'));
+const marketStatusTone = computed(() => (listOf(page.value?.marketplace).length ? 'info' : 'neutral'));
+
+const summaryHighlights = computed(() => {
   if (!page.value) {
     return [];
   }
-
+  const openDays = listOf(page.value.calendar).filter((item) => item.state === 'open').length;
   return [
-    {
-      id: 'messages',
-      eyebrow: '聊天',
-      title: '所有项目聊天都从这里进入',
-      status: page.value.pendingConfirmations?.length ? '有任务待确认' : '有新消息待查看',
-      description: page.value.pendingConfirmations?.length
-        ? '企业刚选择你进入合作，先去聊天页确认任务范围、工期和交付边界；如果不合理，也可以直接提出修改。'
-        : '接单后围绕具体任务聊天、回附件、看 AI 沟通纪要，都直接在聊天页处理，不需要先去别的模块找。',
-      badges: ['即时聊天', '附件同步', '沟通纪要'],
-      preview: page.value.messages.length
-        ? page.value.messages.map(
-            (message) => `${message.time} · ${message.from}：${message.text}`
-          )
-        : ['当前还没有聊天记录，企业选中你之后会从这里进入任务确认。'],
-      details: page.value.messages.length
-        ? page.value.messages.map(
-            (message) => `${message.time} · ${message.from}：${message.text}`
-          )
-        : ['聊天房间会按最新消息自动排序，新的协商任务也会在这里提醒。'],
-      route: roleRouteMap.talent.messages,
-      actionLabel: '进入聊天页'
-    },
-    {
-      id: 'profile',
-      eyebrow: '对外简历',
-      title: '维护你的公开人才详情页',
-      status: '公开展示中',
-      description: '你的头像、履历、作品、平台结果和评价都应该沉淀在对外简历页，不在工作台里完整展开。',
-      badges: ['头像与履历', '作品沉淀', '平台评价'],
-      preview: [
-        `技能标签：${joinText(listOf(page.value.skills).slice(0, 3))}`,
-        `代表作品：${page.value.portfolio[0]?.title}`,
-        `对外状态：可供企业端查看与比较`
-      ],
-      details: [
-        ...listOf(page.value.skills).map((skill) => `技能：${skill}`),
-        ...listOf(page.value.portfolio).map((item) => `作品：${item.title} - ${item.desc}`)
-      ],
-      route: roleRouteMap.talent.profile('chen-yining'),
-      actionLabel: '查看对外简历'
-    },
-    {
-      id: 'market',
-      eyebrow: '任务广场',
-      title: '主动看任务，判断值不值得接',
-      status: page.value.marketplace.length ? `推荐 ${page.value.marketplace.length} 个` : '暂无任务',
-      description: '任务广场会按匹配度、预算和周期展示推荐项目，工作台这里只保留入口和最近摘要。',
-      badges: ['匹配度', '预算周期', '主动接单'],
-      preview: page.value.marketplace.length
-        ? page.value.marketplace.map(
-            (task) => `${task.title} · 匹配 ${task.match} · ${task.budget}`
-          )
-        : ['企业发布真实任务后，会在这里按时间和状态展示。'],
-      details: page.value.marketplace.length
-        ? page.value.marketplace.map(
-            (task) => `${task.title}：${task.period}，${task.budget}，标签 ${joinText(task.tags)}`
-          )
-        : ['当前还没有可浏览任务。企业发布后，任务广场会自动更新。'],
-      route: roleRouteMap.talent.market,
-      actionLabel: '进入任务广场'
-    },
-    {
-      id: 'workspace',
-      eyebrow: '任务进度',
-      title: '进行中任务和交付进度统一到协作空间',
-      status: `${page.value.activeTasks.length} 个任务进行中`,
-      description: '真正的任务进度、里程碑和上传记录都在协作空间里看，工作台只保留项目摘要。',
-      badges: ['里程碑', '上传进度', '验收前准备'],
-      preview: page.value.activeTasks.length
-        ? page.value.activeTasks.map(
-            (task) => `${task.title} · 进度 ${task.progress}`
-          )
-        : ['当前还没有进行中的真实项目。'],
-      details: page.value.activeTasks.length
-        ? page.value.activeTasks.map(
-            (task) => `${task.title}：${task.note}（当前进度 ${task.progress}）`
-          )
-        : ['当你确认任务后，进度和里程碑会在这里同步。'],
-      route: roleRouteMap.talent.workspace,
-      actionLabel: '查看任务进度'
-    },
-    {
-      id: 'calendar',
-      eyebrow: '档期与评价',
-      title: '接单日历、收入与评价集中看摘要',
-      status: page.value.hero.availability,
-      description: '档期、收入和评价都是经营个人品牌的重要部分，但不适合在工作台里展开成大块内容。',
-      badges: ['接单日历', '收入沉淀', '历史评价'],
-      preview: [
-        ...page.value.calendar.slice(0, 3).map((item) => `${item.day} · ${item.note}`),
-        page.value.evaluations?.length ? `最近评价：${page.value.evaluations[0]}` : '最近评价：暂无'
-      ],
-      details: [
-        ...page.value.calendar.map((item) => `${item.day}：${item.note}`),
-        `本月收入：${page.value.hero.income}`,
-        ...(page.value.evaluations || []).map((item) => `评价：${item}`)
-      ],
-      route: '',
-      actionLabel: '查看摘要'
-    }
+    `评分 ${page.value.hero?.score || '暂无'}`,
+    `收入 ${page.value.hero?.income || '￥0'}`,
+    `${openDays} 天档期`
   ];
 });
 
-function openModule(module) {
-  activeModule.value = module;
+const workspaceSummary = computed(() => {
+  const activeCount = listOf(page.value?.activeTasks).length;
+  return activeCount ? `${activeCount} 个任务在协作中。` : '确认任务后在这里推进。';
+});
+
+const recordsSummary = computed(() => {
+  const evaluations = listOf(page.value?.evaluations).length;
+  return evaluations ? '最新评价和过程都在这里。' : '接单过程会留在这里。';
+});
+
+const profileSummary = computed(() => {
+  const skillCount = listOf(page.value?.skills).length;
+  return skillCount ? `已沉淀 ${skillCount} 项技能和作品。` : '补充方向、作品和档期。';
+});
+
+function itemHint(item) {
+  return Number(item?.count || 0) > 1 ? '继续处理' : '进入处理';
 }
 
-function closeModule() {
-  activeModule.value = null;
+function openInfo() {
+  activeInfo.value = true;
+}
+
+function closeInfo() {
+  activeInfo.value = false;
 }
 
 async function loadPage() {
@@ -326,19 +252,74 @@ async function loadPage() {
 
 onMounted(async () => {
   await loadPage();
-  if (typeof window !== 'undefined') {
-    dashboardRefreshTimer = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        return;
-      }
-      void loadPage();
-    }, 6000);
-  }
+  stopBusinessLiveSync = startBusinessLiveSync({
+    refresh: () => loadPage()
+  });
 });
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined' && dashboardRefreshTimer) {
-    window.clearInterval(dashboardRefreshTimer);
-  }
+  stopBusinessLiveSync?.();
+  stopBusinessLiveSync = null;
 });
 </script>
+
+<style scoped>
+.mobile-dashboard-stack,
+.mobile-dashboard-entry-grid,
+.mobile-dashboard-sheet-links {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-dashboard-entry-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mobile-dashboard-entry-panel {
+  padding: 12px;
+}
+
+.mobile-dashboard-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.mobile-dashboard-empty {
+  margin: 0;
+}
+
+.mobile-dashboard-sheet-section {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 190, 255, 0.14);
+  background: rgba(8, 15, 28, 0.62);
+}
+
+.mobile-dashboard-sheet-section h4 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+}
+
+.mobile-dashboard-sheet-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 190, 255, 0.12);
+  background: rgba(10, 20, 38, 0.74);
+  color: inherit;
+  text-decoration: none;
+}
+
+.mobile-dashboard-sheet-link strong {
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.mobile-dashboard-sheet-link p {
+  margin: 0;
+}
+</style>

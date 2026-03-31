@@ -1,29 +1,43 @@
 <template>
   <section class="page-stack publish-page">
-    <article class="hero-card publish-hero-card">
-      <div class="panel-header panel-header-top">
-        <div class="stack-sm">
-          <span class="eyebrow">AI 协助发任务</span>
-          <h1 class="page-hero-title publish-hero-title">按步骤发布，最后统一确认 AI 结果。</h1>
-          <p class="hero-lead hero-lead-compact">
-            前面三步只负责选场景、补需求和确认输入，最后一步再统一展示 AI 拆解、候选人才和正式发布动作。这样页面会更干净，操作也更顺。
-          </p>
-        </div>
+    <article class="hero-card publish-hero-card publish-hero-card-compact">
+      <div class="publish-hero-top">
+        <SectionTitle
+          eyebrow="AI 协助发任务"
+          title="发布任务"
+          tag="h1"
+        />
 
-        <div class="publish-top-actions">
-          <div class="chip-row">
-            <span class="tag-pill">步骤式操作</span>
-            <span class="tag-pill">单列主流程</span>
-            <span class="tag-pill">最后一步看 AI 输出</span>
-          </div>
-          <button class="button-secondary" type="button" @click="overviewOpen = true">发布概览</button>
+        <div class="publish-hero-top-actions">
+          <span class="soft-pill">第 {{ currentStep }} 步</span>
+          <button class="button-secondary publish-hero-overview-button" type="button" @click="overviewOpen = true">
+            概览
+          </button>
         </div>
+      </div>
+
+      <div class="tag-row publish-hero-meta">
+        <span class="soft-pill">当前：{{ currentStepMeta.title }}</span>
+        <span class="soft-pill">{{ publishTemplateLabel }}</span>
+      </div>
+
+      <div class="publish-hero-focus">
+        <span class="eyebrow">当前焦点</span>
+        <h3>{{ currentStepMeta.title }}</h3>
+        <p class="muted">{{ currentStepMeta.note }}</p>
+      </div>
+
+      <div class="publish-hero-actions">
+        <button class="button-primary" type="button" :disabled="isBusy" @click="handleHeroPrimaryAction">
+          {{ heroPrimaryActionLabel }}
+        </button>
+        <button class="button-secondary" type="button" :disabled="isBusy" @click="resetForm">恢复模板</button>
       </div>
     </article>
 
     <section class="publish-wizard-shell">
       <article class="glass-panel stack-md publish-wizard-main">
-        <div class="publish-stepper">
+        <div class="publish-stepper publish-stepper-compact">
           <button
             v-for="step in steps"
             :key="step.id"
@@ -35,7 +49,6 @@
             <span class="publish-stepper-index">{{ step.id }}</span>
             <div>
               <strong>{{ step.title }}</strong>
-              <small>{{ step.note }}</small>
             </div>
           </button>
         </div>
@@ -45,7 +58,6 @@
             <SectionTitle
               eyebrow="第 1 步"
               title="先选一个任务场景"
-              description="用模板快速起步就够了。这里先定大方向，后面一步还会继续改任务标题、来源和详细需求。"
             />
 
             <div class="preset-grid">
@@ -73,8 +85,12 @@
             <div v-if="selectedPreset" class="result-card stack-sm">
               <span class="eyebrow">当前模板</span>
               <h3>{{ selectedPreset.title }}</h3>
-              <p class="muted">{{ selectedPreset.brief || '这一项不会预填需求，你可以直接把模糊想法写给 AI，让它帮你先梳理。' }}</p>
-              <p v-if="selectedPreset.isCustom" class="muted">这一项不会帮你预填标题和需求，适合边想边写，再交给 AI 一起梳理。</p>
+              <div class="tag-row">
+                <span class="soft-pill">{{ selectedPreset.period || '自由输入' }}</span>
+                <span class="soft-pill">{{ selectedPreset.source === 'VOICE' ? '语音输入' : '文字输入' }}</span>
+              </div>
+              <p class="muted">{{ selectedPreset.brief || '这一项不会预填需求，你可以直接把模糊想法写给 AI，让它先帮你梳理。' }}</p>
+              <p v-if="selectedPreset.isCustom" class="muted">适合边想边写，再交给 AI 收一版。</p>
             </div>
           </template>
 
@@ -82,7 +98,6 @@
             <SectionTitle
               eyebrow="第 2 步"
               title="把任务需求写清楚"
-              description="这一步只看发布内容本身：当前账号、任务标题、输入方式和需求描述。先把话说明白，再交给 AI 处理。"
             />
 
             <form class="form-grid" @submit.prevent>
@@ -133,7 +148,6 @@
             <SectionTitle
               eyebrow="第 3 步"
               title="最后确认一遍输入内容"
-              description="这一步不展示 AI 结果，只确认你即将提交给 AI 的输入是否准确。确认后再进入最后一步集中看拆解结果。"
             />
 
             <div class="stack-md">
@@ -158,13 +172,12 @@
             <SectionTitle
               eyebrow="第 4 步"
               title="统一查看 AI 结果并正式发布"
-              description="最后一步才展示 AI 拆解、工期、风险和候选人才。看完没有问题，再正式发布并进入人才匹配。"
             />
 
             <div v-if="isAnalyzing" class="result-card publish-loading-card stack-md">
               <span class="eyebrow">AI 正在生成结果</span>
               <h3>正在拆解任务、估算工期并筛选推荐人才</h3>
-              <p class="muted">这一步可能需要几秒到十几秒。页面会先理解需求，再按 AI 人才效率估算工期，最后从人才库筛出更合适的候选人。</p>
+              <p class="muted">页面会先理解需求，再估算工期并筛出候选人。</p>
 
               <div class="publish-loading-orb" aria-hidden="true"></div>
 
@@ -180,16 +193,19 @@
             </div>
 
             <div v-else-if="analysis.originalBrief" class="stack-md">
-              <div class="result-card stack-sm">
+              <div class="result-card stack-sm publish-analysis-summary-card">
                 <span class="eyebrow">原始需求摘要</span>
+                <h3>{{ analysis.schedule.total || '待估算' }}</h3>
                 <p class="muted">{{ analysis.originalBrief }}</p>
-                <div class="tag-row">
-                  <span class="soft-pill">{{ analysis.schedule.total || '待估算' }}</span>
+                <div class="tag-row publish-analysis-summary-tags">
                   <span v-if="analysis.provider" class="soft-pill">{{ analysis.provider }}</span>
                   <span v-if="analysis.model" class="soft-pill">{{ analysis.model }}</span>
+                  <span class="soft-pill">{{ matchingPreviewCount }} 位候选</span>
+                  <span class="soft-pill">{{ analysis.schedule.risk || '待补充风险提示' }}</span>
                 </div>
-                <p v-if="analysis.schedule.assumption" class="muted"><strong class="accent">估算口径：</strong>{{ analysis.schedule.assumption }}</p>
-                <p class="muted"><strong class="accent">风险提示：</strong>{{ analysis.schedule.risk }}</p>
+                <p v-if="analysis.schedule.assumption" class="muted publish-analysis-summary-note">
+                  <strong class="accent">估算口径：</strong>{{ analysis.schedule.assumption }}
+                </p>
               </div>
 
               <div class="mini-card stack-md">
@@ -260,6 +276,7 @@
                   <span class="soft-pill">任务：{{ publishResult.taskId }}</span>
                   <span class="soft-pill">来源：{{ publishResult.source }}</span>
                   <span class="soft-pill">预算：{{ publishResult.budget || '未填写预算' }}</span>
+                  <span class="soft-pill">候选 {{ matchingPreviewCount }} 位</span>
                 </div>
 
                 <div class="toolbar">
@@ -284,7 +301,7 @@
                   </div>
                   <button class="button-secondary" type="button" @click="talentPickerOpen = true">打开推荐弹窗</button>
                 </div>
-                <p class="muted">发布成功后会自动弹出推荐名单。你可以立即选择，也可以跳过，后面再去人才广场慢慢筛选。</p>
+                <p class="muted">现在可以直接选人，也可以回人才广场补筛。</p>
               </div>
 
               <div v-if="assignmentResult" class="result-card stack-sm">
@@ -493,10 +510,10 @@ import { useAuthState } from '../stores/auth';
 
 const router = useRouter();
 const steps = [
-  { id: 1, title: '选场景', note: '先选一个合适模板' },
-  { id: 2, title: '填需求', note: '补任务标题和需求内容' },
-  { id: 3, title: '确认输入', note: '最后确认提交给 AI 的内容' },
-  { id: 4, title: '看结果并发布', note: '统一查看 AI 结果并正式发布' }
+  { id: 1, title: '选场景', note: '先选模板' },
+  { id: 2, title: '填需求', note: '补标题和需求' },
+  { id: 3, title: '确认输入', note: '核对提交内容' },
+  { id: 4, title: '看结果并发布', note: '统一看结果' }
 ];
 
 const presets = ref([]);
@@ -542,6 +559,48 @@ const selectedPreset = computed(() =>
 const currentStepMeta = computed(() => steps.find((item) => item.id === currentStep.value) || steps[0]);
 const isBusy = computed(() => isAnalyzing.value || isPublishing.value || isSelectingTalent.value);
 const canSelectTalent = computed(() => Boolean(publishResult.value?.taskId));
+const matchingPreviewCount = computed(() => (Array.isArray(analysis.value?.matchingPreview) ? analysis.value.matchingPreview.length : 0));
+const publishTemplateLabel = computed(() =>
+  selectedPreset.value?.isCustom ? '自由输入' : selectedPreset.value?.title || '待选模板'
+);
+const publishAiStateLabel = computed(() => {
+  if (publishResult.value?.taskId) {
+    return '已发布';
+  }
+  if (isAnalyzing.value) {
+    return '生成中';
+  }
+  if (analysis.value?.modules?.length) {
+    return '已生成';
+  }
+  return '待生成';
+});
+const heroPrimaryActionLabel = computed(() => {
+  if (currentStep.value === 1) {
+    return '继续填写需求';
+  }
+  if (currentStep.value === 2) {
+    return '去确认输入';
+  }
+  if (currentStep.value === 3) {
+    return '生成 AI 拆解';
+  }
+  if (publishResult.value?.taskId) {
+    return analysis.value.matchingPreview?.length ? '查看推荐人才' : '去人才广场';
+  }
+  return '确认并发布任务';
+});
+const publishHeroResult = computed(() => {
+  if (publishResult.value?.taskId) {
+    return `已发布任务 ${publishResult.value.taskId}`;
+  }
+  if (analysis.value?.modules?.length) {
+    return matchingPreviewCount.value
+      ? `已筛到 ${matchingPreviewCount.value} 位候选`
+      : analysis.value.schedule.total || '已生成一版拆解';
+  }
+  return '最后一步统一看 AI 结果';
+});
 
 const accountLabel = computed(() => {
   const user = authState.user;
@@ -647,6 +706,10 @@ function applyPreset(preset) {
   analysis.value = { modules: [], tags: [], schedule: {}, recommendations: [], matchingPreview: [] };
 }
 
+function isFailedResult(result) {
+  return Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED');
+}
+
 async function handleAnalyze() {
   analysis.value = await analyzeTaskBrief(effectiveBrief());
   revisionForm.value = {
@@ -676,6 +739,11 @@ async function handlePublish() {
     organizationId: currentOrganizationId(),
     brief: effectiveBrief()
   });
+  if (isFailedResult(publishResult.value)) {
+    confirmResult.value = null;
+    talentPickerOpen.value = false;
+    return;
+  }
   if (publishResult.value?.taskId) {
     confirmResult.value = await confirmTaskAnalysis(publishResult.value.taskId);
     if (analysis.value.matchingPreview?.length) {
@@ -720,6 +788,33 @@ async function proceedToPublish() {
   } finally {
     isPublishing.value = false;
   }
+}
+
+async function handleHeroPrimaryAction() {
+  if (isBusy.value) {
+    return;
+  }
+
+  if (currentStep.value === 1 || currentStep.value === 2) {
+    nextStep();
+    return;
+  }
+
+  if (currentStep.value === 3) {
+    await proceedToAnalysis();
+    return;
+  }
+
+  if (publishResult.value?.taskId) {
+    if (analysis.value.matchingPreview?.length) {
+      talentPickerOpen.value = true;
+      return;
+    }
+    await router.push('/enterprise/talents');
+    return;
+  }
+
+  await proceedToPublish();
 }
 
 function resetRevision() {
@@ -782,6 +877,9 @@ async function handleSelectTalent(talent) {
   isSelectingTalent.value = true;
   try {
     assignmentResult.value = await selectTaskAssignment(publishResult.value.taskId, talent.talentUserId);
+    if (isFailedResult(assignmentResult.value)) {
+      return;
+    }
     talentPickerOpen.value = false;
     if (assignmentResult.value?.nextRoute) {
       await router.push(assignmentResult.value.nextRoute);
@@ -809,3 +907,142 @@ onMounted(async () => {
   }
 });
 </script>
+
+<style scoped>
+.publish-page {
+  gap: 14px;
+}
+
+.publish-hero-card-compact {
+  display: grid;
+  gap: 12px;
+  padding: 18px 16px 16px;
+}
+
+.publish-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.publish-hero-top :deep(.section-title) {
+  flex: 1 1 auto;
+}
+
+.publish-hero-top :deep(.section-title h1) {
+  font-size: clamp(28px, 8vw, 38px);
+}
+
+.publish-hero-top :deep(.section-title p) {
+  max-width: 30ch;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.publish-hero-top-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.publish-hero-overview-button {
+  min-width: 78px;
+}
+
+.publish-hero-meta {
+  gap: 6px;
+}
+
+.publish-hero-focus {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(120, 190, 255, 0.12);
+  background: rgba(7, 14, 27, 0.52);
+}
+
+.publish-hero-focus h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 15px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+
+.publish-hero-focus p {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+.publish-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.publish-hero-actions > * {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.publish-stepper-compact {
+  gap: 6px;
+  padding-bottom: 0;
+}
+
+.publish-stepper-compact .publish-stepper-item {
+  min-width: 128px;
+  flex-basis: 128px;
+  gap: 10px;
+  padding: 11px 12px;
+}
+
+.publish-stepper-compact .publish-stepper-item strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.publish-stepper-compact .publish-stepper-item small {
+  display: none;
+}
+
+.publish-stepper-compact .publish-stepper-index {
+  width: 30px;
+  height: 30px;
+}
+
+.publish-hero-focus .eyebrow,
+.publish-hero-meta .soft-pill {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .publish-hero-top {
+    flex-direction: column;
+    align-items: start;
+  }
+
+  .publish-hero-top-actions {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .publish-hero-actions {
+    flex-direction: column;
+  }
+
+  .publish-hero-actions > * {
+    width: 100%;
+  }
+
+  .publish-stepper-compact .publish-stepper-item {
+    min-width: 120px;
+    flex-basis: 120px;
+  }
+}
+</style>

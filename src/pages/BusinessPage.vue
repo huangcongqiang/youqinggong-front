@@ -1,162 +1,131 @@
 <template>
-  <section class="page-stack dashboard-page" v-if="page">
-    <article v-if="attentionItems.length" class="glass-panel stack-sm dashboard-attention-card dashboard-alert-card">
-      <div class="dashboard-attention-header">
-        <div>
-          <span class="eyebrow">优先处理</span>
-          <h3>待办提醒</h3>
+  <section class="page-stack business-dashboard-page" v-if="page">
+    <MobilePageScaffold
+      :title="heroTitle"
+      :subtitle="heroSubtitle"
+    >
+      <template #meta>
+        <div class="business-dashboard__hero-pills">
+          <span class="soft-pill">{{ attentionSummaryChip }}</span>
+          <span class="soft-pill">{{ conversationMeta }}</span>
+          <span class="soft-pill">{{ workspaceMeta }}</span>
         </div>
-        <p class="muted">{{ page.attentionHeadline }}</p>
-      </div>
+      </template>
 
-      <div class="dashboard-attention-list">
-        <router-link
-          v-for="item in attentionItems"
-          :key="item.id"
-          class="dashboard-attention-item"
-          :to="item.route"
-        >
-          <span class="dashboard-attention-dot"></span>
-          <span class="dashboard-attention-label">{{ item.label }}</span>
-          <span class="dashboard-attention-count">{{ item.count }}</span>
-        </router-link>
-      </div>
-    </article>
+      <article v-if="page.requestError" class="result-card stack-sm">
+        <h3>暂时没拉到工作台数据</h3>
+        <p class="muted">{{ page.requestError }}</p>
+      </article>
 
-    <article class="hero-card dashboard-hero stack-md">
-      <span class="eyebrow">企业端工作台</span>
-      <h1 class="dashboard-title">企业工作台总览</h1>
-      <p class="hero-lead dashboard-lead">
-        这里先看整体状态、当前重点和模块入口，不在工作台里堆满完整操作。需要处理任务、看人才、看消息或跟进进度时，直接进入对应页面。
-      </p>
-
-      <div class="dashboard-hero-actions">
-        <router-link class="button-primary" :to="roleRouteMap.enterprise.messages">去聊天</router-link>
-        <router-link class="button-secondary" :to="roleRouteMap.enterprise.publish">去发布任务</router-link>
-        <router-link class="button-secondary" :to="roleRouteMap.enterprise.market">去看人才广场</router-link>
-      </div>
-
-      <div v-if="businessHighlights.length" class="tag-row">
-        <span v-for="item in businessHighlights" :key="item" class="soft-pill">{{ item }}</span>
-      </div>
-    </article>
-
-    <article class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">总览</span>
-          <h3>当前企业端的关键状态</h3>
+      <SummarySection
+        title="待办"
+        :highlight-value="attentionHighlight"
+        tone="warm"
+      >
+        <div v-if="primaryAttentionItems.length" class="business-dashboard__todo-list">
+          <UnifiedListCard
+            v-for="item in primaryAttentionItems"
+            :key="item.id || item.label"
+            :title="item.label || '当前事项'"
+            :subtitle="attentionSubtitle(item)"
+            :status="attentionStatus(item)"
+            :status-tone="attentionStatusTone(item)"
+            clickable
+            @select="openAttention(item)"
+          />
         </div>
-      </div>
 
-      <section class="metric-grid dashboard-metric-grid">
-        <article v-for="item in page.metrics" :key="item.label" class="metric-card dashboard-stat-card">
-          <span class="eyebrow">{{ item.label }}</span>
-          <div class="metric-value">{{ item.value }}</div>
-          <p>{{ item.note }}</p>
-          <div class="dashboard-stat-actions">
-            <button class="button-secondary" type="button" @click="openMetric(item)">查看详情</button>
-          </div>
+        <article v-else class="mini-card stack-sm business-dashboard__todo-empty">
+          <h3>当前没有待办</h3>
+          <p class="muted">直接去聊天或发布任务。</p>
+          <router-link class="button-secondary" :to="roleRouteMap.enterprise.publish">
+            去发布任务
+          </router-link>
         </article>
-      </section>
-    </article>
+      </SummarySection>
 
-    <section class="dashboard-module-list">
-      <article v-for="module in modules" :key="module.id" class="glass-panel dashboard-module-card stack-md">
-        <div class="panel-header">
+      <article class="glass-panel stack-md business-dashboard__entry-panel">
+        <div class="panel-header panel-header-top">
           <div>
-            <span class="eyebrow">{{ module.eyebrow }}</span>
-            <h3>{{ module.title }}</h3>
+            <h3>先去这里</h3>
           </div>
-          <span class="soft-pill">{{ module.status }}</span>
-        </div>
-
-        <p class="muted">{{ module.description }}</p>
-
-        <div class="tag-row">
-          <span v-for="item in module.badges" :key="item" class="tag-pill tag-pill-muted">{{ item }}</span>
-        </div>
-
-        <div class="dashboard-preview-list">
-          <div v-for="item in module.preview" :key="item" class="dashboard-preview-item">
-            <span class="status-dot"></span>
-            <p class="muted">{{ item }}</p>
-          </div>
-        </div>
-
-        <div class="dashboard-module-actions">
-          <router-link v-if="module.route" class="button-primary" :to="module.route">
-            {{ module.actionLabel }}
-          </router-link>
-          <button v-else class="button-primary" type="button" @click="openModule(module)">
-            {{ module.actionLabel }}
+          <button class="button-secondary business-dashboard__info-trigger" type="button" @click="openInfo">
+            资料
           </button>
-          <button class="button-secondary" type="button" @click="openModule(module)">查看摘要</button>
+        </div>
+
+        <div class="business-dashboard__entry-list">
+          <router-link class="business-dashboard__entry-card is-primary" :to="roleRouteMap.enterprise.messages">
+            <div class="stack-xs">
+              <strong>聊天</strong>
+              <p class="muted">查看最近会话</p>
+            </div>
+            <span class="business-dashboard__entry-meta">{{ conversationMeta }}</span>
+          </router-link>
+
+          <router-link class="business-dashboard__entry-card" :to="roleRouteMap.enterprise.publish">
+            <div class="stack-xs">
+              <strong>发布任务</strong>
+              <p class="muted">发起新任务</p>
+            </div>
+            <span class="business-dashboard__entry-meta">{{ publishMeta }}</span>
+          </router-link>
         </div>
       </article>
-    </section>
 
-    <div v-if="activeModule" class="dashboard-detail-modal" @click.self="closeModule">
-      <article class="dashboard-detail-card stack-md">
-        <div class="panel-header">
+      <article class="glass-panel stack-md business-dashboard__secondary-panel">
+        <div class="panel-header panel-header-top">
           <div>
-            <span class="eyebrow">{{ activeModule.eyebrow }}</span>
-            <h3>{{ activeModule.title }}</h3>
+            <h3>继续推进</h3>
           </div>
-          <button class="button-secondary" type="button" @click="closeModule">关闭</button>
         </div>
 
-        <p class="muted">{{ activeModule.description }}</p>
+        <div class="business-dashboard__secondary-links">
+          <router-link
+            v-for="item in secondaryLinks"
+            :key="item.label"
+            class="business-dashboard__secondary-link"
+            :to="item.to"
+          >
+            <div class="stack-xs">
+              <strong>{{ item.label }}</strong>
+              <p class="muted">{{ item.description }}</p>
+            </div>
+            <span class="business-dashboard__secondary-meta">{{ item.meta }}</span>
+          </router-link>
+        </div>
+      </article>
+    </MobilePageScaffold>
+
+    <div v-if="activeInfo" class="business-dashboard__overlay" @click.self="closeInfo">
+      <article class="business-dashboard__sheet stack-md">
+        <div class="panel-header panel-header-top">
+          <div>
+            <h3>资料概览</h3>
+          </div>
+          <button class="button-secondary" type="button" @click="closeInfo">关闭</button>
+        </div>
 
         <div class="tag-row">
-          <span v-for="item in activeModule.badges" :key="item" class="soft-pill">{{ item }}</span>
+          <span v-for="item in infoHighlights" :key="item" class="soft-pill">{{ item }}</span>
         </div>
 
-        <div class="dashboard-detail-section">
-          <h4>模块摘要</h4>
-          <ul class="dashboard-detail-list">
-            <li v-for="item in activeModule.details" :key="item">{{ item }}</li>
-          </ul>
-        </div>
-
-        <div class="dashboard-module-actions">
-          <router-link v-if="activeModule.route" class="button-primary" :to="activeModule.route" @click="closeModule">
-            {{ activeModule.actionLabel }}
-          </router-link>
-          <button v-else class="button-primary" type="button" @click="closeModule">已了解</button>
-        </div>
-      </article>
-    </div>
-
-    <div v-if="activeMetric" class="dashboard-detail-modal" @click.self="closeMetric">
-      <article class="dashboard-detail-card stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">{{ activeMetric.label }}</span>
-            <h3>{{ activeMetric.value }}</h3>
+        <section class="business-dashboard__info-section stack-sm">
+          <div class="stack-xs">
+            <h4>当前概况</h4>
           </div>
-          <button class="button-secondary" type="button" @click="closeMetric">关闭</button>
-        </div>
-
-        <p class="muted">{{ activeMetric.note }}</p>
-
-        <div class="dashboard-detail-dual">
-          <div class="mini-card stack-sm">
-            <h4>待处理事项</h4>
-            <ul class="dashboard-detail-list">
-              <li v-for="item in activeMetric.todos || []" :key="item">{{ item }}</li>
-            </ul>
+          <div class="business-dashboard__info-list">
+            <article
+              v-for="item in hiddenInfoItems"
+              :key="item.label"
+              class="business-dashboard__info-item"
+            >
+              <strong>{{ item.label }}</strong>
+              <span>{{ item.value }}</span>
+              <p class="muted">{{ item.note }}</p>
+            </article>
           </div>
-
-          <div class="mini-card stack-sm">
-            <h4>已完成统计</h4>
-            <ul class="dashboard-detail-list">
-              <li v-for="item in activeMetric.doneStats || []" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-        </div>
-
-        <p class="muted">{{ activeMetric.source || '实时统计' }} · 这里展示的是当前企业账号已产生的数据摘要。</p>
+        </section>
       </article>
     </div>
   </section>
@@ -164,158 +133,144 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import MobilePageScaffold from '../components/mobile/MobilePageScaffold.vue';
+import SummarySection from '../components/mobile/SummarySection.vue';
+import UnifiedListCard from '../components/mobile/UnifiedListCard.vue';
 import { getBusinessData } from '../services/api';
+import { startBusinessLiveSync } from '../services/businessEventStream.js';
 import { roleRouteMap } from '../utils/roleRoutes';
 
+const router = useRouter();
 const page = ref(null);
-const activeModule = ref(null);
-const activeMetric = ref(null);
-let dashboardRefreshTimer = null;
+const activeInfo = ref(false);
+let stopBusinessLiveSync = null;
 
 function listOf(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function joinText(value, separator = ' / ') {
-  const items = listOf(value).filter(Boolean);
-  return items.length ? items.join(separator) : '标签待补充';
+function countOf(value) {
+  const normalized = Number(value);
+  return Number.isFinite(normalized) ? normalized : 0;
 }
 
-const modules = computed(() => {
-  if (!page.value) {
-    return [];
-  }
-
-  return [
-    {
-      id: 'messages',
-      eyebrow: '聊天',
-      title: '所有项目聊天都从这里进入',
-      status: '有新沟通待查看',
-      description: '任务一旦选中人才，需求确认、工期协商和交付沟通都直接在聊天页处理，不用在工作台里绕来绕去找入口。',
-      badges: ['即时聊天', '沟通纪要', '项目房间'],
-      preview: page.value.liveConversation.map(
-        (line) => `${line.time} · ${line.author}：${line.text}`
-      ),
-      details: page.value.liveConversation.map(
-        (line) => `${line.time} · ${line.author}：${line.text}`
-      ),
-      route: roleRouteMap.enterprise.messages,
-      actionLabel: '进入聊天页'
-    },
-    {
-      id: 'onboarding',
-      eyebrow: '入驻资料',
-      title: '企业准入与资料准备',
-      status: '待审核材料 4 项',
-      description: '这一块只负责看当前企业入驻是否准备齐全，真正的资料填写和补充放到入驻页面或后续工作台补交里处理。',
-      badges: ['企业资质', '联系人信息', '合作偏好'],
-      preview: [...page.value.onboardingChecklist.slice(0, 2), '若资料没准备齐，可先提交基础信息，后续再补交材料'],
-      details: [...page.value.onboardingChecklist, '支持先提交基础信息，后续回企业工作台继续补交材料'],
-      route: roleRouteMap.enterprise.onboarding,
-      actionLabel: '去完善入驻'
-    },
-    {
-      id: 'publish',
-      eyebrow: '发布任务',
-      title: '先发布任务，再确认 AI 拆解',
-      status: page.value.metrics[1]?.value || '进行中',
-      description: '任务发布页会按步骤完成需求输入、AI 拆解、候选人推荐和发布确认，工作台这里只保留入口和摘要。',
-      badges: ['语音 / 文字', 'AI 拆解', '工期评估'],
-      preview: page.value.contractSummary.length
-        ? [
-            page.value.sampleBrief ? `最近需求：${page.value.sampleBrief.slice(0, 38)}...` : '最近还没有已发布任务',
-            page.value.contractSummary[1] ? `里程碑摘要：${page.value.contractSummary[1]}` : '发布后这里会保留真实工期与范围摘要',
-            page.value.contractSummary[2] ? `风险提醒：${page.value.contractSummary[2]}` : 'AI 风险提示会跟着真实任务一起沉淀'
-          ]
-        : [
-            '发布后这里会保留最近任务的需求摘要',
-            'AI 会同步生成里程碑和工期建议',
-            '推荐人才和聊天协商会从真实任务继续推进'
-          ],
-      details: page.value.contractSummary.length
-        ? [
-            '发布任务时先输入需求，AI 会先拆解模块、工期和风险。',
-            ...page.value.contractSummary
-          ]
-        : [
-            '当前还没有已发布任务。',
-            '去发布任务后，这里会显示真实任务的工期、风险和技能标签。'
-          ],
-      route: roleRouteMap.enterprise.publish,
-      actionLabel: '去发布任务'
-    },
-    {
-      id: 'talents',
-      eyebrow: '人才广场',
-      title: '先看推荐人才，再去广场补充筛选',
-      status: page.value.recommendedTalents.length ? `推荐 ${page.value.recommendedTalents.length} 位` : '暂无推荐',
-      description: '系统会先按技能、作品、评分和档期给你候选名单，不满意再进入人才广场继续看。',
-      badges: ['技能匹配', '作品判断', '档期参考'],
-      preview: page.value.recommendedTalents.length
-        ? page.value.recommendedTalents.map(
-            (talent) => `${talent.name} · ${talent.role} · 评分 ${talent.score}`
-          )
-        : ['发布并确认任务后，这里会展示 AI 推荐的人才。'],
-      details: page.value.recommendedTalents.length
-        ? page.value.recommendedTalents.map(
-            (talent) => `${talent.name}：${talent.summary}（${joinText(talent.tags)}）`
-          )
-        : ['当前还没有针对这家企业的推荐人才。你也可以直接进入人才广场手动筛选。'],
-      route: roleRouteMap.enterprise.market,
-      actionLabel: '去看人才广场'
-    },
-    {
-      id: 'workspace',
-      eyebrow: '项目进度',
-      title: '看当前项目进度与协作节点',
-      status: page.value.taskBoard[1]?.status || '进行中',
-      description: '真正的项目状态、里程碑和进展都在协作空间里查看，工作台只保留项目总览。',
-      badges: ['里程碑', '进度同步', '验收前准备'],
-      preview: page.value.taskBoard.length
-        ? page.value.taskBoard.map((item) => `${item.title} · ${item.status}`)
-        : ['当前还没有执行中的项目，选中人才并确认任务后会出现在这里。'],
-      details: page.value.taskBoard.length
-        ? page.value.taskBoard.map((item) => `${item.title}：${item.note}`)
-        : ['协作空间会展示真实项目的里程碑、进度、附件和验收节点。'],
-      route: roleRouteMap.enterprise.workspace,
-      actionLabel: '查看项目进度'
+function textOf(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
     }
-  ];
-});
-
-const businessHighlights = computed(() => {
-  if (!page.value) {
-    return [];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
   }
-
-  const items = [];
-  if (page.value.latestTalentRating?.rating) {
-    items.push(`最近人才评分 ${page.value.latestTalentRating.rating} 分`);
-  }
-  if (page.value.latestTalentRating?.content) {
-    const summary = String(page.value.latestTalentRating.content);
-    items.push(`最新反馈：${summary.length > 18 ? `${summary.slice(0, 18)}...` : summary}`);
-  }
-  return items.slice(0, 2);
-});
+  return '';
+}
 
 const attentionItems = computed(() => listOf(page.value?.attentionItems));
+const primaryAttentionItems = computed(() => attentionItems.value.slice(0, 2));
+const attentionTotal = computed(() =>
+  attentionItems.value.reduce((sum, item) => sum + Math.max(countOf(item?.count), 0), 0)
+);
+const conversationCount = computed(() => listOf(page.value?.liveConversation).length);
+const publishRecordCount = computed(() => listOf(page.value?.publishRecords).length);
+const activeTaskCount = computed(() => listOf(page.value?.taskBoard).length);
+const recommendedTalentCount = computed(() => listOf(page.value?.recommendedTalents).length);
+const onboardingCount = computed(() => listOf(page.value?.onboardingChecklist).length);
+const contractSummaryCount = computed(() => listOf(page.value?.contractSummary).length);
 
-function openModule(module) {
-  activeModule.value = module;
+const heroTitle = computed(() => (attentionTotal.value ? '处理待办' : '开始工作'));
+const heroSubtitle = computed(() =>
+  attentionTotal.value
+    ? '先处理当前待办，再进入聊天和协作。'
+    : '从聊天、发单和协作开始。'
+);
+const attentionHighlight = computed(() => (attentionTotal.value ? String(attentionTotal.value) : ''));
+const attentionSummaryChip = computed(() => (attentionTotal.value ? `${attentionTotal.value} 项待办` : '待办已清空'));
+const conversationMeta = computed(() =>
+  conversationCount.value ? `${conversationCount.value} 条会话` : '查看会话'
+);
+const workspaceMeta = computed(() =>
+  activeTaskCount.value ? `${activeTaskCount.value} 项协作` : '查看协作'
+);
+const publishMeta = computed(() =>
+  publishRecordCount.value ? `${publishRecordCount.value} 条记录` : '开始发单'
+);
+const infoHighlights = computed(() => [
+  `${attentionTotal.value} 待办`,
+  `${conversationCount.value} 沟通`,
+  `${publishRecordCount.value} 发单`
+]);
+const hiddenInfoItems = computed(() => [
+  {
+    label: '待完善资料',
+    value: `${onboardingCount.value} 项`,
+    note: '资料和资质统一收在这里。'
+  },
+  {
+    label: '推荐人才',
+    value: `${recommendedTalentCount.value} 位`,
+    note: '候选人继续在人才页筛选。'
+  },
+  {
+    label: '范围与工期',
+    value: `${contractSummaryCount.value} 条`,
+    note: '任务边界和排期摘要继续保留。'
+  },
+  {
+    label: '历史发单记录',
+    value: `${publishRecordCount.value} 条`,
+    note: '历史合作统一沉淀到记录页。'
+  }
+]);
+const secondaryLinks = computed(() => [
+  {
+    label: '协作空间',
+    description: '查看执行中的任务和节点。',
+    meta: activeTaskCount.value ? `${activeTaskCount.value} 项任务` : '当前无执行任务',
+    to: roleRouteMap.enterprise.workspace
+  },
+  {
+    label: '发单记录',
+    description: '回看历史合作和留痕。',
+    meta: publishRecordCount.value ? `${publishRecordCount.value} 条记录` : '当前无历史记录',
+    to: roleRouteMap.enterprise.records
+  },
+  {
+    label: '人才广场',
+    description: '继续查看候选人资料。',
+    meta: recommendedTalentCount.value ? `${recommendedTalentCount.value} 位推荐` : '去查看候选人才',
+    to: roleRouteMap.enterprise.market
+  }
+]);
+
+function attentionRoute(item) {
+  return item?.route || item?.to || item?.link || roleRouteMap.enterprise.messages;
 }
 
-function closeModule() {
-  activeModule.value = null;
+function attentionSubtitle(item) {
+  return textOf(item?.note, item?.summary, item?.description);
 }
 
-function openMetric(metric) {
-  activeMetric.value = metric;
+function attentionStatus(item) {
+  const count = countOf(item?.count);
+  return count ? `${count} 项` : '';
 }
 
-function closeMetric() {
-  activeMetric.value = null;
+function attentionStatusTone(item) {
+  return countOf(item?.count) > 0 ? 'warning' : 'neutral';
+}
+
+function openAttention(item) {
+  void router.push(attentionRoute(item));
+}
+
+function openInfo() {
+  activeInfo.value = true;
+}
+
+function closeInfo() {
+  activeInfo.value = false;
 }
 
 async function loadPage() {
@@ -324,19 +279,178 @@ async function loadPage() {
 
 onMounted(async () => {
   await loadPage();
-  if (typeof window !== 'undefined') {
-    dashboardRefreshTimer = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        return;
-      }
-      void loadPage();
-    }, 6000);
-  }
+  stopBusinessLiveSync = startBusinessLiveSync({
+    refresh: () => loadPage()
+  });
 });
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined' && dashboardRefreshTimer) {
-    window.clearInterval(dashboardRefreshTimer);
-  }
+  stopBusinessLiveSync?.();
+  stopBusinessLiveSync = null;
 });
 </script>
+
+<style scoped>
+.business-dashboard-page {
+  gap: 12px;
+}
+
+.business-dashboard__hero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.business-dashboard__info-trigger {
+  min-height: 32px;
+  padding-inline: 12px;
+}
+
+.business-dashboard__todo-list,
+.business-dashboard__secondary-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.business-dashboard__todo-empty {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px dashed rgba(120, 190, 255, 0.18);
+  background: rgba(8, 15, 28, 0.5);
+}
+
+.business-dashboard__todo-empty :deep(.button-secondary) {
+  width: fit-content;
+}
+
+.business-dashboard__entry-panel {
+  padding: 12px;
+}
+
+.business-dashboard__secondary-panel {
+  padding: 12px;
+}
+
+.business-dashboard__entry-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.business-dashboard__entry-card,
+.business-dashboard__secondary-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 190, 255, 0.16);
+  background:
+    linear-gradient(180deg, rgba(10, 20, 38, 0.92), rgba(14, 28, 52, 0.96)),
+    radial-gradient(circle at top right, rgba(57, 196, 255, 0.05), transparent 40%);
+  box-shadow: 0 10px 18px rgba(2, 8, 20, 0.16);
+  color: inherit;
+  text-decoration: none;
+}
+
+.business-dashboard__entry-card.is-primary {
+  border-color: rgba(246, 196, 83, 0.2);
+  background:
+    linear-gradient(180deg, rgba(26, 28, 19, 0.94), rgba(40, 31, 18, 0.98)),
+    radial-gradient(circle at top right, rgba(246, 196, 83, 0.08), transparent 42%);
+}
+
+.business-dashboard__entry-card strong,
+.business-dashboard__secondary-link strong,
+.business-dashboard__info-item strong {
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.business-dashboard__entry-card .muted,
+.business-dashboard__secondary-link .muted,
+.business-dashboard__info-item .muted {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.business-dashboard__entry-meta,
+.business-dashboard__secondary-meta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(8, 15, 28, 0.68);
+  color: var(--text-soft);
+  white-space: normal;
+  font-size: 10px;
+}
+
+.business-dashboard__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 14px calc(18px + env(safe-area-inset-bottom));
+  background: rgba(3, 8, 18, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.business-dashboard__sheet {
+  width: min(100%, 560px);
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(120, 190, 255, 0.16);
+  background:
+    linear-gradient(180deg, rgba(10, 20, 38, 0.98), rgba(13, 25, 47, 0.98)),
+    radial-gradient(circle at top right, rgba(57, 196, 255, 0.08), transparent 40%);
+  box-shadow: 0 18px 34px rgba(2, 8, 20, 0.32);
+}
+
+.business-dashboard__info-section h4 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+}
+
+.business-dashboard__info-list {
+  display: grid;
+  gap: 10px;
+}
+
+.business-dashboard__info-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 190, 255, 0.12);
+  background: rgba(8, 15, 28, 0.58);
+}
+
+@media (max-width: 640px) {
+  .business-dashboard__sheet {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .business-dashboard__hero-pills {
+    gap: 5px;
+  }
+
+  .business-dashboard__entry-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .business-dashboard__entry-meta,
+  .business-dashboard__secondary-meta {
+    white-space: normal;
+  }
+}
+</style>
