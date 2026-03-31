@@ -7,7 +7,7 @@
 - 官网首页
 - 企业端：入驻、发布任务、人才广场、人才详情、项目沟通、协作空间、验收评分
 - 人才端：入驻、任务广场、项目沟通、协作空间、验收评分
-- H5 / PC 自适应
+- 仅承接 PC Web 前台；移动端 H5 已迁到 `frontend_mobile_h5`
 
 ## 技术栈
 
@@ -26,6 +26,17 @@ npm run dev
 默认地址：
 
 - `http://localhost:5173`
+
+本地双跑切换：
+
+- root mock backend：`http://localhost:8080/api`
+- `spring-app`：`http://localhost:8081/api`
+- 默认目标已切到 `spring`
+- 可通过以下方式切换：
+  - `.env.local` 写 `VITE_API_TARGET=mock|spring`
+  - query `?apiTarget=mock|spring`
+  - `localStorage['youqinggong.api.target']`
+  - `VITE_API_BASE` 作为最高优先级显式覆盖
 
 ## 目录
 

@@ -5,11 +5,15 @@
     <div class="ambient ambient-grid"></div>
     <div class="ambient ambient-orbit ambient-orbit-left"></div>
     <div class="ambient ambient-orbit ambient-orbit-right"></div>
-    <AppHeader />
-    <main class="page-shell">
+    <template v-if="isPortalRoute">
+      <AppHeader />
+      <main class="page-shell">
+        <router-view />
+      </main>
+    </template>
+    <DesktopWorkbenchShell v-else>
       <router-view />
-    </main>
-    <MobileDock />
+    </DesktopWorkbenchShell>
     <LoginModal
       :open="loginModalOpen"
       :initial-audience="loginAudience"
@@ -23,8 +27,8 @@
 import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
+import DesktopWorkbenchShell from './components/DesktopWorkbenchShell.vue';
 import LoginModal from './components/LoginModal.vue';
-import MobileDock from './components/MobileDock.vue';
 import { hydrateAuthSession } from './stores/auth';
 
 const route = useRoute();
@@ -33,6 +37,7 @@ const router = useRouter();
 const loginModalOpen = computed(() => route.query.login === '1');
 const loginAudience = computed(() => (route.query.audience === 'talent' ? 'talent' : 'enterprise'));
 const loginRedirect = computed(() => (typeof route.query.redirect === 'string' ? route.query.redirect : ''));
+const isPortalRoute = computed(() => route.meta?.audience === 'portal');
 
 function closeLoginModal() {
   const nextQuery = { ...route.query };

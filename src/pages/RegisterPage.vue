@@ -1,12 +1,15 @@
 <template>
   <section class="page-stack register-page">
-    <article class="hero-card register-hero">
-      <SectionTitle
-        eyebrow="账号注册"
-        title="先创建账号，再按步骤进入对应角色流程。"
-        description="注册页只处理账号创建，后续企业端会进入入驻申请，人才端会进入资料完善。整页保持单列，先把账号和角色确认清楚。"
-        tag="h1"
-      />
+    <article class="hero-card register-hero register-hero-compact">
+      <div class="register-hero-head">
+        <SectionTitle
+          eyebrow="账号注册"
+          title="先创建账号。"
+          description="只创建账号，资料后补。"
+          tag="h1"
+        />
+        <button class="button-secondary register-login-trigger" type="button" @click="openLoginModal">去登录</button>
+      </div>
 
       <div v-if="authState.user" class="result-card stack-sm">
         <span class="eyebrow">当前已登录</span>
@@ -19,33 +22,26 @@
       </div>
     </article>
 
-    <article class="glass-panel stack-md register-shell">
-      <div class="panel-header panel-header-top">
-        <div class="stack-sm">
-          <span class="eyebrow">步骤引导</span>
-          <h2 class="page-hero-title">把注册收成单列，先确认身份，再创建账号。</h2>
-          <p class="hero-lead hero-lead-compact">
-            这里不再混放登录。已有账号时直接点右上角或本页底部的登录入口，登录会以弹窗方式打开。
-          </p>
+    <article class="glass-panel stack-md register-shell register-shell-compact">
+      <div class="register-shell-head">
+        <div class="stack-xs">
+          <span class="eyebrow">3 步完成</span>
+          <p class="muted">先选身份，再建账号。</p>
         </div>
-
-        <button class="button-secondary" type="button" @click="openLoginModal">已有账号，去登录</button>
+        <span class="register-current-audience">当前：{{ audience === 'talent' ? '人才端' : '企业端' }}</span>
       </div>
 
-      <div class="publish-stepper register-stepper">
+      <div class="publish-stepper register-stepper register-progress-strip">
         <button
           v-for="step in registerSteps"
           :key="step.id"
           type="button"
-          class="publish-stepper-item"
+          class="publish-stepper-item register-progress-chip"
           :class="registerStepClass(step.id)"
           @click="jumpStep(step.id)"
         >
           <span class="publish-stepper-index">{{ step.id }}</span>
-          <div>
-            <strong>{{ step.title }}</strong>
-            <small>{{ step.note }}</small>
-          </div>
+          <strong>{{ step.title }}</strong>
         </button>
       </div>
 
@@ -53,8 +49,8 @@
         <template v-if="step === 1">
           <SectionTitle
             eyebrow="第 1 步"
-            title="先确认你要进入哪个端"
-            description="企业端适合发布任务和推进协作；人才端适合接单、同步进度和沉淀作品。"
+            title="先选身份"
+            description="企业发任务，人才接任务。"
           />
 
           <div class="register-role-grid">
@@ -64,9 +60,12 @@
               :class="{ 'is-active-tab': audience === 'enterprise' }"
               @click="setAudience('enterprise')"
             >
-              <span class="eyebrow">企业端</span>
-              <h3>发布任务，确认 AI 拆解，选择人才并推进验收。</h3>
-              <p class="muted">适合企业主、项目负责人、品牌主理人和个人虚拟企业申请人。</p>
+              <div class="register-role-topline">
+                <span class="eyebrow">企业端</span>
+                <span class="muted">发任务</span>
+              </div>
+              <h3>企业端</h3>
+              <p class="muted">发布任务，推进协作与验收。</p>
             </button>
 
             <button
@@ -75,9 +74,12 @@
               :class="{ 'is-active-tab': audience === 'talent' }"
               @click="setAudience('talent')"
             >
-              <span class="eyebrow">人才端</span>
-              <h3>完善资料，查看任务，接单协作并沉淀收入与评价。</h3>
-              <p class="muted">适合独立开发者、设计师、内容创作者、视频剪辑师和 AI 使用型人才。</p>
+              <div class="register-role-topline">
+                <span class="eyebrow">人才端</span>
+                <span class="muted">接任务</span>
+              </div>
+              <h3>人才端</h3>
+              <p class="muted">接单协作，沉淀收入与评价。</p>
             </button>
           </div>
         </template>
@@ -86,7 +88,7 @@
           <SectionTitle
             eyebrow="第 2 步"
             title="创建你的账号"
-            description="先录入最基础的账号信息，详细资料和作品放到后续入驻流程里补充。"
+            description="只录基础账号信息。"
           />
 
           <div class="form-grid">
@@ -128,7 +130,7 @@
           <SectionTitle
             eyebrow="第 3 步"
             title="确认信息并创建账号"
-            description="账号创建完成后，企业端会进入入驻申请；人才端会进入资料完善。"
+            description="创建后会自动进入对应入驻流程。"
           />
 
           <div class="onboarding-summary-list">
@@ -168,7 +170,7 @@
       </article>
 
       <div class="publish-step-actions">
-        <button class="button-secondary" type="button" :disabled="step === 1" @click="previousStep">上一步</button>
+        <button v-if="step > 1" class="button-secondary" type="button" @click="previousStep">上一步</button>
 
         <button v-if="step < registerSteps.length" class="button-primary" type="button" :disabled="!isStepValid" @click="nextStep">
           下一步

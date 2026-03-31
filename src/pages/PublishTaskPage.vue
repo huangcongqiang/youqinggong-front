@@ -1,21 +1,21 @@
 <template>
   <section class="page-stack publish-page">
-    <article class="hero-card publish-hero-card">
-      <div class="panel-header panel-header-top">
+    <article class="hero-card publish-hero-card publish-hero-card-compact">
+      <div class="panel-header panel-header-top publish-hero-shell">
         <div class="stack-sm">
           <span class="eyebrow">AI 协助发任务</span>
-          <h1 class="page-hero-title publish-hero-title">按步骤发布，最后统一确认 AI 结果。</h1>
+          <h1 class="page-hero-title publish-hero-title">发布任务</h1>
           <p class="hero-lead hero-lead-compact">
-            前面三步只负责选场景、补需求和确认输入，最后一步再统一展示 AI 拆解、候选人才和正式发布动作。这样页面会更干净，操作也更顺。
+            先定场景，再补输入，最后看 AI 结果。
           </p>
+          <div class="tag-row publish-hero-meta">
+            <span class="soft-pill">当前 {{ currentStepMeta.title }}</span>
+            <span class="soft-pill">{{ selectedPreset?.isCustom ? '自由输入' : selectedPreset?.title || '待选模板' }}</span>
+          </div>
         </div>
 
-        <div class="publish-top-actions">
-          <div class="chip-row">
-            <span class="tag-pill">步骤式操作</span>
-            <span class="tag-pill">单列主流程</span>
-            <span class="tag-pill">最后一步看 AI 输出</span>
-          </div>
+        <div class="publish-top-actions publish-top-actions-compact">
+          <span class="soft-pill">4 步完成</span>
           <button class="button-secondary" type="button" @click="overviewOpen = true">发布概览</button>
         </div>
       </div>
@@ -45,7 +45,7 @@
             <SectionTitle
               eyebrow="第 1 步"
               title="先选一个任务场景"
-              description="用模板快速起步就够了。这里先定大方向，后面一步还会继续改任务标题、来源和详细需求。"
+              description="先定场景，再补标题、预算和需求。"
             />
 
             <div class="preset-grid">
@@ -64,17 +64,40 @@
                   </div>
                   <span class="soft-pill">{{ preset.period }}</span>
                 </div>
-                <div class="tag-row">
-                  <span v-for="tag in preset.tags || []" :key="tag" class="tag-pill tag-pill-muted">{{ tag }}</span>
+                <div class="tag-row preset-card-tags">
+                  <span
+                    v-for="tag in presetPreviewTags(preset)"
+                    :key="tag"
+                    class="tag-pill tag-pill-muted"
+                  >
+                    {{ tag }}
+                  </span>
+                  <span
+                    v-if="countPresetTags(preset) > presetPreviewTags(preset).length"
+                    class="soft-pill"
+                  >
+                    +{{ countPresetTags(preset) - presetPreviewTags(preset).length }}
+                  </span>
                 </div>
               </button>
             </div>
 
-            <div v-if="selectedPreset" class="result-card stack-sm">
-              <span class="eyebrow">当前模板</span>
-              <h3>{{ selectedPreset.title }}</h3>
-              <p class="muted">{{ selectedPreset.brief || '这一项不会预填需求，你可以直接把模糊想法写给 AI，让它帮你先梳理。' }}</p>
-              <p v-if="selectedPreset.isCustom" class="muted">这一项不会帮你预填标题和需求，适合边想边写，再交给 AI 一起梳理。</p>
+            <div v-if="selectedPreset" class="mini-card publish-preset-inline">
+              <div class="publish-preset-inline-copy">
+                <span class="eyebrow">当前模板</span>
+                <strong>{{ selectedPreset.title }}</strong>
+                <p class="muted">
+                  {{
+                    selectedPreset.isCustom
+                      ? '适合把模糊想法先交给 AI 梳理。'
+                      : (selectedPreset.focus || '已带入默认方向，继续补预算和需求。')
+                  }}
+                </p>
+              </div>
+              <div class="tag-row">
+                <span class="soft-pill">{{ selectedPreset.period || '自由输入' }}</span>
+                <span class="soft-pill">预算 {{ publishForm.budget || '后面填写' }}</span>
+              </div>
             </div>
           </template>
 
@@ -82,7 +105,7 @@
             <SectionTitle
               eyebrow="第 2 步"
               title="把任务需求写清楚"
-              description="这一步只看发布内容本身：当前账号、任务标题、输入方式和需求描述。先把话说明白，再交给 AI 处理。"
+              description="先把标题、预算和需求说清楚，再交给 AI 处理。"
             />
 
             <form class="form-grid" @submit.prevent>
@@ -133,7 +156,7 @@
             <SectionTitle
               eyebrow="第 3 步"
               title="最后确认一遍输入内容"
-              description="这一步不展示 AI 结果，只确认你即将提交给 AI 的输入是否准确。确认后再进入最后一步集中看拆解结果。"
+              description="这一步只确认你即将提交给 AI 的输入。"
             />
 
             <div class="stack-md">
@@ -158,7 +181,7 @@
             <SectionTitle
               eyebrow="第 4 步"
               title="统一查看 AI 结果并正式发布"
-              description="最后一步才展示 AI 拆解、工期、风险和候选人才。看完没有问题，再正式发布并进入人才匹配。"
+              description="只看结论、修订和下一步。"
             />
 
             <div v-if="isAnalyzing" class="result-card publish-loading-card stack-md">
@@ -180,23 +203,25 @@
             </div>
 
             <div v-else-if="analysis.originalBrief" class="stack-md">
-              <div class="result-card stack-sm">
+              <div class="result-card stack-sm publish-analysis-summary-card">
                 <span class="eyebrow">原始需求摘要</span>
+                <h3>{{ analysis.schedule.total || '待估算' }}</h3>
                 <p class="muted">{{ analysis.originalBrief }}</p>
-                <div class="tag-row">
-                  <span class="soft-pill">{{ analysis.schedule.total || '待估算' }}</span>
+                <div class="tag-row publish-analysis-summary-tags">
                   <span v-if="analysis.provider" class="soft-pill">{{ analysis.provider }}</span>
                   <span v-if="analysis.model" class="soft-pill">{{ analysis.model }}</span>
+                  <span class="soft-pill">{{ analysis.schedule.risk || '待补充风险提示' }}</span>
                 </div>
-                <p v-if="analysis.schedule.assumption" class="muted"><strong class="accent">估算口径：</strong>{{ analysis.schedule.assumption }}</p>
-                <p class="muted"><strong class="accent">风险提示：</strong>{{ analysis.schedule.risk }}</p>
+                <p v-if="analysis.schedule.assumption" class="muted publish-analysis-summary-note">
+                  <strong class="accent">估算口径：</strong>{{ analysis.schedule.assumption }}
+                </p>
               </div>
 
-              <div class="mini-card stack-md">
+              <div class="mini-card stack-md publish-analysis-edit-card">
                 <div class="panel-header">
                   <div>
                     <span class="eyebrow">需求修订</span>
-                    <h4>如果 AI 理解偏了，可以直接在这里改</h4>
+                    <h4>如果 AI 理解偏了，直接改这里</h4>
                   </div>
                   <button class="button-secondary" type="button" @click="resetRevision">恢复本轮输入</button>
                 </div>
@@ -218,34 +243,47 @@
                 </div>
               </div>
 
-              <div class="stack-sm">
-                <h4>模块拆解</h4>
-                <div v-for="module in analysis.modules" :key="module.name" class="list-row">
-                  <div>
-                    <h4>{{ module.name }}</h4>
-                    <p class="muted">{{ module.output }}</p>
+              <div class="publish-analysis-detail-grid">
+                <details v-if="analysis.modules?.length" class="publish-analysis-detail-group" open>
+                  <summary>
+                    <span>模块拆解</span>
+                    <strong>{{ analysis.modules.length }} 个模块</strong>
+                  </summary>
+                  <div class="stack-sm">
+                    <div v-for="module in analysis.modules" :key="module.name" class="list-row">
+                      <div>
+                        <h4>{{ module.name }}</h4>
+                        <p class="muted">{{ module.output }}</p>
+                      </div>
+                      <span class="soft-pill">{{ module.duration }}</span>
+                    </div>
                   </div>
-                  <span class="soft-pill">{{ module.duration }}</span>
-                </div>
-              </div>
+                </details>
 
-              <div v-if="analysis.tags?.length" class="stack-sm">
-                <h4>推荐标签</h4>
-                <div class="tag-row">
-                  <span v-for="tag in analysis.tags" :key="tag" class="tag-pill">{{ tag }}</span>
-                </div>
-              </div>
-
-              <div v-if="analysis.recommendations?.length" class="stack-sm">
-                <h4>执行建议</h4>
-                <div class="stack-sm">
-                  <div v-for="item in analysis.recommendations" :key="item" class="mini-card stack-sm">
-                    <p class="muted">{{ item }}</p>
+                <details v-if="analysis.tags?.length" class="publish-analysis-detail-group">
+                  <summary>
+                    <span>推荐标签</span>
+                    <strong>{{ analysis.tags.length }} 个</strong>
+                  </summary>
+                  <div class="tag-row">
+                    <span v-for="tag in analysis.tags" :key="tag" class="tag-pill">{{ tag }}</span>
                   </div>
-                </div>
+                </details>
+
+                <details v-if="analysis.recommendations?.length" class="publish-analysis-detail-group">
+                  <summary>
+                    <span>执行建议</span>
+                    <strong>{{ analysis.recommendations.length }} 条</strong>
+                  </summary>
+                  <div class="stack-sm">
+                    <div v-for="item in analysis.recommendations" :key="item" class="mini-card stack-sm">
+                      <p class="muted">{{ item }}</p>
+                    </div>
+                  </div>
+                </details>
               </div>
 
-              <div v-if="publishResult" class="result-card stack-md">
+              <div v-if="publishResult" class="result-card stack-sm publish-result-summary-card">
                 <div class="panel-header">
                   <div>
                     <span class="eyebrow">发布状态</span>
@@ -256,13 +294,13 @@
 
                 <p class="muted">{{ publishResult.nextStep }}</p>
 
-                <div class="tag-row">
+                <div class="tag-row publish-result-summary-tags">
                   <span class="soft-pill">任务：{{ publishResult.taskId }}</span>
                   <span class="soft-pill">来源：{{ publishResult.source }}</span>
                   <span class="soft-pill">预算：{{ publishResult.budget || '未填写预算' }}</span>
                 </div>
 
-                <div class="toolbar">
+                <div class="toolbar publish-result-summary-actions">
                   <button
                     v-if="analysis.matchingPreview?.length"
                     class="button-primary"
@@ -274,17 +312,6 @@
                   </button>
                   <router-link class="button-secondary" to="/enterprise/talents">去看人才广场</router-link>
                 </div>
-              </div>
-
-              <div v-if="analysis.matchingPreview?.length" class="stack-sm">
-                <div class="panel-header">
-                  <div>
-                    <span class="eyebrow">AI 推荐候选人才</span>
-                    <h4>任务发布后，可直接从推荐名单里选人</h4>
-                  </div>
-                  <button class="button-secondary" type="button" @click="talentPickerOpen = true">打开推荐弹窗</button>
-                </div>
-                <p class="muted">发布成功后会自动弹出推荐名单。你可以立即选择，也可以跳过，后面再去人才广场慢慢筛选。</p>
               </div>
 
               <div v-if="assignmentResult" class="result-card stack-sm">
@@ -360,7 +387,15 @@
             {{ analysis.matchingPreview?.length ? '查看推荐人才' : '去人才广场' }}
           </button>
 
-          <button class="button-secondary" type="button" :disabled="isBusy" @click="resetForm">恢复当前模板</button>
+          <button
+            v-if="currentStep < 4 || !publishResult"
+            class="button-secondary"
+            type="button"
+            :disabled="isBusy"
+            @click="resetForm"
+          >
+            恢复当前模板
+          </button>
         </div>
       </article>
     </section>
@@ -645,6 +680,14 @@ function applyPreset(preset) {
   talentPickerOpen.value = false;
   selectedTalentUserId.value = '';
   analysis.value = { modules: [], tags: [], schedule: {}, recommendations: [], matchingPreview: [] };
+}
+
+function presetPreviewTags(preset) {
+  return Array.isArray(preset?.tags) ? preset.tags.slice(0, 2) : [];
+}
+
+function countPresetTags(preset) {
+  return Array.isArray(preset?.tags) ? preset.tags.length : 0;
 }
 
 async function handleAnalyze() {

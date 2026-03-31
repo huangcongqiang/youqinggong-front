@@ -1,110 +1,89 @@
 <template>
   <section class="page-stack dashboard-page" v-if="page">
-    <article v-if="attentionItems.length" class="glass-panel stack-sm dashboard-attention-card dashboard-alert-card">
-      <div class="dashboard-attention-header">
-        <div>
-          <span class="eyebrow">优先处理</span>
-          <h3>待办提醒</h3>
-        </div>
-        <p class="muted">{{ page.attentionHeadline }}</p>
-      </div>
+    <section class="dashboard-cockpit-grid" :class="{ 'is-single': !showOverviewRail }">
+      <DesktopAttentionHub
+        :eyebrow="dashboardHubEyebrow"
+        :title="dashboardHubTitle"
+        :description="dashboardHubDescription"
+        :summary-label="dashboardSummaryLabel"
+        :summary-value="attentionSummaryDisplay"
+        :summary-note="dashboardSummaryNote"
+        :stats="attentionHubStats"
+        :items="attentionHubItems"
+        detail-title="资料回看"
+        detail-description="作品、档期和评价继续放在次级层。"
+        :detail-items="attentionHubDetails"
+        toggle-label="更多"
+        :primary-action="attentionPrimaryAction"
+        :secondary-action="attentionSecondaryAction"
+      />
 
-      <div class="dashboard-attention-list">
-        <router-link
-          v-for="item in attentionItems"
-          :key="item.id"
-          class="dashboard-attention-item"
-          :to="item.route"
-        >
-          <span class="dashboard-attention-dot"></span>
-          <span class="dashboard-attention-label">{{ item.label }}</span>
-          <span class="dashboard-attention-count">{{ item.count }}</span>
-        </router-link>
-      </div>
-    </article>
-
-    <article class="hero-card dashboard-hero stack-md">
-      <span class="eyebrow">人才端工作台</span>
-      <h1 class="dashboard-title">{{ page.hero.name }} 的工作台总览</h1>
-      <p class="hero-lead dashboard-lead">
-        这里先看接单状态、当前任务和关键入口。任务广场、项目消息、协作进度、对外简历和档期详情，都放到各自模块里处理，不在工作台里堆完整内容。
-      </p>
-
-      <div class="dashboard-hero-actions">
-        <router-link class="button-primary" :to="roleRouteMap.talent.messages">去聊天</router-link>
-        <router-link class="button-secondary" :to="roleRouteMap.talent.market">查看任务广场</router-link>
-        <router-link class="button-secondary" :to="roleRouteMap.talent.profile('chen-yining')">查看对外简历</router-link>
-      </div>
-    </article>
-
-    <article class="glass-panel stack-md">
-      <div class="panel-header">
-        <div>
-          <span class="eyebrow">总览</span>
-          <h3>当前人才端的关键状态</h3>
-        </div>
-        <span class="soft-pill">{{ page.hero.availability }}</span>
-      </div>
-
-      <section class="metric-grid dashboard-metric-grid">
-        <MetricCard
-          v-for="item in summaryMetrics"
-          :key="item.label"
-          :label="item.label"
-          :value="item.value"
-          :note="item.note"
-        />
-      </section>
-
-      <p class="muted">
-        当前人才端最常用的就是聊天、看任务、看进度和看档期。工作台只负责把这几个入口放清楚，具体细节都放到对应页面里处理。
-      </p>
-
-      <div class="tag-row">
-        <span v-for="item in summaryChips" :key="item" class="soft-pill">{{ item }}</span>
-      </div>
-    </article>
-
-    <section class="dashboard-module-list">
-      <article v-for="module in modules" :key="module.id" class="glass-panel dashboard-module-card stack-md">
-        <div class="panel-header">
-          <div>
-            <span class="eyebrow">{{ module.eyebrow }}</span>
-            <h3>{{ module.title }}</h3>
-          </div>
-          <span class="soft-pill">{{ module.status }}</span>
+      <article v-if="showOverviewRail" class="glass-panel dashboard-overview-rail stack-sm">
+        <div class="dashboard-overview-header">
+          <span class="eyebrow">工作摘要</span>
+          <h3>{{ overviewTitle }}</h3>
         </div>
 
-        <p class="muted">{{ module.description }}</p>
-
-        <div class="tag-row">
-          <span v-for="item in module.badges" :key="item" class="tag-pill tag-pill-muted">{{ item }}</span>
-        </div>
-
-        <div class="dashboard-preview-list">
-          <div v-for="item in module.preview" :key="item" class="dashboard-preview-item">
-            <span class="status-dot"></span>
-            <p class="muted">{{ item }}</p>
-          </div>
-        </div>
-
-        <div class="dashboard-module-actions">
-          <router-link v-if="module.route" class="button-primary" :to="module.route">
-            {{ module.actionLabel }}
-          </router-link>
-          <button v-else class="button-primary" type="button" @click="openModule(module)">
-            {{ module.actionLabel }}
-          </button>
-          <button class="button-secondary" type="button" @click="openModule(module)">查看摘要</button>
+        <div class="dashboard-overview-list">
+          <article v-for="item in snapshotItems" :key="item.label" class="dashboard-overview-item">
+            <div class="dashboard-overview-copy">
+              <span class="dashboard-overview-label">{{ item.label }}</span>
+            </div>
+            <strong>{{ item.value }}</strong>
+          </article>
         </div>
       </article>
     </section>
 
+    <LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />
+
+    <section class="dashboard-module-list">
+      <article v-for="module in primaryModules" :key="module.id" class="glass-panel dashboard-module-card">
+        <div class="dashboard-module-row">
+          <div class="dashboard-module-copy">
+            <div class="dashboard-module-heading">
+              <h3>{{ module.title }}</h3>
+              <p class="muted">{{ module.description }}</p>
+            </div>
+            <div class="dashboard-module-preview">
+              <p class="dashboard-module-meta">{{ module.preview[0] }}</p>
+              <p v-if="module.preview[1]" class="dashboard-module-submeta muted">{{ module.preview[1] }}</p>
+            </div>
+          </div>
+
+          <div class="dashboard-module-actions">
+            <button class="button-secondary" type="button" @click="openModule(module)">
+              打开
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section v-if="secondaryModules.length" class="glass-panel dashboard-secondary-strip">
+      <div class="dashboard-secondary-copy">
+        <span class="eyebrow">次级入口</span>
+        <strong>协作和记录继续放在次级层。</strong>
+        <p class="muted">首屏先处理待确认和主入口，执行细节继续留在次级入口和左侧导航里。</p>
+      </div>
+
+      <div class="dashboard-secondary-actions">
+        <button
+          v-for="module in secondaryModules"
+          :key="module.id"
+          class="button-secondary"
+          type="button"
+          @click="openModule(module)"
+        >
+          {{ module.title }}
+        </button>
+      </div>
+    </section>
+
     <div v-if="activeModule" class="dashboard-detail-modal" @click.self="closeModule">
-      <article class="dashboard-detail-card stack-md">
+      <article class="dashboard-detail-card stack-md" role="dialog" aria-modal="true">
         <div class="panel-header">
           <div>
-            <span class="eyebrow">{{ activeModule.eyebrow }}</span>
             <h3>{{ activeModule.title }}</h3>
           </div>
           <button class="button-secondary" type="button" @click="closeModule">关闭</button>
@@ -112,20 +91,19 @@
 
         <p class="muted">{{ activeModule.description }}</p>
 
-        <div class="tag-row">
-          <span v-for="item in activeModule.badges" :key="item" class="soft-pill">{{ item }}</span>
-        </div>
-
         <div class="dashboard-detail-section">
-          <h4>模块摘要</h4>
+          <h4>简要预览</h4>
           <ul class="dashboard-detail-list">
-            <li v-for="item in activeModule.details" :key="item">{{ item }}</li>
+            <li v-for="item in activeModule.details.slice(0, 4)" :key="item">{{ item }}</li>
           </ul>
         </div>
 
         <div class="dashboard-module-actions">
-          <router-link v-if="activeModule.route" class="button-primary" :to="activeModule.route" @click="closeModule">
-            {{ activeModule.actionLabel }}
+          <router-link class="button-primary" :to="resolveModuleNotificationRoute(activeModule)" @click="closeModule">
+            进入通知中心
+          </router-link>
+          <router-link v-if="activeModule.allowDirectRoute && activeModule.route" class="button-secondary" :to="activeModule.route" @click="closeModule">
+            保留原入口
           </router-link>
           <button v-else class="button-primary" type="button" @click="closeModule">已了解</button>
         </div>
@@ -136,13 +114,29 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import MetricCard from '../components/MetricCard.vue';
+import DesktopAttentionHub from '../components/DesktopAttentionHub.vue';
+import LiveSyncStatusBar from '../components/LiveSyncStatusBar.vue';
 import { getTalentData } from '../services/api';
+import { startBusinessLiveSync } from '../services/businessEventStream';
 import { roleRouteMap } from '../utils/roleRoutes';
+import { buildCenterEntryRoute, pickPreferredAttentionItem } from '../utils/attentionNavigation';
 
 const page = ref(null);
-const activeModule = ref(null);
-let dashboardRefreshTimer = null;
+const activeModuleId = ref('');
+const liveSyncStatus = ref(null);
+const liveSyncError = ref('');
+let stopBusinessLiveSync = null;
+
+function handleLiveSyncStatus(snapshot) {
+  liveSyncStatus.value = snapshot ? { ...snapshot } : null;
+  if (snapshot?.state === 'open') {
+    liveSyncError.value = '';
+  }
+}
+
+function handleLiveSyncError() {
+  liveSyncError.value = '最近一次实时同步出现波动，页面会自动重连或切到轮询。';
+}
 
 function listOf(value) {
   return Array.isArray(value) ? value : [];
@@ -153,55 +147,340 @@ function joinText(value, separator = ' / ') {
   return items.length ? items.join(separator) : '标签待补充';
 }
 
-const summaryMetrics = computed(() => {
-  if (!page.value) {
-    return [];
+function stringValue(value) {
+  return value == null ? '' : String(value).trim();
+}
+
+function normalizeGroupKey(value) {
+  const normalized = stringValue(value).toLowerCase();
+  if (!normalized) {
+    return '';
+  }
+  if (normalized.includes('all') || normalized.includes('全部')) {
+    return 'all';
+  }
+  if (normalized.includes('confirm') || normalized.includes('确认')) {
+    return 'confirmations';
+  }
+  if (normalized.includes('change') || normalized.includes('修改')) {
+    return 'changes';
+  }
+  if (normalized.includes('selection') || normalized.includes('match') || normalized.includes('选人') || normalized.includes('发布')) {
+    return 'matching';
+  }
+  if (normalized.includes('grade') || normalized.includes('review') || normalized.includes('验收') || normalized.includes('评级')) {
+    return 'reviews';
+  }
+  if (normalized.includes('cancel') || normalized.includes('取消')) {
+    return 'cancellations';
+  }
+  if (normalized.includes('follow') || normalized.includes('chat') || normalized.includes('message') || normalized.includes('回看')) {
+    return 'followup';
+  }
+  return '';
+}
+
+function looksLikeTaskContext(source) {
+  if (!source || typeof source !== 'object') {
+    return false;
   }
 
-  const openDays = page.value.calendar.filter((item) => item.state === 'open').length;
+  return (
+    Object.prototype.hasOwnProperty.call(source, 'taskId') ||
+    Object.prototype.hasOwnProperty.call(source, 'progress') ||
+    Object.prototype.hasOwnProperty.call(source, 'stage') ||
+    Object.prototype.hasOwnProperty.call(source, 'status') ||
+    Object.prototype.hasOwnProperty.call(source, 'note') ||
+    Object.prototype.hasOwnProperty.call(source, 'attachments')
+  );
+}
 
-  return [
-    {
-      label: '综合评分',
-      value: page.value.hero.score,
-      note: '平台会结合评价、完工率和协作稳定性生成公开画像。'
-    },
-    {
-      label: '本月收入',
-      value: page.value.hero.income,
-      note: '收入会持续沉淀为个人品牌和接单背书。'
-    },
-    {
-      label: '开放档期',
-      value: `${openDays} 天`,
-      note: '根据当前日历状态自动统计本周剩余可接单时间。'
-    },
-    {
-      label: '进行中任务',
-      value: `${page.value.activeTasks.length} 个`,
-      note: '真正的进度详情放到协作空间查看。'
+function looksLikeRecordContext(source) {
+  if (!source || typeof source !== 'object') {
+    return false;
+  }
+
+  return (
+    Object.prototype.hasOwnProperty.call(source, 'recordId') ||
+    Object.prototype.hasOwnProperty.call(source, 'amount') ||
+    Object.prototype.hasOwnProperty.call(source, 'amountValue') ||
+    Object.prototype.hasOwnProperty.call(source, 'rating') ||
+    Object.prototype.hasOwnProperty.call(source, 'counterpartName') ||
+    Object.prototype.hasOwnProperty.call(source, 'partnerName') ||
+    Object.prototype.hasOwnProperty.call(source, 'startAt') ||
+    Object.prototype.hasOwnProperty.call(source, 'endAt') ||
+    Object.prototype.hasOwnProperty.call(source, 'startDate') ||
+    Object.prototype.hasOwnProperty.call(source, 'endDate')
+  );
+}
+
+function mergeRouteContext(...sources) {
+  const context = {};
+  const queue = [...sources];
+
+  const assign = (key, value) => {
+    const next = stringValue(value);
+    if (next && !context[key]) {
+      context[key] = next;
     }
-  ];
-});
+  };
 
-const summaryChips = computed(() => {
-  if (!page.value) {
-    return [];
+  while (queue.length) {
+    const source = queue.shift();
+    if (!source) {
+      continue;
+    }
+    if (Array.isArray(source)) {
+      queue.unshift(...source);
+      continue;
+    }
+    if (typeof source !== 'object') {
+      continue;
+    }
+
+    assign('taskId', source.taskId ?? source.summary?.taskId ?? source.task?.taskId ?? source.task?.id);
+    assign('room', source.room ?? source.roomKey ?? source.roomId ?? source.taskRoom?.roomKey ?? source.taskRoom?.roomId);
+    if (looksLikeRecordContext(source)) {
+      assign('recordId', source.recordId ?? source.id ?? source.record?.recordId ?? source.record?.id);
+    }
+    if (looksLikeTaskContext(source)) {
+      assign('taskId', source.taskId ?? source.id ?? source.task?.taskId ?? source.task?.id);
+    }
+    assign('source', source.source ?? source.origin ?? source.entrySource ?? source.inputSource);
   }
 
-  return [
-    `任务广场 ${page.value.marketplace.length} 个真实任务`,
-    page.value.pendingConfirmations?.length
-      ? `待确认任务 ${page.value.pendingConfirmations.length} 个`
-      : `未读沟通 ${page.value.messages.length} 条摘要`,
-    page.value.latestDeliveryGrade?.grade
-      ? `最近企业评级 ${page.value.latestDeliveryGrade.grade} 级${page.value.latestDeliveryGrade.payoutRatio ? ` · ${page.value.latestDeliveryGrade.payoutRatio}` : ''}`
-      : '',
-    page.value.evaluations?.length ? `最近评价 ${page.value.evaluations[0]}` : '完善资料后会逐步沉淀评价'
-  ].filter(Boolean);
-});
+  return context;
+}
+
+function buildQuery(context, allowedKeys = ['taskId', 'room', 'recordId', 'source']) {
+  const query = {};
+
+  allowedKeys.forEach((key) => {
+    const value = stringValue(context?.[key]);
+    if (value) {
+      query[key] = value;
+    }
+  });
+
+  return query;
+}
+
+function buildRoute(path, context, allowedKeys) {
+  const query = buildQuery(context, allowedKeys);
+  if (!query.source) {
+    query.source = 'dashboard-talent';
+  }
+  return Object.keys(query).length ? { path, query } : { path };
+}
+
+function buildNotificationCenterRoute(preferredItem) {
+  return buildCenterEntryRoute({
+    path: roleRouteMap.talent.notifications,
+    source: 'dashboard-talent',
+    preferredItem
+  });
+}
+
+function buildChatRoute(...sources) {
+  return buildRoute(roleRouteMap.talent.messages, mergeRouteContext(...sources));
+}
+
+function buildWorkspaceRoute(...sources) {
+  return buildRoute(roleRouteMap.talent.workspace, mergeRouteContext(...sources));
+}
+
+function buildRecordRoute(...sources) {
+  const context = mergeRouteContext(...sources);
+
+  if (context.recordId) {
+    return buildRoute(roleRouteMap.talent.recordDetail(context.recordId), context, ['taskId', 'room', 'source']);
+  }
+
+  return buildRoute(roleRouteMap.talent.records, context);
+}
+
+function buildModuleRoute(moduleId, ...sources) {
+  switch (moduleId) {
+    case 'messages':
+      return buildChatRoute(...sources);
+    case 'workspace':
+      return buildWorkspaceRoute(...sources);
+    case 'records':
+      return buildRecordRoute(...sources);
+    default:
+      return buildRoute(roleRouteMap.talent.market, mergeRouteContext(...sources), ['taskId', 'source']);
+  }
+}
+
+function buildModuleContext(moduleId) {
+  const attentionContext = attentionItems.value;
+  const moduleSources = {
+    messages: [page.value, attentionContext, listOf(page.value?.messages), listOf(page.value?.activeTasks), listOf(page.value?.acceptRecords)],
+    workspace: [page.value, attentionContext, listOf(page.value?.activeTasks), listOf(page.value?.messages), listOf(page.value?.acceptRecords)],
+    records: [page.value, attentionContext, listOf(page.value?.acceptRecords), listOf(page.value?.activeTasks), listOf(page.value?.messages)],
+    market: [page.value, attentionContext, listOf(page.value?.marketplace)]
+  };
+
+  return mergeRouteContext(...(moduleSources[moduleId] || [page.value, attentionContext]));
+}
+
+function resolveModuleNotificationRoute(module) {
+  const moduleId = typeof module === 'string' ? module : module?.id;
+  const preferredAttention = pickPreferredAttentionItem(hubSourceItems.value, moduleId, {
+    excludeGroupsByModule: {
+      workspace: ['followup']
+    },
+    preferredGroupsByModule: {
+      market: ['matching']
+    }
+  });
+
+  switch (moduleId) {
+    case 'messages':
+      return buildNotificationCenterRoute(preferredAttention);
+    case 'workspace':
+      return buildNotificationCenterRoute(preferredAttention);
+    case 'records':
+      return buildNotificationCenterRoute(preferredAttention);
+    default:
+      return buildNotificationCenterRoute(preferredAttention);
+  }
+}
 
 const attentionItems = computed(() => listOf(page.value?.attentionItems));
+const notificationItems = computed(() =>
+  listOf(page.value?.notificationItems).filter((item) => normalizeGroupKey(item?.groupKey || item?.id || item?.label || item?.title) !== 'followup')
+);
+const notificationGroups = computed(() => listOf(page.value?.notificationGroups));
+const hubSourceItems = computed(() => (notificationItems.value.length ? notificationItems.value : attentionItems.value));
+const notificationCenterRoute = computed(() => buildNotificationCenterRoute(hubSourceItems.value[0]));
+const attentionTotal = computed(
+  () => hubSourceItems.value.reduce((sum, item) => sum + (Number(item.count) || 0), 0)
+);
+const attentionSummaryValue = computed(() => `${attentionTotal.value} 项`);
+const attentionSummaryDisplay = computed(() => (attentionTotal.value ? `${attentionTotal.value} 项` : '已清空'));
+const dashboardSummaryLabel = computed(() => (attentionTotal.value ? '待处理事项' : '当前状态'));
+const dashboardHubEyebrow = computed(() => (attentionTotal.value ? '待确认' : '当前状态'));
+const dashboardHubTitle = computed(() => (attentionTotal.value ? '先确认' : '当前没有优先事项'));
+const dashboardHubDescription = computed(() =>
+  attentionTotal.value
+    ? String(page.value?.attentionHeadline || '先确认任务，再决定是否修改。')
+    : '直接进入聊天或任务广场即可。'
+);
+const dashboardSummaryNote = computed(() =>
+  attentionTotal.value ? '先清确认、修改、验收。' : '首屏只保留最常用入口，次级信息下沉。'
+);
+const attentionHubItems = computed(() =>
+  hubSourceItems.value.slice(0, 4).map((item, index) => ({
+    id: item.id || `talent-attention-${index}`,
+    label: item.label,
+    note: String(item.note || item.copy || item.description || item.summary || '先进入通知中心，再落到当前事项'),
+    count: item.count,
+    to: buildNotificationCenterRoute(item)
+  }))
+);
+const attentionPrimaryAction = computed(() => {
+  return {
+    to: attentionTotal.value ? notificationCenterRoute.value : roleRouteMap.talent.market,
+    label: attentionTotal.value ? '通知中心' : '任务广场'
+  };
+});
+const attentionSecondaryAction = computed(() => ({
+  to: attentionTotal.value ? roleRouteMap.talent.market : roleRouteMap.talent.messages,
+  label: attentionTotal.value ? '任务广场' : '去聊天'
+}));
+function groupCount(groupKey) {
+  const group = notificationGroups.value.find((item) => normalizeGroupKey(item?.key || item?.id || item?.label || item?.name) === groupKey);
+  if (group) {
+    return Number(group.count) || 0;
+  }
+  return notificationItems.value
+    .filter((item) => normalizeGroupKey(item?.groupKey || item?.id || item?.label || item?.title) === groupKey)
+    .reduce((sum, item) => sum + (Number(item.count) || 0), 0);
+}
+const attentionHubStats = computed(() => {
+  if (!attentionTotal.value) {
+    return [];
+  }
+
+  return [
+    {
+      label: '待确认',
+      value: String(groupCount('confirmations') || 0),
+      note: '先确认任务，再决定是否提出修改。'
+    },
+    {
+      label: '待修改',
+      value: String(groupCount('changes') || 0),
+      note: '集中处理任务范围、工期和补充说明。'
+    },
+    {
+      label: '待验收',
+      value: String(groupCount('reviews') || 0),
+      note: '已接近收尾的任务尽快完成交付。'
+    }
+  ].filter((item) => Number(item.value) > 0);
+});
+
+const summaryHighlights = computed(() => {
+  if (!page.value) {
+    return [];
+  }
+
+  const openDays = listOf(page.value.calendar).filter((item) => item.state === 'open').length;
+
+  return [
+    `评分 ${page.value.hero.score}`,
+    `收入 ${page.value.hero.income}`,
+    `档期 ${openDays} 天`
+  ];
+});
+const attentionHubDetails = computed(() => [
+  { label: '待处理事项', value: attentionSummaryValue.value },
+  { label: '通知分组', value: `${notificationGroups.value.length || 0} 组` },
+  { label: '技能与标签', value: `${listOf(page.value?.skills).length} 项` },
+  { label: '作品条目', value: `${listOf(page.value?.portfolio).length} 个` },
+  { label: '档期记录', value: `${listOf(page.value?.calendar).length} 条` },
+  { label: '历史评价', value: `${listOf(page.value?.evaluations).length} 条` },
+  { label: '当前概览', value: summaryHighlights.value.join(' / ') || '待同步' }
+]);
+
+const snapshotItems = computed(() => {
+  if (!page.value) {
+    return [];
+  }
+
+  const openDays = listOf(page.value.calendar).filter((item) => item.state === 'open').length;
+
+  return [
+    {
+      label: '评分',
+      raw: stringValue(page.value.hero?.score),
+      value: stringValue(page.value.hero?.score) || '暂无',
+      copy: '当前合作评分继续保留在这里。'
+    },
+    {
+      label: '收入',
+      raw: stringValue(page.value.hero?.income),
+      value: stringValue(page.value.hero?.income) || '￥0',
+      copy: '累计收入继续留在资料与记录里。'
+    },
+    {
+      label: '空档期',
+      raw: String(openDays),
+      value: `${openDays} 天`,
+      copy: '开放档期继续影响推荐排序。'
+    },
+    {
+      label: '历史评价',
+      raw: String(listOf(page.value.evaluations).length),
+      value: `${listOf(page.value.evaluations).length} 条`,
+      copy: '历史合作评价继续沉淀在记录里。'
+    }
+  ].filter((item) => item.raw && item.raw !== '0' && item.raw !== '暂无' && item.raw !== '￥0');
+});
+const showOverviewRail = computed(() => snapshotItems.value.length > 0);
+const overviewTitle = computed(() => (showOverviewRail.value ? '右侧只保留有效摘要' : '补充信息'));
 
 const modules = computed(() => {
   if (!page.value) {
@@ -211,134 +490,99 @@ const modules = computed(() => {
   return [
     {
       id: 'messages',
-      eyebrow: '聊天',
-      title: '所有项目聊天都从这里进入',
-      status: page.value.pendingConfirmations?.length ? '有任务待确认' : '有新消息待查看',
+      title: '聊天',
       description: page.value.pendingConfirmations?.length
-        ? '企业刚选择你进入合作，先去聊天页确认任务范围、工期和交付边界；如果不合理，也可以直接提出修改。'
-        : '接单后围绕具体任务聊天、回附件、看 AI 沟通纪要，都直接在聊天页处理，不需要先去别的模块找。',
-      badges: ['即时聊天', '附件同步', '沟通纪要'],
-      preview: page.value.messages.length
-        ? page.value.messages.map(
-            (message) => `${message.time} · ${message.from}：${message.text}`
-          )
-        : ['当前还没有聊天记录，企业选中你之后会从这里进入任务确认。'],
-      details: page.value.messages.length
-        ? page.value.messages.map(
-            (message) => `${message.time} · ${message.from}：${message.text}`
-          )
+        ? '先确认任务，再决定是否修改。'
+        : '确认、补充和留痕都在这里。',
+      preview: listOf(page.value.messages).length
+        ? listOf(page.value.messages).slice(0, 2).map((message) => `${message.from}：${message.text}`)
+        : ['当前还没有聊天记录。'],
+      details: listOf(page.value.messages).length
+        ? listOf(page.value.messages).map((message) => `${message.time} · ${message.from}：${message.text}`)
         : ['聊天房间会按最新消息自动排序，新的协商任务也会在这里提醒。'],
-      route: roleRouteMap.talent.messages,
-      actionLabel: '进入聊天页'
-    },
-    {
-      id: 'profile',
-      eyebrow: '对外简历',
-      title: '维护你的公开人才详情页',
-      status: '公开展示中',
-      description: '你的头像、履历、作品、平台结果和评价都应该沉淀在对外简历页，不在工作台里完整展开。',
-      badges: ['头像与履历', '作品沉淀', '平台评价'],
-      preview: [
-        `技能标签：${joinText(listOf(page.value.skills).slice(0, 3))}`,
-        `代表作品：${page.value.portfolio[0]?.title}`,
-        `对外状态：可供企业端查看与比较`
-      ],
-      details: [
-        ...listOf(page.value.skills).map((skill) => `技能：${skill}`),
-        ...listOf(page.value.portfolio).map((item) => `作品：${item.title} - ${item.desc}`)
-      ],
-      route: roleRouteMap.talent.profile('chen-yining'),
-      actionLabel: '查看对外简历'
+      route: buildModuleRoute('messages', buildModuleContext('messages'))
     },
     {
       id: 'market',
-      eyebrow: '任务广场',
-      title: '主动看任务，判断值不值得接',
-      status: page.value.marketplace.length ? `推荐 ${page.value.marketplace.length} 个` : '暂无任务',
-      description: '任务广场会按匹配度、预算和周期展示推荐项目，工作台这里只保留入口和最近摘要。',
-      badges: ['匹配度', '预算周期', '主动接单'],
-      preview: page.value.marketplace.length
-        ? page.value.marketplace.map(
-            (task) => `${task.title} · 匹配 ${task.match} · ${task.budget}`
-          )
+      title: '任务广场',
+      description: '按匹配度、预算和周期挑任务。',
+      preview: listOf(page.value.marketplace).length
+        ? listOf(page.value.marketplace).slice(0, 2).map((task) => `${task.title} · 匹配 ${task.match} · ${task.budget}`)
         : ['企业发布真实任务后，会在这里按时间和状态展示。'],
-      details: page.value.marketplace.length
-        ? page.value.marketplace.map(
-            (task) => `${task.title}：${task.period}，${task.budget}，标签 ${joinText(task.tags)}`
-          )
+      details: listOf(page.value.marketplace).length
+        ? listOf(page.value.marketplace).map((task) => `${task.title}：${task.period}，${task.budget}，标签 ${joinText(task.tags)}`)
         : ['当前还没有可浏览任务。企业发布后，任务广场会自动更新。'],
-      route: roleRouteMap.talent.market,
-      actionLabel: '进入任务广场'
+      route: buildModuleRoute('market', buildModuleContext('market')),
+      allowDirectRoute: true
     },
     {
       id: 'workspace',
-      eyebrow: '任务进度',
-      title: '进行中任务和交付进度统一到协作空间',
-      status: `${page.value.activeTasks.length} 个任务进行中`,
-      description: '真正的任务进度、里程碑和上传记录都在协作空间里看，工作台只保留项目摘要。',
-      badges: ['里程碑', '上传进度', '验收前准备'],
-      preview: page.value.activeTasks.length
-        ? page.value.activeTasks.map(
-            (task) => `${task.title} · 进度 ${task.progress}`
-          )
+      title: '协作',
+      description: '提交进度、协助需求和附件。',
+      preview: listOf(page.value.activeTasks).length
+        ? listOf(page.value.activeTasks).slice(0, 2).map((task) => `${task.title} · 进度 ${task.progress}`)
         : ['当前还没有进行中的真实项目。'],
-      details: page.value.activeTasks.length
-        ? page.value.activeTasks.map(
-            (task) => `${task.title}：${task.note}（当前进度 ${task.progress}）`
-          )
+      details: listOf(page.value.activeTasks).length
+        ? listOf(page.value.activeTasks).map((task) => `${task.title}：${task.note}（当前进度 ${task.progress}）`)
         : ['当你确认任务后，进度和里程碑会在这里同步。'],
-      route: roleRouteMap.talent.workspace,
-      actionLabel: '查看任务进度'
+      route: buildModuleRoute('workspace', buildModuleContext('workspace'))
     },
     {
-      id: 'calendar',
-      eyebrow: '档期与评价',
-      title: '接单日历、收入与评价集中看摘要',
-      status: page.value.hero.availability,
-      description: '档期、收入和评价都是经营个人品牌的重要部分，但不适合在工作台里展开成大块内容。',
-      badges: ['接单日历', '收入沉淀', '历史评价'],
-      preview: [
-        ...page.value.calendar.slice(0, 3).map((item) => `${item.day} · ${item.note}`),
-        page.value.evaluations?.length ? `最近评价：${page.value.evaluations[0]}` : '最近评价：暂无'
-      ],
-      details: [
-        ...page.value.calendar.map((item) => `${item.day}：${item.note}`),
-        `本月收入：${page.value.hero.income}`,
-        ...(page.value.evaluations || []).map((item) => `评价：${item}`)
-      ],
-      route: '',
-      actionLabel: '查看摘要'
+      id: 'records',
+      title: '记录',
+      description: '回看收入、周期和企业评分。',
+      preview: listOf(page.value.acceptRecords).length
+        ? listOf(page.value.acceptRecords).slice(0, 2).map((item) => `${item.title} · ${item.amountValue || '待确认'} · ${item.stage}`)
+        : ['记录列表会保留金额、开始/结束时间和企业评级。'],
+      details: listOf(page.value.acceptRecords).length
+        ? listOf(page.value.acceptRecords).map((item) => `${item.title}：${item.counterpartName || '待同步'}，${item.rating?.value || '待评分'}，${item.updatedAt || '待同步'}`)
+        : ['这里会继续沉淀每一单接单记录，并支持查看详情。'],
+      route: buildModuleRoute('records', buildModuleContext('records'))
     }
   ];
 });
+const primaryModules = computed(() => modules.value.slice(0, 2));
+const secondaryModules = computed(() => modules.value.slice(2));
 
 function openModule(module) {
-  activeModule.value = module;
+  activeModuleId.value = module?.id || '';
 }
 
 function closeModule() {
-  activeModule.value = null;
+  activeModuleId.value = '';
 }
+
+const activeModule = computed(() =>
+  modules.value.find((module) => module.id === activeModuleId.value) || null
+);
 
 async function loadPage() {
   page.value = await getTalentData();
 }
 
+function handleEscape(event) {
+  if (event.key === 'Escape' && activeModuleId.value) {
+    closeModule();
+  }
+}
+
 onMounted(async () => {
   await loadPage();
   if (typeof window !== 'undefined') {
-    dashboardRefreshTimer = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        return;
-      }
-      void loadPage();
-    }, 6000);
+    window.addEventListener('keydown', handleEscape);
+    stopBusinessLiveSync = startBusinessLiveSync({
+      refresh: () => loadPage(),
+      onStatusChange: handleLiveSyncStatus,
+      onSyncError: handleLiveSyncError
+    });
   }
 });
 
 onBeforeUnmount(() => {
-  if (typeof window !== 'undefined' && dashboardRefreshTimer) {
-    window.clearInterval(dashboardRefreshTimer);
+  stopBusinessLiveSync?.();
+  stopBusinessLiveSync = null;
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', handleEscape);
   }
 });
 </script>

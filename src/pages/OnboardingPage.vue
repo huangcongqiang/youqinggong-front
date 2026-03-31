@@ -2,9 +2,9 @@
   <section class="page-stack onboarding-page" v-if="checklists">
     <article class="hero-card">
       <SectionTitle
-        eyebrow="入驻申请"
-        title="完成基础入驻后，再进入后续业务流程。"
-        description="企业端和人才端都从这里开始。"
+        eyebrow="入驻办理"
+        title="先入驻，再协作。"
+        description="企业和人才共用办理流。"
         tag="h1"
       />
       <div class="chip-row">
@@ -23,14 +23,34 @@
           人才入驻
         </router-link>
       </div>
+
+      <div class="onboarding-flow-banner">
+        <div class="stack-sm">
+          <span class="eyebrow">当前步骤</span>
+          <h2 class="onboarding-flow-title">{{ flowStepTitle }}</h2>
+          <div class="tag-row">
+            <span class="soft-pill">{{ flowModeLabel }}</span>
+            <span class="soft-pill">{{ flowStepProgress }}</span>
+          </div>
+        </div>
+
+        <button
+          class="button-primary onboarding-flow-primary"
+          type="button"
+          :disabled="flowActionDisabled"
+          @click="handlePrimaryFlowAction"
+        >
+          {{ flowActionLabel }}
+        </button>
+      </div>
     </article>
 
     <template v-if="mode === 'business'">
       <article class="glass-panel stack-md onboarding-shell">
         <div class="panel-header panel-header-top">
-          <div class="stack-sm">
-            <span class="eyebrow">企业端步骤引导</span>
-            <h2 class="page-hero-title">按步骤完成企业入驻。</h2>
+          <div class="stack-xs">
+            <span class="eyebrow">办理步骤</span>
+            <h2 class="page-hero-title">先填主体</h2>
           </div>
         </div>
 
@@ -46,7 +66,6 @@
             <span class="publish-stepper-index">{{ step.id }}</span>
             <div>
               <strong>{{ step.title }}</strong>
-              <small>{{ step.note }}</small>
             </div>
           </button>
         </div>
@@ -55,8 +74,7 @@
           <template v-if="businessStep === 1">
             <SectionTitle
               eyebrow="第 1 步"
-              title="先确认企业身份"
-              description="确认企业名称和入驻类型。"
+              title="确认主体"
             />
 
             <div class="form-field">
@@ -91,7 +109,7 @@
           <template v-else-if="businessStep === 2">
             <SectionTitle
               eyebrow="第 2 步"
-              title="补充联系人和合作方式"
+              title="补充联系人"
               description="填写后续联系和合作偏好。"
             />
 
@@ -146,7 +164,7 @@
           <template v-else-if="businessStep === 3">
             <SectionTitle
               eyebrow="第 3 步"
-              title="确认这次入驻信息"
+              title="确认信息"
               description="确认当前填写内容无误。"
             />
 
@@ -197,7 +215,7 @@
           <template v-else>
             <SectionTitle
               eyebrow="第 4 步"
-              title="最后再决定是否现在上传资料"
+              title="选择提交方式"
               description="可现在上传，也可稍后补交。"
             />
 
@@ -205,7 +223,7 @@
               <div class="panel-header">
                 <div>
                   <span class="eyebrow">建议上传</span>
-                  <h4>资料上传清单</h4>
+                  <h4>上传清单</h4>
                 </div>
                 <span class="soft-pill">{{ businessForm.virtualCompany ? '虚拟企业路径' : '企业路径' }}</span>
               </div>
@@ -242,7 +260,7 @@
 
             <article class="result-card stack-sm onboarding-defer-card">
               <span class="eyebrow">可选路径</span>
-              <h3>先提交基础信息，后续在工作台补交</h3>
+              <h3>先提交基础信息，后续在工作台补交。</h3>
 
               <label class="onboarding-inline-check">
                 <input :checked="businessDeferredMaterials" type="checkbox" @change="handleDeferredToggle($event.target.checked)" />
@@ -339,8 +357,8 @@
       <article class="glass-panel stack-md">
         <SectionTitle
           eyebrow="人才端入驻"
-          title="先补资料、技能和作品，再进入接单和推荐。"
-          description="先完成基础资料，再进入任务与协作。"
+          title="先补基础资料，再进入接单和推荐。"
+          description="完成基础资料后，再进入任务与协作。"
         />
 
         <form class="stack-md" @submit.prevent="handleTalentSubmit">
@@ -387,7 +405,7 @@
       <article class="glass-panel stack-md">
         <SectionTitle
           eyebrow="资料清单"
-          title="平台会重点查看这些内容。"
+          title="审核会重点看这些内容。"
         />
 
         <div v-if="authState.user" class="result-card stack-sm">
@@ -523,6 +541,31 @@ const businessPreferenceSummary = computed(() =>
     ? businessForm.value.collaborationPreferences.join(' / ')
     : '未选择'
 );
+const flowModeLabel = computed(() => (mode.value === 'business' ? '企业 / 虚拟企业' : '人才入驻'));
+const flowStepTitle = computed(() => {
+  if (mode.value === 'business') {
+    return businessSteps[businessStep.value - 1]?.title || '办理中';
+  }
+  return '填写人才基础资料';
+});
+const flowStepProgress = computed(() =>
+  mode.value === 'business' ? `${businessStep.value} / ${businessSteps.length}` : '单页办理'
+);
+const flowActionLabel = computed(() => {
+  if (mode.value === 'business') {
+    if (businessStep.value < businessSteps.length) {
+      return '继续下一步';
+    }
+    return businessDeferredMaterials.value ? '提交基础信息' : '提交企业入驻申请';
+  }
+  return '提交人才入驻';
+});
+const flowActionDisabled = computed(() => {
+  if (mode.value === 'business') {
+    return businessSubmitting.value || !isBusinessStepValid.value;
+  }
+  return !talentForm.value.displayName.trim() || !talentForm.value.headline.trim();
+});
 
 const isBusinessStepValid = computed(() => {
   if (businessStep.value === 1) {
@@ -697,6 +740,19 @@ function nextBusinessStep() {
   businessStep.value += 1;
 }
 
+async function handlePrimaryFlowAction() {
+  if (mode.value === 'business') {
+    if (businessStep.value < businessSteps.length) {
+      nextBusinessStep();
+      return;
+    }
+    await handleBusinessSubmit();
+    return;
+  }
+
+  await handleTalentSubmit();
+}
+
 function previousBusinessStep() {
   if (businessStep.value <= 1) {
     return;
@@ -797,3 +853,79 @@ onMounted(async () => {
 watch(() => route.meta.onboardingMode, syncModeFromRoute);
 watch(() => authState.user, prefillFormFromUser, { deep: true });
 </script>
+
+<style scoped>
+.onboarding-flow-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(106, 166, 255, 0.16);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(106, 166, 255, 0.1), rgba(255, 255, 255, 0.04));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.onboarding-page .hero-card {
+  padding: 18px;
+}
+
+.onboarding-page .section-title h1 {
+  max-width: 10ch;
+  font-size: clamp(24px, 2.8vw, 34px);
+}
+
+.onboarding-page .section-title p {
+  max-width: 42ch;
+}
+
+.onboarding-flow-title {
+  margin: 0;
+  font-size: clamp(0.95rem, 1.02vw, 1.02rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.onboarding-flow-primary {
+  min-width: 116px;
+}
+
+.onboarding-page .onboarding-shell {
+  padding: 16px;
+}
+
+.onboarding-page .onboarding-stepper {
+  gap: 3px;
+}
+
+.onboarding-page .publish-stepper-item {
+  padding: 6px 8px;
+  border-radius: 10px;
+  gap: 5px;
+}
+
+.onboarding-page .publish-stepper-item strong {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.onboarding-page .page-hero-title {
+  font-size: clamp(20px, 2vw, 28px);
+}
+
+.onboarding-page .onboarding-step-panel {
+  padding: 14px;
+}
+
+@media (max-width: 860px) {
+  .onboarding-flow-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .onboarding-flow-primary {
+    width: 100%;
+  }
+}
+</style>

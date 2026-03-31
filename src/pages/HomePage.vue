@@ -1,228 +1,155 @@
 <template>
   <section class="page-stack" v-if="page">
     <article class="hero-card hero-showcase portal-hero homepage-compact-hero">
-      <div class="hero-topbar">
-        <div class="hero-brandbar">
-          <span class="hero-brandmark">有轻工</span>
-          <span class="hero-brandcopy">AI 人才协作平台</span>
-        </div>
+      <div class="homepage-landing-shell">
+        <div class="homepage-hero-main stack-lg">
+          <div class="homepage-hero-copy stack-lg">
+            <div class="stack-sm homepage-hero-copy-block">
+              <p class="hero-kicker">从需求到交付，一条线做完</p>
+              <h1 class="hero-display">把需求变成结果。</h1>
+              <p class="hero-lead hero-lead-compact">
+                发布、协作、验收都在一条闭环里。
+              </p>
+            </div>
 
-        <div class="action-row">
-          <a class="button-secondary" href="#cases">查看案例</a>
-          <button v-if="!authState.user" class="button-secondary" type="button" @click="openLoginModal('enterprise')">登录</button>
-          <router-link class="button-primary" :to="topPrimaryRoute">{{ topPrimaryLabel }}</router-link>
-        </div>
-      </div>
-
-      <div class="homepage-compact-shell">
-        <div class="stack-lg">
-          <div class="stack-md">
-            <p class="hero-kicker">先把需求说清，再把合作做顺</p>
-            <h1 class="hero-display">让企业更快找到人，让人才更快进入协作。</h1>
-            <p class="hero-lead hero-lead-compact">
-              用更轻的入口页先说明平台价值，再把企业合作与人才接单分别交给各自的业务端完成。
-            </p>
+            <div class="action-row portal-hero-actions">
+              <router-link class="button-primary" :to="primaryHeroRoute">{{ primaryHeroLabel }}</router-link>
+              <router-link class="button-secondary" :to="secondaryHeroRoute">{{ secondaryHeroLabel }}</router-link>
+            </div>
           </div>
 
-          <div class="action-row portal-hero-actions">
-            <router-link class="button-primary" :to="primaryHeroRoute">{{ primaryHeroLabel }}</router-link>
-            <router-link class="button-secondary" :to="secondaryHeroRoute">{{ secondaryHeroLabel }}</router-link>
-          </div>
-
-          <div class="signal-grid">
-            <span v-for="badge in compactBadges" :key="badge" class="signal-chip">{{ badge }}</span>
-          </div>
-        </div>
-
-        <div class="homepage-showcase-panel stack-md">
-          <div class="homepage-showcase-copy stack-xs">
-            <span class="eyebrow">品牌展示</span>
-            <h3>围绕任务交付展开，而不是把首页做成说明书。</h3>
-            <p class="muted">
-              企业端负责发布、选人和推进合作，人才端负责接单、执行和沉淀作品。
-            </p>
-          </div>
-
-          <div class="portal-role-grid homepage-role-grid">
-            <router-link
-              v-for="card in roleCards"
-              :key="card.title"
-              :to="card.route"
-              class="portal-entry-card homepage-entry-card"
-            >
-              <span class="eyebrow">角色入口</span>
-              <h3>{{ card.title }}</h3>
-              <p class="muted">{{ card.desc }}</p>
-              <strong class="portal-entry-cta">{{ card.cta }}</strong>
-            </router-link>
-          </div>
-
-          <div class="homepage-proof-ribbon">
-            <article v-for="item in heroProofs" :key="item.label" class="homepage-proof-card">
+          <div v-if="homepageProofSignals.length" class="homepage-hero-signal-row">
+            <article v-for="item in homepageProofSignals" :key="item.label" class="homepage-hero-signal">
               <span class="eyebrow">{{ item.label }}</span>
               <strong>{{ item.value }}</strong>
-              <p>{{ item.note }}</p>
             </article>
           </div>
         </div>
+
+        <aside class="homepage-hero-side">
+          <article class="homepage-hero-side-card stack-md">
+            <div class="section-lead stack-xs homepage-hero-side-copy">
+              <span class="eyebrow">平台方式</span>
+              <h2>发布、协作、验收在一条线。</h2>
+              <p class="muted homepage-hero-side-note">先定范围，再推进执行。</p>
+            </div>
+
+            <div class="homepage-step-strip homepage-step-strip-compact">
+              <article v-for="item in homepageSteps" :key="item.title" class="homepage-step-strip-item homepage-step-strip-tile">
+                <div class="homepage-step-strip-head">
+                  <span class="homepage-step-strip-index">{{ item.index }}</span>
+                  <strong>{{ item.title }}</strong>
+                </div>
+                <span>{{ item.note }}</span>
+              </article>
+            </div>
+          </article>
+        </aside>
       </div>
     </article>
 
-    <section id="features" class="homepage-editorial-stack">
-      <article class="glass-panel stack-md homepage-editorial-panel">
-        <div class="section-lead stack-sm">
-          <span class="eyebrow">平台方式</span>
-          <h2>不是只展示岗位，而是先把合作怎么发生讲清楚。</h2>
-          <p class="muted">
-            首页只保留最重要的合作逻辑，让企业和人才都能一眼明白平台的运行方式。
-          </p>
+    <section id="features" class="homepage-entry-stack">
+      <article id="roles" class="glass-panel stack-md homepage-role-shell">
+        <div class="homepage-showcase-copy stack-xs">
+          <span class="eyebrow">角色入口</span>
+          <h2>先看角色，再选入口。</h2>
         </div>
 
-        <div class="homepage-editorial-grid">
-          <div class="homepage-editorial-copy stack-md">
-            <p class="homepage-editorial-lead">
-              从需求整理、人才匹配到协作验收，平台只把真正影响效率的关键环节做深。
-            </p>
-            <div class="homepage-step-ribbon">
-              <article v-for="item in homepageSteps" :key="item.title" class="homepage-step-ribbon-item">
-                <span class="portal-stage-index">{{ item.index }}</span>
-                <div class="stack-xs">
-                  <h3>{{ item.title }}</h3>
-                  <p class="muted">{{ item.note }}</p>
-                </div>
-              </article>
+        <div class="portal-role-grid homepage-role-grid homepage-role-grid-compact">
+          <article
+            v-for="card in roleCards"
+            :key="card.title"
+            class="portal-entry-card homepage-entry-card homepage-entry-card-compact"
+          >
+            <div class="homepage-entry-card-head">
+              <span class="soft-pill">角色入口</span>
+              <span class="homepage-entry-card-meta">{{ previewRolePoints(card.points).join(' · ') }}</span>
             </div>
-          </div>
-
-          <div class="homepage-highlight-grid">
-            <article v-for="pillar in compactPillars" :key="pillar.title" class="portal-pillar-card homepage-highlight-card">
-              <h3>{{ pillar.title }}</h3>
-              <p class="muted">{{ pillar.description }}</p>
-            </article>
-            <article v-for="item in compactHighlights" :key="item.title" class="homepage-highlight-note">
-              <span class="eyebrow">补充说明</span>
-              <h3>{{ item.title }}</h3>
-              <p class="muted">{{ item.desc }}</p>
-            </article>
-          </div>
+            <h3>{{ card.title }}</h3>
+            <p class="muted">{{ card.shortDesc }}</p>
+          </article>
         </div>
       </article>
 
-      <article id="cases" class="glass-panel stack-md portal-case-board homepage-case-board">
+      <article id="cases" class="glass-panel stack-md portal-case-board homepage-case-board homepage-case-board-compact">
         <div class="section-lead stack-sm">
           <span class="eyebrow">案例</span>
-          <h2>用更像官网展示的方式，把企业合作与人才成长讲清楚。</h2>
+          <h2>看真实结果。</h2>
           <p class="muted">
-            案例分成企业端与人才端两组，各自独立轮播，先看成果，再决定是否进入。
+            企业看交付，人才看回报。
           </p>
         </div>
 
-        <div class="homepage-carousel-stack">
-          <article class="homepage-carousel-shell" v-if="enterpriseCases.length">
-            <div class="homepage-carousel-head">
-              <div class="stack-xs">
-                <span class="eyebrow">企业案例</span>
-                <h3>企业如何更快把任务发布、选人和协作跑顺。</h3>
-              </div>
-              <div class="homepage-carousel-controls">
-                <button class="homepage-carousel-button" type="button" @click="cycleCase('enterprise', -1)">上一个</button>
-                <button class="homepage-carousel-button" type="button" @click="cycleCase('enterprise', 1)">下一个</button>
+        <div class="homepage-carousel-shell" v-if="activeCaseList.length">
+          <div class="homepage-carousel-head">
+            <div class="stack-xs">
+              <span class="eyebrow">{{ activeCaseAudienceLabel }}</span>
+              <h3>{{ activeCaseTitle }}</h3>
+            </div>
+            <div class="homepage-carousel-controls">
+              <button
+                class="homepage-carousel-button"
+                type="button"
+                :class="{ 'is-active': caseAudience === 'enterprise' }"
+                @click="caseAudience = 'enterprise'"
+              >
+                企业
+              </button>
+              <button
+                class="homepage-carousel-button"
+                type="button"
+                :class="{ 'is-active': caseAudience === 'talent' }"
+                @click="caseAudience = 'talent'"
+              >
+                人才
+              </button>
+            </div>
+          </div>
+
+          <article v-if="activeCase" class="homepage-carousel-card">
+            <div class="homepage-carousel-media" :style="coverStyle(activeCase)">
+              <div class="homepage-carousel-overlay">
+                <span class="soft-pill">{{ activeCase.type }}</span>
+                <div class="stack-xs">
+                  <h4>{{ activeCase.coverTitle }}</h4>
+                  <p>{{ activeCase.coverCaption }}</p>
+                </div>
+                <div class="homepage-carousel-stats">
+                  <span v-for="item in activeCase.coverStats" :key="item" class="homepage-carousel-stat">{{ item }}</span>
+                </div>
               </div>
             </div>
 
-            <article v-if="activeEnterpriseCase" class="homepage-carousel-card">
-              <div class="homepage-carousel-media" :style="coverStyle(activeEnterpriseCase)">
-                <div class="homepage-carousel-overlay">
-                  <span class="soft-pill">{{ activeEnterpriseCase.type }}</span>
-                  <div class="stack-xs">
-                    <h4>{{ activeEnterpriseCase.coverTitle }}</h4>
-                    <p>{{ activeEnterpriseCase.coverCaption }}</p>
-                  </div>
-                  <div class="homepage-carousel-stats">
-                    <span v-for="item in activeEnterpriseCase.coverStats" :key="item" class="homepage-carousel-stat">{{ item }}</span>
-                  </div>
-                </div>
+            <div class="homepage-carousel-body stack-sm">
+              <h4>{{ activeCase.name }}</h4>
+              <p class="muted">{{ activeCase.summary }}</p>
+              <div class="portal-case-result">
+                <span class="eyebrow">结果</span>
+                <p class="muted">{{ activeCase.result }}</p>
               </div>
-
-              <div class="homepage-carousel-body stack-sm">
-                <h4>{{ activeEnterpriseCase.name }}</h4>
-                <p class="muted">{{ activeEnterpriseCase.summary }}</p>
-                <div class="portal-case-result">
-                  <span class="eyebrow">结果</span>
-                  <p class="muted">{{ activeEnterpriseCase.result }}</p>
-                </div>
-                <div v-if="activeEnterpriseCase.ratingSummary" class="homepage-carousel-rating stack-xs">
-                  <span class="soft-pill">{{ activeEnterpriseCase.ratingBadge || '合作评分' }}</span>
-                  <p class="muted">{{ activeEnterpriseCase.ratingSummary }}</p>
-                </div>
+              <div v-if="activeCase.ratingSummary" class="homepage-carousel-rating stack-xs">
+                <span class="soft-pill">{{ activeCase.ratingBadge || '合作评分' }}</span>
+                <p class="muted">{{ activeCase.ratingSummary }}</p>
               </div>
-            </article>
-
-            <div class="homepage-carousel-dots">
-              <button
-                v-for="(item, index) in enterpriseCases"
-                :key="item.name"
-                type="button"
-                class="homepage-carousel-dot"
-                :class="{ 'is-active': index === enterpriseCaseIndex }"
-                :aria-label="`查看 ${item.name}`"
-                @click="enterpriseCaseIndex = index"
-              />
             </div>
           </article>
 
-          <article class="homepage-carousel-shell" v-if="talentCases.length">
-            <div class="homepage-carousel-head">
-              <div class="stack-xs">
-                <span class="eyebrow">人才案例</span>
-                <h3>人才如何通过平台沉淀作品、收入和长期合作。</h3>
-              </div>
-              <div class="homepage-carousel-controls">
-                <button class="homepage-carousel-button" type="button" @click="cycleCase('talent', -1)">上一个</button>
-                <button class="homepage-carousel-button" type="button" @click="cycleCase('talent', 1)">下一个</button>
-              </div>
-            </div>
+          <div class="homepage-carousel-controls">
+            <button class="homepage-carousel-button" type="button" @click="cycleCase(-1)">上一个</button>
+            <button class="homepage-carousel-button" type="button" @click="cycleCase(1)">下一个</button>
+          </div>
 
-            <article v-if="activeTalentCase" class="homepage-carousel-card">
-              <div class="homepage-carousel-media" :style="coverStyle(activeTalentCase)">
-                <div class="homepage-carousel-overlay">
-                  <span class="soft-pill">{{ activeTalentCase.type }}</span>
-                  <div class="stack-xs">
-                    <h4>{{ activeTalentCase.coverTitle }}</h4>
-                    <p>{{ activeTalentCase.coverCaption }}</p>
-                  </div>
-                  <div class="homepage-carousel-stats">
-                    <span v-for="item in activeTalentCase.coverStats" :key="item" class="homepage-carousel-stat">{{ item }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="homepage-carousel-body stack-sm">
-                <h4>{{ activeTalentCase.name }}</h4>
-                <p class="muted">{{ activeTalentCase.summary }}</p>
-                <div class="portal-case-result">
-                  <span class="eyebrow">结果</span>
-                  <p class="muted">{{ activeTalentCase.result }}</p>
-                </div>
-                <div v-if="activeTalentCase.ratingSummary" class="homepage-carousel-rating stack-xs">
-                  <span class="soft-pill">{{ activeTalentCase.ratingBadge || '交付评级' }}</span>
-                  <p class="muted">{{ activeTalentCase.ratingSummary }}</p>
-                </div>
-              </div>
-            </article>
-
-            <div class="homepage-carousel-dots">
-              <button
-                v-for="(item, index) in talentCases"
-                :key="item.name"
-                type="button"
-                class="homepage-carousel-dot"
-                :class="{ 'is-active': index === talentCaseIndex }"
-                :aria-label="`查看 ${item.name}`"
-                @click="talentCaseIndex = index"
-              />
-            </div>
-          </article>
+          <div class="homepage-carousel-dots">
+            <button
+              v-for="(item, index) in activeCaseList"
+              :key="item.name"
+              type="button"
+              class="homepage-carousel-dot"
+              :class="{ 'is-active': index === activeCaseIndex }"
+              :aria-label="`查看 ${item.name}`"
+              @click="selectCaseIndex(index)"
+            />
+          </div>
         </div>
       </article>
     </section>
@@ -232,15 +159,20 @@
         <span class="eyebrow">联系方式</span>
         <h2>准备开始，就从这里进入。</h2>
         <p class="muted">
-          支持企业入驻、人才报名、项目咨询和产品演示预约。
+          企业入驻、人才报名和产品演示都从这里进入。
         </p>
       </div>
 
       <div class="portal-contact-list">
         <div v-for="item in compactContacts" :key="item.label" class="contact-card portal-contact-card">
-          <div>
-            <h4>{{ item.label }}</h4>
-            <p class="muted">{{ item.note }}</p>
+          <div class="contact-card-main">
+            <div class="contact-card-icon">
+              <VisualGlyph :name="item.icon" />
+            </div>
+            <div>
+              <h4>{{ item.label }}</h4>
+              <p class="muted">{{ item.note }}</p>
+            </div>
           </div>
           <strong>{{ item.value }}</strong>
         </div>
@@ -256,17 +188,18 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
+import VisualGlyph from '../components/VisualGlyph.vue';
 import { getLandingData } from '../services/api';
 import { useAuthState } from '../stores/auth';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
-const router = useRouter();
 const authState = useAuthState();
 const page = ref(null);
 const enterpriseCaseIndex = ref(0);
 const talentCaseIndex = ref(0);
+const caseAudience = ref('enterprise');
 
 function buildLoginRoute(audience = 'enterprise') {
   return {
@@ -279,15 +212,6 @@ function buildLoginRoute(audience = 'enterprise') {
   };
 }
 
-const topPrimaryRoute = computed(() => {
-  if (authState.user) {
-    return authState.user.homeRoute || (authState.user.audience === 'talent' ? roleRouteMap.talent.home : roleRouteMap.enterprise.home);
-  }
-  return roleRouteMap.portal.register('enterprise');
-});
-
-const topPrimaryLabel = computed(() => (authState.user ? '进入当前账号' : '立即注册'));
-
 const primaryHeroRoute = computed(() => {
   if (authState.user) {
     return authState.user.homeRoute || (authState.user.audience === 'talent' ? roleRouteMap.talent.home : roleRouteMap.enterprise.home);
@@ -299,11 +223,12 @@ const primaryHeroLabel = computed(() => (authState.user ? '进入当前账号' :
 const secondaryHeroRoute = computed(() => roleRouteMap.portal.register('talent'));
 const secondaryHeroLabel = computed(() => (authState.user ? '切换账号' : '人才注册'));
 
-const compactBadges = computed(() => (page.value?.badges || []).slice(0, 4));
-const heroProofs = computed(() => (page.value?.metrics || []).slice(0, 3));
-const compactPillars = computed(() => (page.value?.pillars || []).slice(0, 3));
-const compactHighlights = computed(() => (page.value?.highlights || []).slice(0, 2));
-const compactContacts = computed(() => (page.value?.contacts || []).slice(0, 3));
+const compactContacts = computed(() =>
+  (page.value?.contacts || []).slice(0, 3).map((item, index) => ({
+    ...item,
+    icon: ['tower', 'network', 'check'][index] || 'spark'
+  }))
+);
 const caseGroups = computed(() => page.value?.caseGroups || []);
 const enterpriseCases = computed(
   () => caseGroups.value.find((item) => item.id === 'enterprise')?.items || []
@@ -311,18 +236,32 @@ const enterpriseCases = computed(
 const talentCases = computed(
   () => caseGroups.value.find((item) => item.id === 'talent')?.items || []
 );
-const activeEnterpriseCase = computed(
-  () => enterpriseCases.value[enterpriseCaseIndex.value] || enterpriseCases.value[0] || null
+const activeCaseList = computed(() => (caseAudience.value === 'enterprise' ? enterpriseCases.value : talentCases.value));
+const activeCaseIndex = computed(() => (caseAudience.value === 'enterprise' ? enterpriseCaseIndex.value : talentCaseIndex.value));
+const activeCase = computed(() => activeCaseList.value[activeCaseIndex.value] || activeCaseList.value[0] || null);
+const activeCaseTitle = computed(() =>
+  caseAudience.value === 'enterprise' ? '企业如何更快发布、选人、推进交付。' : '人才如何沉淀作品、收入和长期合作。'
 );
-const activeTalentCase = computed(
-  () => talentCases.value[talentCaseIndex.value] || talentCases.value[0] || null
-);
+const activeCaseAudienceLabel = computed(() => (caseAudience.value === 'enterprise' ? '企业案例' : '人才案例'));
 
-const homepageSteps = computed(() =>
-  (page.value?.stages || []).slice(0, 4).map((item, index) => ({
-    ...item,
-    index: `0${index + 1}`
-  }))
+const homepageSteps = computed(() => {
+  const fallbackSteps = [
+    { title: '企业发起', note: '输入需求与预算' },
+    { title: 'AI 拆解', note: '给出模块与周期' },
+    { title: '人才协作', note: '确认版本与交付' },
+    { title: '验收评分', note: '留痕并沉淀口碑' }
+  ];
+
+  return (page.value?.stages || fallbackSteps).slice(0, 4).map((item, index) => ({
+    title: item.title,
+    note: item.note || item.description || fallbackSteps[index].note,
+    index: `0${index + 1}`,
+    icon: ['brief', 'spark', 'network', 'medal'][index] || 'spark'
+  }));
+});
+
+const homepageProofSignals = computed(() =>
+  (page.value?.metrics || []).slice(0, 3)
 );
 
 const roleCards = computed(() =>
@@ -330,6 +269,15 @@ const roleCards = computed(() =>
     const audience = index === 0 ? 'enterprise' : 'talent';
     return {
       ...card,
+      icon: audience === 'enterprise' ? 'tower' : 'talent',
+      shortDesc:
+        audience === 'enterprise'
+          ? '发布任务，快速推进交付。'
+          : '接任务，沉淀作品与收入。',
+      points:
+        audience === 'enterprise'
+          ? ['发布需求', '选择人才']
+          : ['查看任务', '确认合作'],
       route: authState.user
         ? authState.user.audience === audience
           ? audience === 'enterprise'
@@ -342,24 +290,21 @@ const roleCards = computed(() =>
           ? `进入${audience === 'enterprise' ? '企业端' : '人才端'}`
           : `切换到${audience === 'enterprise' ? '企业端' : '人才端'}`
         : `注册${audience === 'enterprise' ? '企业端' : '人才端'}`
-    };
+      };
   })
 );
 
-function openLoginModal(audience = 'enterprise') {
-  router.replace({
-    path: route.path,
-    query: {
-      ...route.query,
-      login: '1',
-      audience
-    },
-    hash: route.hash
-  });
+function selectCaseIndex(index) {
+  if (caseAudience.value === 'enterprise') {
+    enterpriseCaseIndex.value = index;
+    return;
+  }
+
+  talentCaseIndex.value = index;
 }
 
-function cycleCase(group, delta) {
-  if (group === 'enterprise') {
+function cycleCase(delta) {
+  if (caseAudience.value === 'enterprise') {
     const total = enterpriseCases.value.length;
     if (!total) {
       return;
@@ -375,10 +320,13 @@ function cycleCase(group, delta) {
   talentCaseIndex.value = (talentCaseIndex.value + delta + total) % total;
 }
 
+function previewRolePoints(points) {
+  return (Array.isArray(points) ? points : []).slice(0, 2);
+}
+
 function coverStyle(item) {
   return {
-    background: item?.coverGradient ||
-      'linear-gradient(135deg, rgba(43, 98, 255, 0.42), rgba(84, 206, 255, 0.26))'
+    backgroundImage: `${item?.coverGradient || 'linear-gradient(135deg, rgba(28, 50, 92, 0.9), rgba(12, 20, 35, 0.94))'}, radial-gradient(circle at top right, rgba(118,163,255,0.18), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.04), transparent 42%)`
   };
 }
 

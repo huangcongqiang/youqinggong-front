@@ -1,0 +1,116 @@
+import { buildAuthHeaders, readResponsePayload, requestErrorMessage } from './httpClient.js';
+
+function resolveRequestUrl(apiBase, url) {
+  if (!url) {
+    return apiBase;
+  }
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+  const normalizedBase = String(apiBase || '').trim().replace(/\/+$/, '');
+  const normalizedPath = url.startsWith('/') ? url : `/${url}`;
+  if (!normalizedBase) {
+    return normalizedPath;
+  }
+  if (/^https?:\/\//i.test(normalizedBase)) {
+    const baseUrl = new URL(normalizedBase);
+    if (normalizedPath === '/api' || normalizedPath.startsWith('/api/')) {
+      return `${baseUrl.origin}${normalizedPath}`;
+    }
+  }
+  return `${normalizedBase}${normalizedPath}`;
+}
+
+async function requestJson(fetchImpl, url, options, fallbackMessage) {
+  const response = await fetchImpl(url, options);
+  const payload = await readResponsePayload(response);
+  if (!response.ok) {
+    const error = new Error(`Request failed: ${response.status}`);
+    error.status = response.status;
+    error.payload = payload;
+    error.requestError = requestErrorMessage(error, fallbackMessage);
+    throw error;
+  }
+  return payload;
+}
+
+function normalizeRegisteredAttachment(file, presign, registered, source) {
+  const downloadUrl = String(registered?.url || presign?.downloadUrl || '').trim();
+  return {
+    name: String(file?.name || registered?.name || '未命名附件'),
+    size: Number(file?.size || 0),
+    type: String(file?.type || registered?.mimeType || 'application/octet-stream'),
+    url: downloadUrl,
+    downloadUrl,
+    objectKey: String(registered?.objectKey || presign?.objectKey || '').trim(),
+    mimeType: String(registered?.mimeType || file?.type || 'application/octet-stream'),
+    source: String(registered?.source || source || 'TASK_PROGRESS'),
+    uploadId: String(registered?.uploadId || presign?.uploadId || '').trim()
+  };
+}
+
+export async function uploadTaskAttachmentRuntime(runtime, payload) {
+  const file = payload?.file;
+  const taskId = String(payload?.taskId || '').trim();
+  if (!file || !taskId) {
+    throw new Error('上传附件缺少任务或文件上下文。');
+  }
+
+  const scene = String(payload?.scene || 'TASK_PROGRESS').trim() || 'TASK_PROGRESS';
+  const source = String(payload?.source || scene).trim() || scene;
+  const fetchImpl = runtime?.fetchImpl || fetch;
+  const apiBase = String(runtime?.apiBase || '').trim();
+  const getToken = runtime?.getToken;
+
+  const presign = await requestJson(
+    fetchImpl,
+    resolveRequestUrl(apiBase, '/uploads/presign'),
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(getToken, {
+        'Content-Type': 'application/json'
+      }),
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        size: file.size || 0,
+        scene,
+        taskId
+      })
+    },
+    '当前暂时无法创建上传会话，请稍后再试。'
+  );
+
+  await requestJson(
+    fetchImpl,
+    resolveRequestUrl(apiBase, String(presign?.uploadUrl || '')),
+    {
+      method: String(presign?.method || 'PUT').toUpperCase(),
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream'
+      },
+      body: file
+    },
+    '当前暂时无法上传附件，请稍后再试。'
+  );
+
+  const registered = await requestJson(
+    fetchImpl,
+    resolveRequestUrl(apiBase, `/tasks/${taskId}/files`),
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(getToken, {
+        'Content-Type': 'application/json'
+      }),
+      body: JSON.stringify({
+        uploadId: presign?.uploadId,
+        name: file.name,
+        fileType: payload?.fileType || '',
+        source
+      })
+    },
+    '当前暂时无法登记附件，请稍后再试。'
+  );
+
+  return normalizeRegisteredAttachment(file, presign, registered, source);
+}

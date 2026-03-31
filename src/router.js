@@ -14,6 +14,10 @@ const PublishTaskPage = () => import('./pages/PublishTaskPage.vue');
 const MessagesPage = () => import('./pages/MessagesPage.vue');
 const AcceptancePage = () => import('./pages/AcceptancePage.vue');
 const RegisterPage = () => import('./pages/RegisterPage.vue');
+const RecordPage = () => import('./pages/RecordPage.vue');
+const RecordDetailPage = () => import('./pages/RecordDetailPage.vue');
+const NotificationCenterPage = () => import('./pages/NotificationCenterPage.vue');
+const ApprovalCenterPage = () => import('./pages/ApprovalCenterPage.vue');
 
 const routes = [
   { path: '/', component: HomePage, meta: { title: '官网首页', audience: 'portal' } },
@@ -34,18 +38,25 @@ const routes = [
   { path: '/enterprise/publish', component: PublishTaskPage, meta: { title: '发布任务', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/talents', component: TalentMarketPage, meta: { title: '人才广场', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/talents/:slug', component: TalentDetailPage, meta: { title: '人才详情', audience: 'enterprise', requiresAuth: true } },
+  { path: '/enterprise/approvals', component: ApprovalCenterPage, meta: { title: '审批中心', audience: 'enterprise', requiresAuth: true } },
+  { path: '/enterprise/notifications', component: NotificationCenterPage, meta: { title: '通知中心', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/chat', component: MessagesPage, meta: { title: '聊天', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/messages', redirect: (to) => ({ path: '/enterprise/chat', query: to.query }) },
   { path: '/enterprise/workspace', component: WorkspacePage, meta: { title: '协作空间', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/acceptance', component: AcceptancePage, meta: { title: '验收评分', audience: 'enterprise', requiresAuth: true } },
+  { path: '/enterprise/records', component: RecordPage, meta: { title: '发单记录', audience: 'enterprise', requiresAuth: true } },
+  { path: '/enterprise/records/:recordId', component: RecordDetailPage, meta: { title: '发单记录详情', audience: 'enterprise', requiresAuth: true } },
   { path: '/talent', component: TalentPage, meta: { title: '人才端工作台', audience: 'talent', requiresAuth: true } },
   { path: '/talent/onboarding', component: OnboardingPage, meta: { title: '人才入驻', audience: 'talent', onboardingMode: 'talent', requiresAuth: true } },
   { path: '/talent/tasks', component: TaskMarketPage, meta: { title: '任务广场', audience: 'talent', requiresAuth: true } },
   { path: '/talent/profile/:slug', component: TalentDetailPage, meta: { title: '我的对外名片', audience: 'talent', requiresAuth: true } },
+  { path: '/talent/notifications', component: NotificationCenterPage, meta: { title: '通知中心', audience: 'talent', requiresAuth: true } },
   { path: '/talent/chat', component: MessagesPage, meta: { title: '聊天', audience: 'talent', requiresAuth: true } },
   { path: '/talent/messages', redirect: (to) => ({ path: '/talent/chat', query: to.query }) },
   { path: '/talent/workspace', component: WorkspacePage, meta: { title: '协作空间', audience: 'talent', requiresAuth: true } },
   { path: '/talent/acceptance', component: AcceptancePage, meta: { title: '验收评分', audience: 'talent', requiresAuth: true } },
+  { path: '/talent/records', component: RecordPage, meta: { title: '接单记录', audience: 'talent', requiresAuth: true } },
+  { path: '/talent/records/:recordId', component: RecordDetailPage, meta: { title: '接单记录详情', audience: 'talent', requiresAuth: true } },
   { path: '/business', redirect: '/enterprise' },
   { path: '/onboarding', redirect: '/enterprise/onboarding' },
   { path: '/publish', redirect: '/enterprise/publish' },
@@ -54,8 +65,27 @@ const routes = [
   { path: '/tasks', redirect: '/talent/tasks' },
   { path: '/messages', redirect: '/enterprise/chat' },
   { path: '/chat', redirect: '/enterprise/chat' },
+  {
+    path: '/notifications',
+    redirect: () => (getStoredAuthUser()?.audience === 'talent' ? '/talent/notifications' : '/enterprise/notifications')
+  },
+  {
+    path: '/approvals',
+    redirect: () => (getStoredAuthUser()?.audience === 'talent' ? '/talent/notifications' : '/enterprise/approvals')
+  },
   { path: '/workspace', redirect: '/enterprise/workspace' },
-  { path: '/acceptance', redirect: '/enterprise/acceptance' }
+  { path: '/acceptance', redirect: '/enterprise/acceptance' },
+  {
+    path: '/records',
+    redirect: () => (getStoredAuthUser()?.audience === 'talent' ? '/talent/records' : '/enterprise/records')
+  },
+  {
+    path: '/records/:recordId',
+    redirect: (to) => {
+      const base = getStoredAuthUser()?.audience === 'talent' ? '/talent/records' : '/enterprise/records';
+      return `${base}/${to.params.recordId}`;
+    }
+  }
 ];
 
 const router = createRouter({

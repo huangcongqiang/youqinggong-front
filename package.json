@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "VITE_API_TARGET=mock vite",
+    "dev:spring": "VITE_API_TARGET=spring vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:mock": "VITE_API_TARGET=mock vite preview",
+    "preview:spring": "VITE_API_TARGET=spring vite preview"
   },
   "dependencies": {
     "@tencentcloud/chat": "^3.6.6",
