@@ -4,6 +4,11 @@
     class="page-stack notification-center-page desktop-center-page"
     :class="{ 'is-zero-state': isZeroState }"
   >
+    <article v-if="page.requestError" class="result-card stack-sm">
+      <strong>通知数据暂时不可用</strong>
+      <p class="muted">{{ page.requestError }}</p>
+    </article>
+
     <DesktopNotificationSummaryCard
       class="desktop-center-summary"
       :eyebrow="summaryEyebrow"
@@ -46,7 +51,7 @@
 
       <DesktopNotificationList
         class="desktop-center-list"
-        eyebrow="当前事项"
+        eyebrow="通知事项"
         :title="listTitle"
         :description="listDescription"
         :items="filteredItems"
@@ -123,7 +128,7 @@
           class="notification-center-context__empty desktop-center-context__empty stack-sm"
           :class="{ 'is-zero': isZeroState && !selectedItemMissing }"
         >
-          <strong>{{ selectedItemMissing ? '当前事项已处理或不可用' : '当前没有待处理事项' }}</strong>
+          <strong>{{ selectedItemMissing ? '当前通知已处理或暂不可用' : '当前没有待处理通知' }}</strong>
           <p class="muted">
             {{
               selectedItemMissing
@@ -143,6 +148,10 @@
             </button>
           </div>
         </div>
+        <article v-if="navigationFeedback" class="result-card stack-sm">
+          <strong>{{ navigationFeedback.title }}</strong>
+          <p class="muted">{{ navigationFeedback.message }}</p>
+        </article>
       </article>
     </section>
   </section>
@@ -166,6 +175,7 @@ const page = ref(null);
 const activeGroup = ref('all');
 const selectedItemId = ref('');
 const selectedItemMissing = ref(false);
+const navigationFeedback = ref(null);
 const liveSyncStatus = ref(null);
 const liveSyncError = ref('');
 let stopBusinessLiveSync = null;
@@ -197,7 +207,7 @@ const groupMeta = {
   confirmations: { label: '待确认', note: '先确认版本和边界。' },
   changes: { label: '待修改', note: '处理范围和补充说明。' },
   matching: { label: '发布与选人', note: '先看候选人和当前轮选择。' },
-  reviews: { label: '待评级 / 验收', note: '先处理验收和评级。' },
+  reviews: { label: '待验收 / 评级', note: '先处理验收、评级和结算前动作。' },
   cancellations: { label: '待取消', note: '双方确认的取消事项。' },
   followup: { label: '待回看', note: '回到聊天或记录继续处理。' }
 };
@@ -459,7 +469,7 @@ function buildLegacyRelatedEntries() {
     listOf(page.value?.acceptRecords).forEach((record) => {
       related.reviews.push({
         label: textOf(record.title, '接单记录'),
-        value: `${textOf(record.amountValue, '金额待补充')} · ${textOf(record.stage, '待验收')}`,
+        value: `${textOf(record.amountValue, '金额待确认')} · ${textOf(record.stage, '待验收')}`,
         route: routeForSource('records', record.route)
       });
     });
@@ -501,7 +511,7 @@ function buildLegacyRelatedEntries() {
         : 'followup';
       related[group].push({
         label: textOf(record.title, '发单记录'),
-        value: `${textOf(record.amountValue, '金额待补充')} · ${stage || '查看记录详情'}`,
+        value: `${textOf(record.amountValue, '金额待确认')} · ${stage || '查看记录详情'}`,
         route: routeForSource('records', record.route)
       });
     });
@@ -1046,7 +1056,7 @@ const summaryStats = computed(() => {
       note: isTalent.value ? '版本与边界先确认。' : '范围与工期先确认。'
     },
     {
-      label: '待评级 / 验收',
+      label: '待验收 / 评级',
       value: String(groupItems.value.find((item) => item.key === 'reviews')?.count || 0),
       note: '验收和评级先完成。'
     }
@@ -1218,6 +1228,22 @@ function goTo(target) {
   if (!target) {
     return;
   }
+  const resolved = router.resolve(target);
+  const resolvedPath = String(resolved?.path || '');
+  const resolvedTaskId = String(resolved?.query?.taskId || '').trim();
+  const needsTaskContext = (
+    resolvedPath.includes('/chat')
+    || resolvedPath.includes('/room')
+    || resolvedPath.includes('/workspace')
+  );
+  if (needsTaskContext && !resolvedTaskId) {
+    navigationFeedback.value = {
+      title: '跳转缺少 taskId',
+      message: '当前入口没有带上任务上下文，已阻止跳转。请先从具体任务、通知详情或审批详情里进入。'
+    };
+    return;
+  }
+  navigationFeedback.value = null;
   router.push(target);
 }
 

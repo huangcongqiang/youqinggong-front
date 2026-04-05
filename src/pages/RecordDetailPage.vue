@@ -121,6 +121,103 @@
         </div>
       </article>
 
+      <article class="mini-card stack-sm record-detail-progress-card">
+        <div class="panel-header">
+          <div>
+            <span class="eyebrow">进展记录</span>
+            <h3>每次推进和对应附件</h3>
+          </div>
+        </div>
+
+        <div v-if="progressItems.length" class="record-detail-progress-list">
+          <article
+            v-for="item in progressItems"
+            :key="item.key"
+            class="record-detail-progress-item"
+          >
+            <div class="record-detail-progress-head">
+              <div class="stack-xs">
+                <strong>{{ item.progress || item.completion || item.stage || item.status || '已提交进展更新' }}</strong>
+                <p class="muted">{{ item.summary || item.description || '暂无说明' }}</p>
+                <p class="muted">
+                  <template v-if="item.progress">进度：{{ item.progress }}</template>
+                  <template v-if="item.progress && (item.time || item.stage || item.completion || item.status)"> · </template>
+                  {{ item.time || '待同步' }}
+                  <template v-if="item.stage"> · {{ item.stage }}</template>
+                  <template v-if="item.completion"> · {{ item.completion }}</template>
+                  <template v-if="item.status"> · {{ item.status }}</template>
+                </p>
+              </div>
+            </div>
+
+            <p class="muted">AI 审核：{{ item.aiReviewSummary || '暂无 AI 审核' }}</p>
+
+            <div v-if="item.attachments.length" class="record-asset-list record-progress-asset-list">
+              <div
+                v-for="asset in item.attachments"
+                :key="`${item.key}-${asset.updatedAt}-${asset.name}`"
+                class="record-asset-item"
+              >
+                <div class="stack-xs">
+                  <strong>{{ asset.name }}</strong>
+                  <p class="muted">{{ asset.type || '附件' }} · {{ asset.updatedAt || '待同步' }}</p>
+                </div>
+                <a
+                  v-if="asset.downloadHref"
+                  class="button-secondary"
+                  :href="asset.downloadHref"
+                  :download="asset.name"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  下载
+                </a>
+              </div>
+            </div>
+            <p v-else class="muted">这次进展没有单独上传附件。</p>
+          </article>
+        </div>
+        <p v-else class="muted">当前还没有进展记录，后续提交的阶段更新会在这里逐条沉淀。</p>
+      </article>
+
+      <article v-if="financeSections.length" class="mini-card stack-sm record-detail-finance-card">
+        <div class="panel-header">
+          <div>
+            <span class="eyebrow">财务收口</span>
+            <h3>请款、开票、对账、结算、争议</h3>
+          </div>
+        </div>
+
+        <div class="stack-md">
+          <article v-for="section in financeSections" :key="section.key" class="mini-card stack-sm">
+            <div class="panel-header">
+              <div>
+                <span class="eyebrow">{{ section.badge }}</span>
+                <h4>{{ section.title }}</h4>
+              </div>
+              <span class="soft-pill">{{ section.status }}</span>
+            </div>
+
+            <p class="muted">{{ section.summary }}</p>
+            <p v-if="section.note" class="muted">{{ section.note }}</p>
+
+            <div v-if="section.meta.length" class="tag-row">
+              <span v-for="meta in section.meta" :key="`${section.key}-${meta}`" class="soft-pill">{{ meta }}</span>
+            </div>
+
+            <div v-if="section.actions.length" class="tag-row">
+              <span v-for="action in section.actions" :key="`${section.key}-${action.code}`" class="soft-pill">
+                {{ action.label }}
+              </span>
+            </div>
+
+            <div v-if="section.actions.length" class="toolbar">
+              <router-link class="button-secondary" :to="acceptanceRoute">去验收页处理</router-link>
+            </div>
+          </article>
+        </div>
+      </article>
+
       <article id="record-assets" class="mini-card stack-sm record-detail-assets-card">
         <div class="panel-header">
           <div>
@@ -315,9 +412,11 @@ const chatRoute = computed(() => ({
   path: audience.value === 'talent' ? roleRouteMap.talent.messages : roleRouteMap.enterprise.messages,
   query: recordContextQuery.value
 }));
+const pageSummary = computed(() => page.value?.summary || {});
 const detailViewModel = computed(() =>
   buildRecordDetailViewModel(record.value, {
-    fallbackLead: lead.value
+    fallbackLead: lead.value,
+    availableActions: pageSummary.value?.availableActions
   })
 );
 const overviewText = computed(() => detailViewModel.value.overviewText);
@@ -331,6 +430,8 @@ const summaryHeadlineTags = computed(() => summaryTags.value.slice(0, 2));
 const timelineItems = computed(() => detailViewModel.value.timelineItems);
 const deliverables = computed(() => detailViewModel.value.deliverables);
 const assetFiles = computed(() => detailViewModel.value.assetFiles);
+const progressItems = computed(() => detailViewModel.value.progressItems);
+const financeSections = computed(() => detailViewModel.value.financeSections);
 const keyResults = computed(() => detailViewModel.value.keyResults);
 const confirmationHistory = computed(() => detailViewModel.value.confirmationHistory);
 
@@ -342,7 +443,14 @@ function normalizeTab(value) {
 }
 
 async function loadDetail() {
-  page.value = await getOrderRecordDetail(audience.value, String(route.params.recordId || ''));
+  try {
+    page.value = await getOrderRecordDetail(audience.value, String(route.params.recordId || ''));
+  } catch (error) {
+    page.value = {
+      requestError: error?.message || '记录详情读取失败，请稍后重试。',
+      record: null
+    };
+  }
 }
 
 watch(
@@ -359,16 +467,66 @@ onMounted(() => {
 
 <style scoped>
 .record-detail-page {
-  gap: 16px;
+  --detail-panel: #ffffff;
+  --detail-soft: #f7f9fc;
+  --detail-border: #d9e1ea;
+  --detail-border-strong: #c7d5e4;
+  --detail-text: #132238;
+  --detail-muted: #627389;
+  --detail-accent: #1562c5;
+  gap: 20px;
+  padding-bottom: 36px;
+  color: var(--detail-text);
+}
+
+.record-detail-page :is(.hero-card, .glass-panel, .mini-card, .result-card) {
+  background: var(--detail-panel);
+  border: 1px solid var(--detail-border);
+  box-shadow: 0 18px 40px rgba(15, 35, 63, 0.08);
+  backdrop-filter: none;
+}
+
+.record-detail-page .muted {
+  color: var(--detail-muted);
+}
+
+.record-detail-page .soft-pill {
+  border: 1px solid var(--detail-border);
+  background: #f6f8fb;
+  color: #27415e;
+  box-shadow: none;
+}
+
+.record-detail-page :is(.button-primary, .button-secondary) {
+  min-height: 42px;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.record-detail-page .button-primary {
+  background: var(--detail-accent);
+  border-color: var(--detail-accent);
+}
+
+.record-detail-page .button-secondary {
+  background: #ffffff;
+  border-color: var(--detail-border-strong);
+  color: var(--detail-text);
 }
 
 .record-detail-hero {
-  gap: 12px;
+  gap: 14px;
+  padding: 24px 28px;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 253, 0.98)),
+    radial-gradient(circle at top right, rgba(21, 98, 197, 0.12), transparent 36%);
 }
 
 .record-detail-hero-header {
   align-items: flex-start;
-  gap: 12px;
+  gap: 16px;
 }
 
 .record-detail-hero :deep(.section-title h1) {
@@ -393,14 +551,14 @@ onMounted(() => {
 .record-detail-hero-strip {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.9fr);
-  gap: 12px;
+  gap: 14px;
   align-items: start;
-  padding: 14px;
-  border-radius: 18px;
+  padding: 18px;
+  border-radius: 22px;
   background:
-    radial-gradient(circle at top right, rgba(76, 201, 255, 0.08), transparent 40%),
-    linear-gradient(180deg, rgba(11, 19, 34, 0.92), rgba(8, 15, 28, 0.96));
-  border: 1px solid rgba(121, 155, 255, 0.14);
+    linear-gradient(180deg, #ffffff, #f7fafc),
+    radial-gradient(circle at top right, rgba(21, 98, 197, 0.08), transparent 38%);
+  border: 1px solid var(--detail-border);
 }
 
 .record-detail-stage {
@@ -416,7 +574,11 @@ onMounted(() => {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--detail-soft);
+  border: 1px solid var(--detail-border);
 }
 
 .record-detail-action-copy {
@@ -446,17 +608,18 @@ onMounted(() => {
   align-items: center;
   padding: 5px 9px;
   border-radius: 999px;
-  background: rgba(10, 18, 32, 0.66);
-  border: 1px solid rgba(121, 155, 255, 0.12);
+  background: #f6f8fb;
+  border: 1px solid var(--detail-border);
 }
 
 .record-detail-shell {
-  padding: 20px;
+  padding: 22px;
+  border-radius: 26px;
 }
 
 .record-detail-grid {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .record-detail-grid-balanced {
@@ -469,8 +632,12 @@ onMounted(() => {
 
 .record-detail-basis-card,
 .record-detail-timeline-card,
-.record-detail-assets-card {
+.record-detail-progress-card,
+.record-detail-assets-card,
+.record-detail-finance-card {
   min-height: 100%;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff, #f8fbfe);
 }
 
 .record-detail-page #record-conclusion,
@@ -491,7 +658,7 @@ onMounted(() => {
 .record-detail-confirmation-list {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid rgba(113, 128, 150, 0.14);
+  border-top: 1px solid var(--detail-border);
 }
 
 .record-detail-note-item {
@@ -506,21 +673,45 @@ onMounted(() => {
   height: 10px;
   margin-top: 8px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #3f82f6, #21b7a7);
-  box-shadow: 0 0 0 4px rgba(63, 130, 246, 0.12);
+  background: linear-gradient(135deg, #2d76dc, #7fb2f0);
+  box-shadow: 0 0 0 4px rgba(45, 118, 220, 0.1);
 }
 
 .record-detail-timeline {
   display: grid;
-  gap: 12px;
+  gap: 0;
+}
+
+.record-detail-progress-list {
+  display: grid;
+  gap: 14px;
+}
+
+.record-detail-progress-item {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--detail-border);
+  background: var(--detail-soft);
+}
+
+.record-detail-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.record-progress-asset-list {
+  margin-top: 2px;
 }
 
 .record-detail-step {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr);
   gap: 12px;
-  padding: 12px 0;
-  border-top: 1px solid rgba(113, 128, 150, 0.14);
+  padding: 14px 0;
+  border-top: 1px solid var(--detail-border);
 }
 
 .record-detail-step:first-child {
@@ -533,16 +724,36 @@ onMounted(() => {
   align-items: center;
   justify-content: flex-start;
   font-weight: 700;
-  color: var(--text-strong);
+  color: var(--detail-text);
 }
 
 .record-detail-step h4 {
   margin: 0 0 4px;
 }
 
+.record-detail-finance-card .mini-card,
+.record-asset-item {
+  border-radius: 18px;
+  background: var(--detail-soft);
+}
+
+.record-asset-list,
+.record-detail-note-list {
+  gap: 12px;
+}
+
+.record-asset-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--detail-border);
+}
+
 @media (max-width: 1120px) {
   .record-detail-hero-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 }
 

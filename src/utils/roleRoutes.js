@@ -12,11 +12,27 @@ export const roleRouteMap = {
     home: '/enterprise',
     onboarding: '/enterprise/onboarding',
     publish: '/enterprise/publish',
+    publishWithTalent: (talent = {}, entrySource = 'enterprise-market') => ({
+      path: '/enterprise/publish',
+      query: {
+        ...(talent.talentUserId ? { talentUserId: String(talent.talentUserId) } : {}),
+        ...(talent.slug ? { talentSlug: String(talent.slug) } : {}),
+        ...(talent.name ? { talentName: String(talent.name) } : {}),
+        entrySource
+      }
+    }),
     market: '/enterprise/talents',
     detail: (slug) => `/enterprise/talents/${slug}`,
     approvals: '/enterprise/approvals',
     notifications: '/enterprise/notifications',
     messages: '/enterprise/chat',
+    messageRoom: (roomKey = '', query = {}) => ({
+      path: '/enterprise/chat',
+      query: {
+        ...query,
+        ...(roomKey ? { room: roomKey } : {})
+      }
+    }),
     workspace: '/enterprise/workspace',
     acceptance: '/enterprise/acceptance',
     records: '/enterprise/records',
@@ -29,6 +45,13 @@ export const roleRouteMap = {
     profile: (slug) => `/talent/profile/${slug}`,
     notifications: '/talent/notifications',
     messages: '/talent/chat',
+    messageRoom: (roomKey = '', query = {}) => ({
+      path: '/talent/chat',
+      query: {
+        ...query,
+        ...(roomKey ? { room: roomKey } : {})
+      }
+    }),
     workspace: '/talent/workspace',
     acceptance: '/talent/acceptance',
     records: '/talent/records',

@@ -105,13 +105,37 @@
             </div>
 
             <div v-if="audience === 'talent'" class="form-field full">
-              <label for="register-headline">当前专业方向</label>
+              <label>当前专业方向</label>
+              <div class="register-skill-grid">
+                <button
+                  v-for="skill in talentSkillOptions"
+                  :key="skill"
+                  type="button"
+                  class="register-skill-chip"
+                  :class="{ 'is-active': selectedSkills.includes(skill) }"
+                  @click="toggleSkill(skill)"
+                >
+                  {{ skill }}
+                </button>
+                <button
+                  type="button"
+                  class="register-skill-chip register-skill-chip-custom"
+                  :class="{ 'is-active': customSkillEnabled }"
+                  @click="toggleCustomSkill"
+                >
+                  自定义专业
+                </button>
+              </div>
               <input
-                id="register-headline"
-                v-model="headline"
+                v-if="customSkillEnabled"
+                id="register-custom-skill"
+                v-model="customSkill"
                 class="text-input"
-                placeholder="例如：AI 产品设计 + 全栈开发"
+                placeholder="填写你的专业方向"
               />
+              <p class="muted register-skill-note">
+                建议先选 3 到 6 个标准标签，推荐命中会更稳。
+              </p>
             </div>
 
             <div class="form-field">
@@ -121,7 +145,7 @@
 
             <div class="form-field">
               <label for="register-password">密码</label>
-              <input id="register-password" v-model="password" type="password" class="text-input" placeholder="建议先满足本地测试需要" />
+              <input id="register-password" v-model="password" type="password" class="text-input" placeholder="至少 6 位，建议包含字母和数字" />
             </div>
           </div>
         </template>
@@ -189,6 +213,7 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import SectionTitle from '../components/SectionTitle.vue';
 import { registerWithAccount, signOut, useAuthState } from '../stores/auth';
+import { buildRegisterHeadline, buildRegisterSkills, talentSkillOptions } from '../utils/registerSkills';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
@@ -204,11 +229,15 @@ const registerSteps = [
 const step = ref(1);
 const audience = ref(route.query.audience === 'talent' ? 'talent' : 'enterprise');
 const displayName = ref('');
-const headline = ref('');
+const selectedSkills = ref([]);
+const customSkillEnabled = ref(false);
+const customSkill = ref('');
 const mobile = ref('');
 const password = ref('');
 const resultTitle = ref('');
 const resultMessage = ref('');
+const talentRegisterSkills = computed(() => buildRegisterSkills(selectedSkills.value, customSkill.value, customSkillEnabled.value));
+const headline = computed(() => buildRegisterHeadline(talentRegisterSkills.value));
 
 const continueRoute = computed(() => {
   const user = authState.user;
@@ -225,15 +254,30 @@ const isStepValid = computed(() => {
     return Boolean(audience.value);
   }
   if (step.value === 2) {
-    return Boolean(displayName.value && mobile.value && password.value);
+    return Boolean(
+      displayName.value
+      && mobile.value
+      && password.value
+      && (audience.value === 'enterprise' || talentRegisterSkills.value.length)
+    );
   }
   return true;
 });
 
-const canSubmit = computed(() => Boolean(displayName.value && mobile.value && password.value));
+const canSubmit = computed(() => Boolean(
+  displayName.value
+  && mobile.value
+  && password.value
+  && (audience.value === 'enterprise' || talentRegisterSkills.value.length)
+));
 
 function setAudience(nextAudience) {
   audience.value = nextAudience;
+  if (nextAudience === 'enterprise') {
+    selectedSkills.value = [];
+    customSkillEnabled.value = false;
+    customSkill.value = '';
+  }
   router.replace({
     path: '/register',
     query: {
@@ -241,6 +285,21 @@ function setAudience(nextAudience) {
       audience: nextAudience
     }
   });
+}
+
+function toggleSkill(skill) {
+  if (selectedSkills.value.includes(skill)) {
+    selectedSkills.value = selectedSkills.value.filter((item) => item !== skill);
+    return;
+  }
+  selectedSkills.value = [...selectedSkills.value, skill];
+}
+
+function toggleCustomSkill() {
+  customSkillEnabled.value = !customSkillEnabled.value;
+  if (!customSkillEnabled.value) {
+    customSkill.value = '';
+  }
 }
 
 function registerStepClass(id) {
@@ -298,6 +357,7 @@ async function handleRegister() {
     displayName: displayName.value,
     organizationName: audience.value === 'enterprise' ? displayName.value : '',
     headline: audience.value === 'talent' ? headline.value : '',
+    skills: audience.value === 'talent' ? talentRegisterSkills.value : [],
     mobile: mobile.value,
     password: password.value
   });
@@ -316,3 +376,35 @@ async function handleRegister() {
   );
 }
 </script>
+
+<style scoped>
+.register-skill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.register-skill-chip {
+  border: 1px solid rgba(140, 166, 255, 0.18);
+  background: rgba(10, 18, 31, 0.9);
+  color: var(--text-muted);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.register-skill-chip:hover {
+  border-color: rgba(140, 166, 255, 0.32);
+  color: var(--text-strong);
+  transform: translateY(-1px);
+}
+
+.register-skill-chip.is-active {
+  border-color: rgba(116, 145, 255, 0.42);
+  background: linear-gradient(135deg, rgba(97, 120, 255, 0.22), rgba(67, 196, 255, 0.16));
+  color: var(--text-strong);
+}
+
+.register-skill-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+</style>

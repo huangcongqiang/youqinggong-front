@@ -6,24 +6,12 @@ function assertEqual(actual, expected, message) {
   }
 }
 
-function createRuntime({ protocol = 'http:', hostname = '127.0.0.1', search = '', storedTarget = '' } = {}) {
-  const storage = new Map();
-  if (storedTarget) {
-    storage.set('youqinggong.api.target', storedTarget);
-  }
+function createRuntime({ protocol = 'http:', hostname = '127.0.0.1', search = '' } = {}) {
   return {
     location: {
       protocol,
       hostname,
       search
-    },
-    localStorage: {
-      getItem(key) {
-        return storage.has(key) ? storage.get(key) : null;
-      },
-      setItem(key, value) {
-        storage.set(key, value);
-      }
     }
   };
 }
@@ -36,20 +24,14 @@ assertEqual(
 
 assertEqual(
   resolveApiTarget({}, createRuntime({ search: '?apiTarget=mock' })),
-  'mock',
-  'resolveApiTarget should read apiTarget from the current query string'
+  'spring',
+  'resolveApiTarget should stay on spring once production runtime cutover is complete'
 );
 
 assertEqual(
   resolveApiBase({}, createRuntime({ search: '?apiTarget=mock', hostname: 'demo.local' })),
-  'http://demo.local:8080/api',
-  'resolveApiBase should use the root mock port when apiTarget=mock'
-);
-
-assertEqual(
-  resolveApiBase({ VITE_API_TARGET: 'spring' }, createRuntime({ hostname: 'demo.local' })),
   'http://demo.local:8081/api',
-  'resolveApiBase should use the spring-app port when the runtime target is spring'
+  'resolveApiBase should ignore runtime mock toggles and stay on the spring-app port'
 );
 
 assertEqual(
@@ -60,18 +42,15 @@ assertEqual(
 
 assertEqual(
   resolveApiBase(
-    { VITE_API_TARGET: 'spring', VITE_SPRING_API_BASE: 'https://spring.example.com/api' },
+    { VITE_SPRING_API_BASE: 'https://spring.example.com/api' },
     createRuntime()
   ),
   'https://spring.example.com/api',
-  'resolveApiBase should respect an explicit spring-app base override when spring is the active target'
+  'resolveApiBase should respect an explicit spring-app base override'
 );
 
 assertEqual(
-  resolveApiBase(
-    { VITE_ROOT_MOCK_API_BASE: 'https://mock.example.com/api' },
-    createRuntime({ storedTarget: 'mock' })
-  ),
-  'https://mock.example.com/api',
-  'resolveApiBase should respect an explicit root mock base override'
+  resolveApiBase({ VITE_API_TARGET: 'mock' }, createRuntime({ hostname: 'demo.local' })),
+  'http://demo.local:8081/api',
+  'resolveApiBase should ignore legacy VITE_API_TARGET mock flags'
 );

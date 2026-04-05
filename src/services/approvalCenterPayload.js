@@ -1,7 +1,7 @@
 const APPROVAL_GROUP_META = {
   confirmations: { label: '待确认', note: '先确认版本和工期。' },
   changes: { label: '待修改', note: '先收口修改意见。' },
-  reviews: { label: '待评级 / 验收', note: '先处理验收和评级。' },
+  reviews: { label: '待验收 / 评级', note: '先处理验收、评级和结算前动作。' },
   cancellations: { label: '待取消', note: '先确认取消事项。' }
 };
 

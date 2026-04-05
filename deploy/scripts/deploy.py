@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-有轻工 一键部署脚本
+有轻功 一键部署脚本
 流程：本地编译 → 打包 JAR → 上传产物 → 启动服务
 Usage: python3 deploy/scripts/deploy.py
 """
@@ -141,7 +141,7 @@ def upload_dir(sftp, local_dir, remote_dir):
 
 def main():
     print("=" * 60)
-    print("有轻工 一键部署脚本")
+    print("有轻功 一键部署脚本")
     print(f"目标服务器: {HOST}")
     print("=" * 60)
 

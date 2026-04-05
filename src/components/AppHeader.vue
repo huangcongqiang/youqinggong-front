@@ -4,7 +4,7 @@
       <router-link to="/" class="brand-lockup">
         <span class="brand-chip">{{ headerModel.chip }}</span>
         <div>
-          <span class="brand-mark">有轻工</span>
+          <span class="brand-mark">有轻功</span>
           <span class="brand-copy brand-copy-desktop">{{ headerModel.copy }}</span>
           <span class="brand-copy brand-copy-mobile">{{ mobileTitle }}</span>
         </div>
@@ -70,7 +70,7 @@ const route = useRoute();
 const router = useRouter();
 const authState = useAuthState();
 const showLogout = computed(() => Boolean(authState.user));
-const mobileTitle = computed(() => String(route.meta?.title || '有轻工'));
+const mobileTitle = computed(() => String(route.meta?.title || '有轻功'));
 
 async function handleLogout() {
   await signOut();

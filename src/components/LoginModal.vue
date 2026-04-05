@@ -5,7 +5,7 @@
         <div class="stack-sm">
           <span class="eyebrow">账号登录</span>
           <h3>先登录，再进入对应业务端。</h3>
-          <p class="muted">登录后会带上当前账号进入企业端或人才端，不再重复选择固定演示身份。</p>
+          <p class="muted">登录后会带上当前账号进入企业端或人才端，不再重复选择身份。</p>
         </div>
         <button class="button-secondary" type="button" @click="handleClose">关闭</button>
       </div>
@@ -30,19 +30,8 @@
       </div>
 
       <div class="result-card stack-sm">
-        <span class="eyebrow">快速测试账号</span>
-        <div class="stack-sm">
-          <div class="mini-card stack-sm">
-            <h4>企业端演示账号</h4>
-            <p class="muted">手机号：13800000001</p>
-            <p class="muted">密码：demo123456</p>
-          </div>
-          <div class="mini-card stack-sm">
-            <h4>人才端演示账号</h4>
-            <p class="muted">手机号：13800000002</p>
-            <p class="muted">密码：demo123456</p>
-          </div>
-        </div>
+        <span class="eyebrow">登录说明</span>
+        <p class="muted">这里不再提供快捷填充账号。请使用真实账号登录，登录失败时会直接展示正式错误信息。</p>
       </div>
 
       <div v-if="authState.user" class="result-card stack-sm">
@@ -70,7 +59,6 @@
           <button class="button-primary" type="submit" :disabled="authState.loading">
             {{ authState.loading ? '登录中...' : '登录并进入' }}
           </button>
-          <button class="button-secondary" type="button" @click="fillDemoAccount">填入演示账号</button>
         </div>
       </form>
 
@@ -152,17 +140,6 @@ watch(
     }
   }
 );
-
-function fillDemoAccount() {
-  if (audience.value === 'enterprise') {
-    mobile.value = '13800000001';
-    password.value = 'demo123456';
-    return;
-  }
-
-  mobile.value = '13800000002';
-  password.value = 'demo123456';
-}
 
 function targetRoute(user) {
   if (props.redirect) {

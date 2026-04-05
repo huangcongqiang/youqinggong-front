@@ -215,14 +215,14 @@
           <template v-else>
             <SectionTitle
               eyebrow="第 4 步"
-              title="选择提交方式"
-              description="可现在上传，也可稍后补交。"
+              title="上传真实材料"
+              description="请上传真实审核材料，系统会保留上传结果供后台审核查看。"
             />
 
             <article class="mini-card stack-md onboarding-upload-box">
               <div class="panel-header">
                 <div>
-                  <span class="eyebrow">建议上传</span>
+                  <span class="eyebrow">真实材料</span>
                   <h4>上传清单</h4>
                 </div>
                 <span class="soft-pill">{{ businessForm.virtualCompany ? '虚拟企业路径' : '企业路径' }}</span>
@@ -292,7 +292,7 @@
             :disabled="!canSubmitBusiness || businessSubmitting"
             @click="handleBusinessSubmit"
           >
-            {{ businessSubmitting ? '提交中...' : businessDeferredMaterials ? '提交基础信息，稍后补交材料' : '提交企业入驻申请' }}
+            {{ businessSubmitting ? '提交中...' : '提交企业入驻申请' }}
           </button>
 
           <button class="button-secondary" type="button" @click="resetBusinessForm">重新填写</button>
@@ -326,27 +326,55 @@
           </div>
         </div>
 
-        <div v-if="submitResult" class="result-card stack-sm">
+        <div v-if="submitResult || resultUploadedMaterials.length" class="result-card stack-sm">
           <span class="eyebrow">提交结果</span>
-          <h3>{{ resultTitle }}</h3>
-          <p class="muted">{{ submitResult.nextStep }}</p>
-          <div class="tag-row">
+          <h3>{{ submitResult ? resultTitle : '已同步历史材料' }}</h3>
+          <p class="muted">{{ submitResult ? resultNote : '已从当前账号同步最近一次提交的企业审核材料。' }}</p>
+          <div v-if="submitResult" class="tag-row">
             <span v-for="(value, key) in resultSummary" :key="key" class="soft-pill">{{ key }}：{{ value }}</span>
           </div>
+              <div v-if="resultUploadedMaterials.length" class="stack-sm">
+                <span class="eyebrow">上传结果</span>
+                <div class="stack-xs">
+                  <div
+                    v-for="file in resultUploadedMaterials"
+                :key="`${file.name}-${file.downloadUrl || file.url}`"
+                class="list-row"
+              >
+                <div class="title-line">
+                  <span class="badge-number">✓</span>
+                  <div>
+                    <h4>{{ file.name }}</h4>
+                    <p class="muted">{{ uploadedMaterialSummary(file) }}</p>
+                    <p class="muted">原件链接：{{ file.url || file.downloadUrl || '后端暂未返回' }}</p>
+                  </div>
+                </div>
+                <div class="tag-row">
+                  <a
+                    v-if="file.url || file.downloadUrl"
+                    class="soft-pill"
+                    :href="file.url || file.downloadUrl"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    打开原件
+                  </a>
+                  <a
+                    v-if="file.downloadUrl || file.url"
+                    class="soft-pill"
+                    :href="file.downloadUrl || file.url"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    下载入口
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="toolbar">
-            <router-link
-              v-if="submitResult.deferMaterials"
-              class="button-primary"
-              :to="resultActionRoute"
-            >
-              去企业工作台补交
-            </router-link>
-            <router-link
-              v-else
-              class="button-primary"
-              :to="resultActionRoute"
-            >
-              去企业工作台查看状态
+            <router-link class="button-primary" :to="resultActionRoute">
+              {{ resultActionLabel }}
             </router-link>
           </div>
         </div>
@@ -372,12 +400,36 @@
           </div>
           <div class="form-field">
             <label for="talent-skills">技能标签</label>
-            <textarea
+            <div class="onboarding-skill-grid">
+              <button
+                v-for="skill in talentSkillOptions"
+                :key="skill"
+                type="button"
+                class="onboarding-skill-chip"
+                :class="{ 'is-active': talentSelectedSkills.includes(skill) }"
+                @click="toggleTalentSkill(skill)"
+              >
+                {{ skill }}
+              </button>
+              <button
+                type="button"
+                class="onboarding-skill-chip onboarding-skill-chip-custom"
+                :class="{ 'is-active': talentCustomSkillEnabled }"
+                @click="toggleTalentCustomSkill"
+              >
+                自定义补充
+              </button>
+            </div>
+            <input
+              v-if="talentCustomSkillEnabled"
               id="talent-skills"
-              v-model="talentSkillsInput"
-              class="textarea onboarding-textarea"
-              placeholder="用逗号分隔，例如：Vue 3, Java, MySQL, AI Agent"
-            ></textarea>
+              v-model="talentCustomSkill"
+              class="text-input"
+              placeholder="例如：脚本策划、硬件交互、广告设计"
+            />
+            <p class="muted onboarding-skill-note">
+              已选 {{ parsedTalentSkills.length }} 项，建议保持 3 到 6 项，平台会优先按标准标签参与匹配。
+            </p>
           </div>
           <div class="form-field">
             <label for="portfolio-urls">作品链接</label>
@@ -387,6 +439,38 @@
               class="textarea onboarding-textarea"
               placeholder="每行一个作品链接或作品说明"
             ></textarea>
+          </div>
+          <div class="form-field">
+            <div class="onboarding-upload-panel">
+              <div class="onboarding-upload-header">
+                <div>
+                  <span class="eyebrow">实名 / 作品附件</span>
+                  <h4>至少上传 1 份真实审核材料</h4>
+                </div>
+                <button class="button-secondary" type="button" @click="openTalentFilePicker">
+                  选择文件
+                </button>
+              </div>
+              <input
+                id="talent-files"
+                ref="talentFileInput"
+                class="sr-only"
+                type="file"
+                multiple
+                @change="handleTalentFilesChange"
+              />
+              <div class="tag-row">
+                <span class="soft-pill">
+                  {{ talentSelectedFiles.length ? `已选 ${talentSelectedFiles.length} 个文件` : '暂未选择文件' }}
+                </span>
+              </div>
+              <p class="muted onboarding-upload-note">建议上传身份证明、作品集 PDF、案例截图或交付证明。</p>
+              <div v-if="talentSelectedFiles.length" class="onboarding-upload-list">
+                <span v-for="file in talentSelectedFiles" :key="file.name" class="soft-pill">
+                  {{ file.name }} · {{ formatFileSize(file.size) }}
+                </span>
+              </div>
+            </div>
           </div>
           <div class="form-field">
             <label for="virtual-company">虚拟企业申请</label>
@@ -429,12 +513,56 @@
           </div>
         </div>
 
-        <div v-if="submitResult" class="result-card stack-sm">
+        <div v-if="submitResult || resultUploadedMaterials.length" class="result-card stack-sm">
           <span class="eyebrow">提交结果</span>
-          <h3>{{ resultTitle }}</h3>
-          <p class="muted">{{ submitResult.nextStep }}</p>
-          <div class="tag-row">
+          <h3>{{ submitResult ? resultTitle : '已同步历史材料' }}</h3>
+          <p class="muted">{{ submitResult ? resultNote : '已从当前账号同步最近一次提交的人才审核材料。' }}</p>
+          <div v-if="submitResult" class="tag-row">
             <span v-for="(value, key) in resultSummary" :key="key" class="soft-pill">{{ key }}：{{ value }}</span>
+          </div>
+              <div v-if="resultUploadedMaterials.length" class="stack-sm">
+                <span class="eyebrow">上传结果</span>
+                <div class="stack-xs">
+                  <div
+                    v-for="file in resultUploadedMaterials"
+                :key="`${file.name}-${file.downloadUrl || file.url}`"
+                class="list-row"
+              >
+                <div class="title-line">
+                  <span class="badge-number">✓</span>
+                  <div>
+                    <h4>{{ file.name }}</h4>
+                    <p class="muted">{{ uploadedMaterialSummary(file) }}</p>
+                    <p class="muted">原件链接：{{ file.url || file.downloadUrl || '后端暂未返回' }}</p>
+                  </div>
+                </div>
+                <div class="tag-row">
+                  <a
+                    v-if="file.url || file.downloadUrl"
+                    class="soft-pill"
+                    :href="file.url || file.downloadUrl"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    打开原件
+                  </a>
+                  <a
+                    v-if="file.downloadUrl || file.url"
+                    class="soft-pill"
+                    :href="file.downloadUrl || file.url"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    下载入口
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="toolbar">
+            <router-link class="button-primary" :to="resultActionRoute">
+              {{ resultActionLabel }}
+            </router-link>
           </div>
         </div>
       </article>
@@ -444,15 +572,21 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import SectionTitle from '../components/SectionTitle.vue';
+import { resolveApiBase } from '../services/apiBase';
 import { getOnboardingChecklists, submitBusinessOnboarding, submitTalentOnboarding } from '../services/api';
+import { uploadStandaloneAttachmentRuntime } from '../services/uploadWorkflow.js';
 import { refreshAuthSession, useAuthState } from '../stores/auth';
+import { buildRegisterSkills, talentSkillOptions } from '../utils/registerSkills';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
-const router = useRouter();
 const authState = useAuthState();
+const onboardingUploadRuntime = {
+  apiBase: resolveApiBase(import.meta.env),
+  getToken: () => authState.token
+};
 const mode = ref('business');
 const checklists = ref(null);
 const submitResult = ref(null);
@@ -461,6 +595,9 @@ const businessDeferredMaterials = ref(false);
 const businessSelectedFiles = ref([]);
 const businessSubmitting = ref(false);
 const businessFileInput = ref(null);
+const talentSelectedFiles = ref([]);
+const talentSubmitting = ref(false);
+const talentFileInput = ref(null);
 
 const businessPreferenceOptions = [
   '优先看 AI 推荐候选人',
@@ -493,21 +630,46 @@ const talentForm = ref({
   headline: '',
   applyVirtualCompany: false
 });
-const talentSkillsInput = ref('');
+const talentSelectedSkills = ref([]);
+const talentCustomSkillEnabled = ref(false);
+const talentCustomSkill = ref('');
 const talentPortfolioInput = ref('');
 
 const checklistItems = computed(() => (mode.value === 'business' ? checklists.value.business : checklists.value.talent));
 
+function isSubmitFailed(result) {
+  return Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED');
+}
+
 const resultTitle = computed(() => {
+  if (isSubmitFailed(submitResult.value)) {
+    return mode.value === 'business' ? '企业入驻提交失败' : '人才入驻提交失败';
+  }
   if (mode.value === 'business') {
     return submitResult.value?.deferMaterials ? '企业基础信息已提交' : '企业入驻申请已提交';
   }
   return '人才入驻申请已提交';
 });
 
-const resultActionRoute = computed(() =>
-  mode.value === 'business' ? roleRouteMap.enterprise.home : roleRouteMap.talent.home
-);
+const resultActionRoute = computed(() => (
+  isSubmitFailed(submitResult.value)
+    ? { path: route.path, query: route.query }
+    : mode.value === 'business'
+      ? roleRouteMap.enterprise.home
+      : roleRouteMap.talent.home
+));
+
+const resultActionLabel = computed(() => {
+  if (isSubmitFailed(submitResult.value)) {
+    return '继续修改后重试';
+  }
+  if (mode.value === 'business') {
+    return submitResult.value?.deferMaterials ? '去企业工作台补交' : '去企业工作台查看状态';
+  }
+  return '继续完善资料';
+});
+
+const resultNote = computed(() => submitResult.value?.requestError || submitResult.value?.nextStep || '');
 
 const resultSummary = computed(() => {
   if (!submitResult.value) {
@@ -528,6 +690,16 @@ const resultSummary = computed(() => {
   };
 });
 
+const resultUploadedMaterials = computed(() => {
+  if (Array.isArray(submitResult.value?.uploadedMaterials) && submitResult.value.uploadedMaterials.length) {
+    return submitResult.value.uploadedMaterials;
+  }
+  if (Array.isArray(authState.user?.materialFiles) && authState.user.materialFiles.length) {
+    return authState.user.materialFiles.map(normalizeUploadedMaterial);
+  }
+  return [];
+});
+
 const businessMaterialChecklist = computed(() => {
   if (businessForm.value.virtualCompany) {
     return ['身份证正反面', '实名手持证件照', '虚拟企业申请说明', '个人品牌或业务证明'];
@@ -536,6 +708,22 @@ const businessMaterialChecklist = computed(() => {
 });
 
 const businessUploadedNames = computed(() => businessSelectedFiles.value.map((file) => file.name).filter(Boolean));
+const talentUploadedNames = computed(() => talentSelectedFiles.value.map((file) => file.name).filter(Boolean));
+const parsedTalentSkills = computed(() =>
+  buildRegisterSkills(talentSelectedSkills.value, talentCustomSkill.value, talentCustomSkillEnabled.value)
+);
+const parsedTalentPortfolioUrls = computed(() => talentPortfolioInput.value
+  .split('\n')
+  .map((item) => item.trim())
+  .filter(Boolean));
+const isTalentFormValid = computed(() => Boolean(
+  talentForm.value.displayName.trim()
+  && talentForm.value.headline.trim()
+  && parsedTalentSkills.value.length >= 3
+  && parsedTalentSkills.value.length <= 6
+  && parsedTalentPortfolioUrls.value.length
+  && talentUploadedNames.value.length
+));
 const businessPreferenceSummary = computed(() =>
   businessForm.value.collaborationPreferences.length
     ? businessForm.value.collaborationPreferences.join(' / ')
@@ -556,7 +744,7 @@ const flowActionLabel = computed(() => {
     if (businessStep.value < businessSteps.length) {
       return '继续下一步';
     }
-    return businessDeferredMaterials.value ? '提交基础信息' : '提交企业入驻申请';
+    return '提交企业入驻申请';
   }
   return '提交人才入驻';
 });
@@ -564,7 +752,7 @@ const flowActionDisabled = computed(() => {
   if (mode.value === 'business') {
     return businessSubmitting.value || !isBusinessStepValid.value;
   }
-  return !talentForm.value.displayName.trim() || !talentForm.value.headline.trim();
+  return talentSubmitting.value || !isTalentFormValid.value;
 });
 
 const isBusinessStepValid = computed(() => {
@@ -581,7 +769,7 @@ const isBusinessStepValid = computed(() => {
   if (businessStep.value === 3) {
     return true;
   }
-  return businessDeferredMaterials.value || businessUploadedNames.value.length > 0;
+  return businessUploadedNames.value.length > 0;
 });
 
 const canSubmitBusiness = computed(() => isBusinessStepValid.value);
@@ -630,6 +818,8 @@ function onboardingResultStatusText(status) {
       return '已提交，待补材料';
     case 'APPROVED':
       return '已通过';
+    case 'FAILED':
+      return '提交失败';
     default:
       return '处理中';
   }
@@ -673,23 +863,30 @@ function prefillFormFromUser() {
       : [];
 
   if (mode.value === 'business') {
+    const currentForm = businessForm.value || {};
     businessForm.value = {
-      organizationName: user.organizationName || user.displayName || '',
-      contactName: user.contactName || '',
-      contactMobile: user.contactMobile || user.mobile || '',
-      virtualCompany: false,
-      contactRole: user.contactRole || '',
-      projectFocus: user.projectFocus || '',
-      collaborationPreferences
+      organizationName: String(currentForm.organizationName || '').trim() || user.organizationName || user.displayName || '',
+      contactName: String(currentForm.contactName || '').trim() || user.contactName || '',
+      contactMobile: String(currentForm.contactMobile || '').trim() || user.contactMobile || user.mobile || '',
+      virtualCompany: Boolean(currentForm.virtualCompany),
+      contactRole: String(currentForm.contactRole || '').trim() || user.contactRole || '',
+      projectFocus: String(currentForm.projectFocus || '').trim() || user.projectFocus || '',
+      collaborationPreferences: Array.isArray(currentForm.collaborationPreferences) && currentForm.collaborationPreferences.length
+        ? currentForm.collaborationPreferences
+        : collaborationPreferences
     };
     return;
   }
 
+  const currentTalentForm = talentForm.value || {};
   talentForm.value = {
-    displayName: user.displayName || '',
-    headline: user.headline || '',
-    applyVirtualCompany: false
+    displayName: String(currentTalentForm.displayName || '').trim() || user.displayName || '',
+    headline: String(currentTalentForm.headline || '').trim() || user.headline || '',
+    applyVirtualCompany: Boolean(currentTalentForm.applyVirtualCompany)
   };
+  if (!talentSelectedSkills.value.length && !String(talentCustomSkill.value || '').trim()) {
+    applyTalentSkills(user.skills);
+  }
 }
 
 function resetBusinessForm() {
@@ -716,8 +913,37 @@ function resetTalentForm() {
     headline: '',
     applyVirtualCompany: false
   };
-  talentSkillsInput.value = '';
+  talentSelectedSkills.value = [];
+  talentCustomSkillEnabled.value = false;
+  talentCustomSkill.value = '';
   talentPortfolioInput.value = '';
+  talentSelectedFiles.value = [];
+  if (talentFileInput.value) {
+    talentFileInput.value.value = '';
+  }
+}
+
+function applyTalentSkills(rawSkills) {
+  const normalized = buildRegisterSkills(Array.isArray(rawSkills) ? rawSkills : []);
+  talentSelectedSkills.value = normalized.filter((skill) => talentSkillOptions.includes(skill));
+  const customSkills = normalized.filter((skill) => !talentSkillOptions.includes(skill));
+  talentCustomSkillEnabled.value = customSkills.length > 0;
+  talentCustomSkill.value = customSkills.join(' / ');
+}
+
+function toggleTalentSkill(skill) {
+  if (talentSelectedSkills.value.includes(skill)) {
+    talentSelectedSkills.value = talentSelectedSkills.value.filter((item) => item !== skill);
+    return;
+  }
+  talentSelectedSkills.value = [...talentSelectedSkills.value, skill];
+}
+
+function toggleTalentCustomSkill() {
+  talentCustomSkillEnabled.value = !talentCustomSkillEnabled.value;
+  if (!talentCustomSkillEnabled.value) {
+    talentCustomSkill.value = '';
+  }
 }
 
 function businessStepClass(stepId) {
@@ -772,6 +998,14 @@ function openBusinessFilePicker() {
   businessFileInput.value?.click();
 }
 
+function handleTalentFilesChange(event) {
+  talentSelectedFiles.value = Array.from(event?.target?.files || []);
+}
+
+function openTalentFilePicker() {
+  talentFileInput.value?.click();
+}
+
 function handleDeferredToggle(checked) {
   businessDeferredMaterials.value = checked;
   if (checked) {
@@ -789,6 +1023,26 @@ function toggleBusinessPreference(option) {
     return;
   }
   businessForm.value.collaborationPreferences = [...selected, option];
+}
+
+function normalizeUploadedMaterial(file) {
+  return {
+    name: file.name || '审核材料',
+    url: file.url || file.downloadUrl || '',
+    downloadUrl: file.downloadUrl || file.url || '',
+    size: file.size || 0,
+    uploadId: file.uploadId || '',
+    objectKey: file.objectKey || ''
+  };
+}
+
+function uploadedMaterialSummary(file) {
+  const parts = [
+    file?.size ? formatFileSize(file.size) : '0 B',
+    file?.uploadId ? `上传ID ${file.uploadId}` : '无上传ID',
+    file?.objectKey ? '已生成对象键' : '未返回对象键'
+  ];
+  return parts.join(' · ');
 }
 
 function formatFileSize(size) {
@@ -811,38 +1065,145 @@ async function handleBusinessSubmit() {
 
   businessSubmitting.value = true;
   try {
-    submitResult.value = await submitBusinessOnboarding({
+    const submissionForm = {
       ...businessForm.value,
-      materials: businessMaterialChecklist.value,
-      deferMaterials: businessDeferredMaterials.value,
-      collaborationPreferencesCsv: businessForm.value.collaborationPreferences.join('、'),
-      materialNamesCsv: businessUploadedNames.value.join('、'),
-      materialFiles: businessSelectedFiles.value.map((file) => ({
-        name: file.name,
-        type: file.type || 'application/octet-stream',
-        size: file.size || 0
-      }))
-    });
+      organizationName: String(businessForm.value.organizationName || '').trim(),
+      contactName: String(businessForm.value.contactName || '').trim(),
+      contactMobile: String(businessForm.value.contactMobile || '').trim(),
+      contactRole: String(businessForm.value.contactRole || '').trim(),
+      projectFocus: String(businessForm.value.projectFocus || '').trim(),
+      collaborationPreferences: Array.isArray(businessForm.value.collaborationPreferences)
+        ? businessForm.value.collaborationPreferences
+        : []
+    };
+    businessForm.value = submissionForm;
+    if (!submissionForm.contactName) {
+      submitResult.value = {
+        status: 'FAILED',
+        requestError: '请先填写联系人姓名，再提交企业入驻申请。',
+        nextStep: '请返回联系人步骤，确认联系人姓名已经填写并保留。'
+      };
+      return;
+    }
+    if (!submissionForm.contactMobile) {
+      submitResult.value = {
+        status: 'FAILED',
+        requestError: '请先填写联系人手机号，再提交企业入驻申请。',
+        nextStep: '请返回联系人步骤，确认联系人手机号已经填写并保留。'
+      };
+      return;
+    }
+    if (!businessSelectedFiles.value.length) {
+      submitResult.value = {
+        status: 'FAILED',
+        requestError: '请先上传企业审核材料，再提交入驻申请。',
+        nextStep: '请先上传营业执照、授权或业务证明等真实材料。'
+      };
+      return;
+    }
+    const uploadedMaterials = [];
+    for (const file of businessSelectedFiles.value) {
+      uploadedMaterials.push(await uploadStandaloneAttachmentRuntime(onboardingUploadRuntime, {
+        file,
+        scene: submissionForm.virtualCompany ? 'BUSINESS_ONBOARDING_VIRTUAL' : 'BUSINESS_ONBOARDING',
+        source: 'ONBOARDING_MATERIAL'
+      }));
+    }
+    const uploadedMaterialRecords = uploadedMaterials.map(normalizeUploadedMaterial);
+    submitResult.value = {
+      ...(await submitBusinessOnboarding({
+        ...submissionForm,
+        materials: uploadedMaterials.map((item) => item.downloadUrl).filter(Boolean),
+        materialObjects: uploadedMaterialRecords,
+        deferMaterials: false,
+        collaborationPreferencesCsv: submissionForm.collaborationPreferences.join('、'),
+        materialNamesCsv: uploadedMaterials.map((item) => item.name).join('、'),
+        materialFiles: uploadedMaterials.map((file) => ({
+          name: file.name,
+          type: file.mimeType || file.type || 'application/octet-stream',
+          size: file.size || 0,
+          url: file.downloadUrl || '',
+          uploadId: file.uploadId || '',
+          objectKey: file.objectKey || ''
+        }))
+      })),
+      uploadedMaterials: uploadedMaterialRecords
+    };
+    if (isSubmitFailed(submitResult.value)) {
+      return;
+    }
     await refreshAuthSession();
-    await router.push(submitResult.value?.nextRoute || roleRouteMap.enterprise.home);
   } finally {
     businessSubmitting.value = false;
   }
 }
 
 async function handleTalentSubmit() {
-  submitResult.value = await submitTalentOnboarding({
-    ...talentForm.value,
-    skills: talentSkillsInput.value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean),
-    portfolioUrls: talentPortfolioInput.value
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean)
-  });
-  await refreshAuthSession();
+  if (talentSubmitting.value) {
+    return;
+  }
+  talentSubmitting.value = true;
+  try {
+    if (parsedTalentSkills.value.length < 3 || parsedTalentSkills.value.length > 6) {
+      submitResult.value = {
+        status: 'FAILED',
+        requestError: '请先选择 3 到 6 个技能标签，再提交人才入驻。',
+        nextStep: '技能标签会直接影响任务匹配和审核判断。'
+      };
+      return;
+    }
+    if (!parsedTalentPortfolioUrls.value.length) {
+      submitResult.value = {
+        status: 'FAILED',
+        requestError: '请先补充至少 1 条作品链接或作品说明，再提交人才入驻。',
+        nextStep: '审核需要先看到代表作品或案例说明。'
+      };
+      return;
+    }
+    if (!talentSelectedFiles.value.length) {
+      submitResult.value = {
+        status: 'FAILED',
+        requestError: '请先上传实名或作品审核材料，再提交人才入驻。',
+        nextStep: '建议上传身份证明、作品集 PDF、案例截图或交付证明。'
+      };
+      return;
+    }
+
+    const uploadedMaterials = [];
+    for (const file of talentSelectedFiles.value) {
+      uploadedMaterials.push(await uploadStandaloneAttachmentRuntime(onboardingUploadRuntime, {
+        file,
+        scene: 'TALENT_ONBOARDING',
+        source: 'ONBOARDING_MATERIAL'
+      }));
+    }
+
+    const uploadedMaterialRecords = uploadedMaterials.map(normalizeUploadedMaterial);
+    submitResult.value = {
+      ...(await submitTalentOnboarding({
+        ...talentForm.value,
+        skills: parsedTalentSkills.value,
+        portfolioUrls: parsedTalentPortfolioUrls.value,
+        materials: uploadedMaterials.map((item) => item.downloadUrl).filter(Boolean),
+        materialObjects: uploadedMaterialRecords,
+        materialFiles: uploadedMaterials.map((file) => ({
+          name: file.name,
+          type: file.mimeType || file.type || 'application/octet-stream',
+          size: file.size || 0,
+          url: file.downloadUrl || '',
+          uploadId: file.uploadId || '',
+          objectKey: file.objectKey || ''
+        }))
+      })),
+      uploadedMaterials: uploadedMaterialRecords
+    };
+    if (isSubmitFailed(submitResult.value)) {
+      return;
+    }
+    await refreshAuthSession();
+  } finally {
+    talentSubmitting.value = false;
+  }
 }
 
 onMounted(async () => {
@@ -851,7 +1212,25 @@ onMounted(async () => {
 });
 
 watch(() => route.meta.onboardingMode, syncModeFromRoute);
-watch(() => authState.user, prefillFormFromUser, { deep: true });
+watch(
+  () => [
+    authState.user?.id,
+    authState.user?.audience,
+    authState.user?.organizationName,
+    authState.user?.displayName,
+    authState.user?.contactName,
+    authState.user?.contactMobile,
+    authState.user?.mobile,
+    authState.user?.contactRole,
+    authState.user?.projectFocus,
+    authState.user?.headline,
+    Array.isArray(authState.user?.skills) ? authState.user.skills.join('|') : '',
+    Array.isArray(authState.user?.collaborationPreferences)
+      ? authState.user.collaborationPreferences.join('|')
+      : authState.user?.collaborationPreference || ''
+  ],
+  prefillFormFromUser
+);
 </script>
 
 <style scoped>
@@ -916,6 +1295,36 @@ watch(() => authState.user, prefillFormFromUser, { deep: true });
 
 .onboarding-page .onboarding-step-panel {
   padding: 14px;
+}
+
+.onboarding-skill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.onboarding-skill-chip {
+  border: 1px solid rgba(140, 166, 255, 0.18);
+  background: rgba(10, 18, 31, 0.9);
+  color: var(--text-muted);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.onboarding-skill-chip:hover {
+  border-color: rgba(140, 166, 255, 0.32);
+  color: var(--text-strong);
+  transform: translateY(-1px);
+}
+
+.onboarding-skill-chip.is-active {
+  border-color: rgba(116, 145, 255, 0.42);
+  background: linear-gradient(135deg, rgba(97, 120, 255, 0.22), rgba(67, 196, 255, 0.16));
+  color: var(--text-strong);
+}
+
+.onboarding-skill-note {
+  margin: 10px 0 0;
+  font-size: 12px;
 }
 
 @media (max-width: 860px) {

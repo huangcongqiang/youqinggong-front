@@ -1,5 +1,5 @@
 #!/bin/bash
-# 有轻工 server setup script
+# 有轻功 server setup script
 # Run this on the server as root
 set -e
 

@@ -1,4 +1,4 @@
-import { buildAuthHeaders, readResponsePayload, requestErrorMessage } from './httpClient.js';
+import { buildAuthHeaders, readResponsePayload, requestErrorMessage, unwrapEnvelopePayload } from './httpClient.js';
 
 function resolveRequestUrl(apiBase, url) {
   if (!url) {
@@ -24,24 +24,22 @@ function resolveRequestUrl(apiBase, url) {
 async function requestJson(fetchImpl, url, options, fallbackMessage) {
   const response = await fetchImpl(url, options);
   const payload = await readResponsePayload(response);
-  if (!response.ok) {
-    const error = new Error(`Request failed: ${response.status}`);
-    error.status = response.status;
-    error.payload = payload;
+  try {
+    return unwrapEnvelopePayload(response, payload, fallbackMessage);
+  } catch (error) {
     error.requestError = requestErrorMessage(error, fallbackMessage);
     throw error;
   }
-  return payload;
 }
 
 function normalizeRegisteredAttachment(file, presign, registered, source) {
-  const downloadUrl = String(registered?.url || presign?.downloadUrl || '').trim();
+  const downloadUrl = String(registered?.downloadUrl || registered?.url || presign?.downloadUrl || '').trim();
   return {
     name: String(file?.name || registered?.name || '未命名附件'),
     size: Number(file?.size || 0),
     type: String(file?.type || registered?.mimeType || 'application/octet-stream'),
-    url: downloadUrl,
     downloadUrl,
+    url: downloadUrl,
     objectKey: String(registered?.objectKey || presign?.objectKey || '').trim(),
     mimeType: String(registered?.mimeType || file?.type || 'application/octet-stream'),
     source: String(registered?.source || source || 'TASK_PROGRESS'),
@@ -113,4 +111,60 @@ export async function uploadTaskAttachmentRuntime(runtime, payload) {
   );
 
   return normalizeRegisteredAttachment(file, presign, registered, source);
+}
+
+export async function uploadStandaloneAttachmentRuntime(runtime, payload) {
+  const file = payload?.file;
+  if (!file) {
+    throw new Error('上传附件缺少文件上下文。');
+  }
+
+  const scene = String(payload?.scene || 'ONBOARDING_MATERIAL').trim() || 'ONBOARDING_MATERIAL';
+  const source = String(payload?.source || scene).trim() || scene;
+  const fetchImpl = runtime?.fetchImpl || fetch;
+  const apiBase = String(runtime?.apiBase || '').trim();
+  const getToken = runtime?.getToken;
+
+  const presign = await requestJson(
+    fetchImpl,
+    resolveRequestUrl(apiBase, '/uploads/presign'),
+    {
+      method: 'POST',
+      headers: buildAuthHeaders(getToken, {
+        'Content-Type': 'application/json'
+      }),
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        size: file.size || 0,
+        scene
+      })
+    },
+    '当前暂时无法创建上传会话，请稍后再试。'
+  );
+
+  await requestJson(
+    fetchImpl,
+    resolveRequestUrl(apiBase, String(presign?.uploadUrl || '')),
+    {
+      method: String(presign?.method || 'PUT').toUpperCase(),
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream'
+      },
+      body: file
+    },
+    '当前暂时无法上传附件，请稍后再试。'
+  );
+
+  return {
+    name: String(file?.name || '未命名附件'),
+    size: Number(file?.size || 0),
+    type: String(file?.type || 'application/octet-stream'),
+    downloadUrl: String(presign?.downloadUrl || '').trim(),
+    url: String(presign?.downloadUrl || '').trim(),
+    objectKey: String(presign?.objectKey || '').trim(),
+    mimeType: String(file?.type || 'application/octet-stream'),
+    source,
+    uploadId: String(presign?.uploadId || '').trim()
+  };
 }

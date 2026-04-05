@@ -46,6 +46,12 @@
       <p class="muted">{{ page.requestError }}</p>
     </article>
 
+    <article v-if="workspaceTradingBlocked" class="result-card stack-sm">
+      <span class="eyebrow">当前账号受限</span>
+      <h3>待审核账号不能继续交易动作</h3>
+      <p class="muted">{{ workspaceTradingRestriction }}</p>
+    </article>
+
     <section v-if="hasTask" class="workspace-layout" :class="{ 'workspace-layout--single': !taskOptions.length }">
       <aside v-if="taskOptions.length" class="workspace-column workspace-column-rail workspace-pane workspace-pane--rail">
         <WorkspaceTaskRail
@@ -94,15 +100,31 @@
 
                 <div class="workspace-command-node-grid">
                   <article class="workspace-command-node-fact">
-                    <span class="workspace-summary-label">计划交付</span>
-                    <strong>{{ focusedNode.expectedDeliverables || '待补充' }}</strong>
+                    <span class="workspace-summary-label">进度</span>
+                    <strong>{{ focusedNode.progress || focusedNode.completion || focusedNode.stage || focusedNode.status || '待同步' }}</strong>
+                    <p class="muted">{{ focusedNode.summary || '当前节点说明暂未同步。' }}</p>
                   </article>
                   <article class="workspace-command-node-fact">
-                    <span class="workspace-summary-label">最近同步</span>
-                    <strong>{{ focusedNode.updatedAt || '待更新' }}</strong>
-                    <p class="muted">{{ focusedNode.attachments.length ? `${focusedNode.attachments.length} 个附件` : '暂无附件' }}</p>
+                    <span class="workspace-summary-label">AI 审核</span>
+                    <strong>{{ focusedNode.aiReviewSummary || focusedNode.aiReview?.summary || '暂无 AI 审核' }}</strong>
+                    <p class="muted">{{ focusedNode.updatedAt || '待更新' }}</p>
                   </article>
                 </div>
+
+                <div v-if="focusedNode.attachments.length" class="workspace-node-attachment-list">
+                  <a
+                    v-for="attachment in focusedNode.attachments"
+                    :key="`${focusedNode.id}-${attachment.updatedAt || attachment.name}`"
+                    class="soft-pill workspace-node-attachment-pill"
+                    :href="attachment.downloadHref || attachment.downloadUrl || attachment.previewUrl || attachment.url || attachment.href || ''"
+                    :download="attachment.name || attachment.filename || '附件'"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {{ attachment.name || attachment.filename || attachment.label || '附件' }}
+                  </a>
+                </div>
+                <p v-else class="muted">本轮还没有可下载附件。</p>
               </article>
 
               <p v-else class="muted">当前还没有节点信息，先回聊天或任务详情确认最新进展。</p>
@@ -220,12 +242,63 @@
                     <span>{{ node.updatedAt || '待更新' }}</span>
                     <span>{{ node.attachments.length ? `${node.attachments.length} 个附件` : '暂无附件' }}</span>
                   </div>
+                  <p v-if="node.aiReviewSummary || node.aiReview?.summary" class="muted workspace-node-ai-review">
+                    AI 审核：{{ node.aiReviewSummary || node.aiReview?.summary }}
+                  </p>
                   <p class="muted workspace-node-deliverable">
-                    计划交付：{{ compactText(node.expectedDeliverables, 84) || '待补充' }}
+                    计划交付：{{ compactText(node.expectedDeliverables, 84) || '暂未同步' }}
                   </p>
                 </div>
               </button>
             </div>
+          </article>
+
+          <article class="glass-panel stack-md workspace-main-card workspace-main-card-progress">
+            <div class="panel-header workspace-section-header">
+              <div>
+                <span class="eyebrow">最近进展</span>
+                <h3>按最新优先看每条进展、审核和附件</h3>
+              </div>
+              <span class="soft-pill">{{ workspaceProgressItems.length }} 条</span>
+            </div>
+
+            <div v-if="workspaceProgressItems.length" class="workspace-progress-list">
+              <article
+                v-for="(item, index) in workspaceProgressItems"
+                :key="item.key || item.id || item.progressId || item.time || index"
+                class="mini-card stack-sm workspace-progress-card"
+              >
+                <div class="panel-header">
+                  <div class="stack-xs">
+                    <strong>{{ item.progress || item.completion || item.stage || item.status || '已提交进展' }}</strong>
+                    <p class="muted">
+                      {{ item.time || '待同步' }}
+                      <template v-if="item.summary || item.description"> · {{ item.summary || item.description }}</template>
+                    </p>
+                  </div>
+                  <span class="soft-pill">最新优先</span>
+                </div>
+
+                <p class="muted">{{ item.description || item.summary || '暂无说明' }}</p>
+                <p class="muted">AI 审核：{{ item.aiReviewSummary || '暂无 AI 审核' }}</p>
+
+                <div v-if="item.attachments.length" class="workspace-progress-attachments">
+                  <a
+                    v-for="attachment in item.attachments"
+                    :key="`${item.key || index}-${attachment.downloadHref || attachment.name}`"
+                    class="soft-pill workspace-progress-attachment"
+                    :href="attachment.downloadHref || attachment.downloadUrl || attachment.previewUrl || attachment.url || attachment.href || attachment.path || ''"
+                    :download="attachment.name || attachment.filename || attachment.fileName || '附件'"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {{ attachment.name || attachment.filename || attachment.fileName || attachment.label || '附件' }}
+                  </a>
+                </div>
+                <p v-else class="muted">本轮暂无附件。</p>
+              </article>
+            </div>
+            <p v-else class="muted">当前还没有进展记录，后续提交会在这里按最新优先展示。</p>
           </article>
 
           <article class="glass-panel stack-md workspace-main-card workspace-main-card-process">
@@ -259,6 +332,8 @@
                     v-if="canRequestEarlyCompletion"
                     class="button-primary"
                     type="button"
+                    :disabled="workspaceTradingBlocked"
+                    :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
                     @click="openTaskFlowModal('early_request')"
                   >
                     发起提前完成
@@ -274,6 +349,8 @@
                     v-if="canApproveEarlyCompletion"
                     class="button-primary"
                     type="button"
+                    :disabled="workspaceTradingBlocked"
+                    :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
                     @click="openTaskFlowModal('early_approve')"
                   >
                     同意提前完成
@@ -282,6 +359,8 @@
                     v-if="canRejectEarlyCompletion"
                     class="button-secondary"
                     type="button"
+                    :disabled="workspaceTradingBlocked"
+                    :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
                     @click="openTaskFlowModal('early_reject')"
                   >
                     继续执行
@@ -306,6 +385,8 @@
                     v-if="canRequestCancellation"
                     class="button-secondary"
                     type="button"
+                    :disabled="workspaceTradingBlocked"
+                    :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
                     @click="openTaskFlowModal('cancel_request')"
                   >
                     申请取消任务
@@ -314,6 +395,8 @@
                     v-if="canApproveCancellation"
                     class="button-primary"
                     type="button"
+                    :disabled="workspaceTradingBlocked"
+                    :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
                     @click="openTaskFlowModal('cancel_approve')"
                   >
                     同意取消
@@ -322,6 +405,8 @@
                     v-if="canRejectCancellation"
                     class="button-secondary"
                     type="button"
+                    :disabled="workspaceTradingBlocked"
+                    :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
                     @click="openTaskFlowModal('cancel_reject')"
                   >
                     继续执行
@@ -335,7 +420,7 @@
           </article>
 
           <article
-            v-if="hasTask && !isEnterprise"
+            v-if="hasTask && !isEnterprise && !canOpenAcceptance"
             ref="progressComposerCard"
             class="glass-panel stack-md workspace-main-card workspace-main-card-progress"
           >
@@ -387,7 +472,12 @@
               </div>
 
               <div class="dashboard-module-actions">
-                <button class="button-primary" type="submit" :disabled="submittingProgress">
+                <button
+                  class="button-primary"
+                  type="submit"
+                  :disabled="submittingProgress || workspaceTradingBlocked"
+                  :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
+                >
                   {{ submittingProgress ? '提交中…' : '提交本轮进展' }}
                 </button>
                 <span v-if="progressResult" class="soft-pill">{{ progressResult }}</span>
@@ -413,6 +503,21 @@
                   <span class="soft-pill">{{ item.badge }}</span>
                 </div>
                 <p class="muted">{{ item.summary }}</p>
+                <p v-if="item.aiReviewSummary" class="muted">AI 审核：{{ item.aiReviewSummary }}</p>
+                <div v-if="item.attachments?.length" class="tag-row">
+                  <component
+                    :is="attachmentHref(attachment) ? 'a' : 'span'"
+                    v-for="attachment in item.attachments"
+                    :key="`${item.key}-${attachmentLabel(attachment)}`"
+                    class="tag-pill tag-pill-muted"
+                    :href="attachmentHref(attachment) || undefined"
+                    :download="attachmentLabel(attachment) || undefined"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {{ attachmentLabel(attachment) }}
+                  </component>
+                </div>
               </article>
             </div>
           </article>
@@ -456,7 +561,7 @@
             <ul class="dashboard-detail-list">
               <li>预算：{{ page.taskDetail.budget || '未填写预算' }}</li>
               <li>周期：{{ page.taskDetail.period || page.summary.range }}</li>
-              <li>协作安排：{{ page.taskDetail.scheduleNote || '待补充' }}</li>
+              <li>协作安排：{{ page.taskDetail.scheduleNote || '待确认' }}</li>
               <li>状态：{{ page.taskDetail.status }}</li>
               <li>{{ isEnterprise ? '人才' : '企业' }}：{{ isEnterprise ? page.summary.talent : page.summary.business }}</li>
             </ul>
@@ -510,7 +615,7 @@
               <li>工作日：{{ activeNode.workdayLabel || '待排期' }}</li>
               <li>计划日期：{{ activeNode.plannedDate || '待排期' }}</li>
               <li>节点类型：{{ activeNode.stageType || '执行节点' }}</li>
-              <li>计划交付：{{ activeNode.expectedDeliverables || '待补充' }}</li>
+              <li>计划交付：{{ activeNode.expectedDeliverables || '暂未同步' }}</li>
             </ul>
           </div>
 
@@ -518,7 +623,18 @@
             <h4>{{ isEnterprise ? '人才提交' : '本轮提交' }}</h4>
             <p class="muted">{{ activeNode.submissionContent }}</p>
             <div class="tag-row" v-if="activeNode.attachments.length">
-              <span v-for="item in activeNode.attachments" :key="item" class="tag-pill tag-pill-muted">{{ item }}</span>
+              <component
+                :is="attachmentHref(item) ? 'a' : 'span'"
+                v-for="item in activeNode.attachments"
+                :key="`${activeNode.id}-${attachmentLabel(item)}`"
+                class="tag-pill tag-pill-muted"
+                :href="attachmentHref(item) || undefined"
+                :download="attachmentLabel(item) || undefined"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ attachmentLabel(item) }}
+              </component>
             </div>
             <p class="muted" v-if="activeNode.supportNeeded">协助需求：{{ activeNode.supportNeeded }}</p>
             <p class="muted">{{ activeNode.submissionTime || activeNode.updatedAt }}</p>
@@ -607,6 +723,7 @@
             v-model.trim="taskFlowForm.note"
             rows="4"
             :placeholder="taskFlowPlaceholder"
+            :disabled="workspaceTradingBlocked"
           ></textarea>
         </label>
 
@@ -619,6 +736,7 @@
               type="button"
               class="button-secondary"
               :class="{ 'is-active-tab': taskFlowForm.grade === item.value }"
+              :disabled="workspaceTradingBlocked"
               @click="taskFlowForm.grade = item.value"
             >
               {{ item.label }}
@@ -632,7 +750,13 @@
           <button class="button-secondary" type="button" :disabled="submittingTaskFlow" @click="closeTaskFlowModal">
             取消
           </button>
-          <button class="button-primary" type="button" :disabled="submittingTaskFlow" @click="submitTaskFlowAction">
+          <button
+            class="button-primary"
+            type="button"
+            :disabled="submittingTaskFlow || workspaceTradingBlocked"
+            :title="workspaceTradingBlocked ? workspaceTradingRestriction : ''"
+            @click="submitTaskFlowAction"
+          >
             {{ submittingTaskFlow ? '提交中…' : taskFlowPrimaryLabel }}
           </button>
         </div>
@@ -666,6 +790,7 @@ import {
 } from '../services/api';
 import { startBusinessLiveSync } from '../services/businessEventStream';
 import WorkspaceTaskRail from '../components/workspace/WorkspaceTaskRail.vue';
+import { useAuthState } from '../stores/auth';
 import {
   buildCenterReturnQuery,
   buildChildObjectPageContext,
@@ -673,10 +798,12 @@ import {
   readObjectPageContext,
   resolveImmediateOriginContext
 } from '../utils/objectPageContext.js';
+import { hasTradingAccess, tradingRestrictionMessage } from '../utils/tradingAccess';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
 const router = useRouter();
+const authState = useAuthState();
 
 const page = ref(null);
 const loading = ref(false);
@@ -726,6 +853,10 @@ const taskFlowForm = ref({
 });
 
 const isEnterprise = computed(() => route.meta?.audience === 'enterprise');
+const workspaceTradingRestriction = computed(() =>
+  tradingRestrictionMessage(authState.user, isEnterprise.value ? 'enterprise' : 'talent')
+);
+const workspaceTradingBlocked = computed(() => !hasTradingAccess(authState.user, isEnterprise.value ? 'enterprise' : 'talent'));
 const pageContext = computed(() =>
   readObjectPageContext(route.query, {
     taskId: page.value?.summary?.taskId
@@ -906,8 +1037,10 @@ const isEnterpriseWaitingGrade = computed(() => isEnterprise.value && earlyCompl
 const canOpenAcceptance = computed(() =>
   hasTask.value &&
   (
+    page.value?.taskDetail?.status === '待验收' ||
     earlyCompletion.value.status === '待企业评级' ||
     earlyCompletion.value.status === '已完成评级' ||
+    page.value?.taskDetail?.status === '待验收与评级' ||
     page.value?.taskDetail?.status === '待双方评分闭环' ||
     page.value?.taskDetail?.status === '已提前完成'
   )
@@ -934,13 +1067,16 @@ const currentNode = computed(() =>
   normalizedNodes.value.find((node) => node.id === currentNodeId.value) || null
 );
 const focusedNode = computed(() => {
-  if (currentNode.value) {
+  if (currentNode.value && !currentNode.value.isCompleted) {
     return currentNode.value;
   }
   if (!normalizedNodes.value.length) {
     return null;
   }
-  return normalizedNodes.value.find((node) => !['已完成', '已取消'].includes(node.status || '')) || normalizedNodes.value[0];
+  return normalizedNodes.value.find((node) => node.isCurrent)
+    || normalizedNodes.value.find((node) => !node.isCompleted)
+    || currentNode.value
+    || normalizedNodes.value[0];
 });
 const focusedNodeIndex = computed(() =>
   focusedNode.value ? normalizedNodes.value.findIndex((node) => node.id === focusedNode.value.id) : -1
@@ -952,10 +1088,10 @@ const upcomingNode = computed(() => {
   return normalizedNodes.value[focusedNodeIndex.value + 1] || null;
 });
 const currentNodeLabel = computed(() => {
-  if (!currentNodeId.value) {
+  if (!focusedNode.value) {
     return '';
   }
-  return currentNode.value?.title ? `当前节点 · ${currentNode.value.title}` : `节点 ${currentNodeId.value}`;
+  return focusedNode.value?.title ? `当前节点 · ${focusedNode.value.title}` : `节点 ${focusedNode.value.id}`;
 });
 const focusedNodeChatRoute = computed(() => ({
   path: isEnterprise.value ? roleRouteMap.enterprise.messages : roleRouteMap.talent.messages,
@@ -1125,18 +1261,27 @@ const workspaceFlowAction = computed(() => {
   return null;
 });
 
-const latestProgress = computed(() => {
-  const items = listOf(page.value?.progressFeed);
-  return items.length ? items[items.length - 1] : null;
+const workspaceProgressFeed = computed(() => {
+  const topLevel = listOf(page.value?.progressFeed);
+  const fallback = listOf(page.value?.taskDetail?.progressFeed);
+  return sortLatestFirst(topLevel.length ? topLevel : fallback, (item) =>
+    resolveStamp(item?.updatedAt || item?.updated_at || item?.createdAt || item?.created_at || item?.submittedAt || item?.time)
+  );
 });
 
+const workspaceProgressItems = computed(() => workspaceProgressFeed.value.map((item, index) => normalizeProgressItem(item, index)));
+
+const latestProgress = computed(() => workspaceProgressItems.value[0] || null);
+
 const recordItems = computed(() => {
-  const progress = listOf(page.value?.progressFeed).slice(0, 2).map((item, index) => ({
-    key: `progress-${index}`,
-    title: item.stage || '最新进展',
-    time: item.time || item.submittedAt || '刚刚更新',
-    badge: item.completion || '进展',
-    summary: item.summary || '当前还没有更多进展说明。'
+  const progress = workspaceProgressItems.value.slice(0, 2).map((item, index) => ({
+    key: item.key || `progress-${index}`,
+    title: item.progress || item.stage || '最新进展',
+    time: item.time || '刚刚更新',
+    badge: item.progress || item.completion || '进展',
+    summary: item.summary || item.description || '当前还没有更多进展说明。',
+    aiReviewSummary: item.aiReviewSummary || '',
+    attachments: listOf(item.attachments)
   }));
 
   const reviews = listOf(page.value?.aiReviewHistory).slice(0, 2).map((item, index) => ({
@@ -1144,7 +1289,8 @@ const recordItems = computed(() => {
     title: item.title || 'AI 巡检',
     time: item.focus || 'AI 审核',
     badge: item.status || '已生成',
-    summary: item.summary || '当前还没有 AI 建议。'
+    summary: item.summary || '当前还没有 AI 建议。',
+    attachments: []
   }));
 
   return [...progress, ...reviews];
@@ -1281,6 +1427,36 @@ function listOf(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function resolveStamp(value) {
+  const text = String(value || '').trim();
+  if (!text) {
+    return null;
+  }
+  const stamp = Date.parse(text);
+  return Number.isNaN(stamp) ? null : stamp;
+}
+
+function sortLatestFirst(items, getStamp) {
+  return listOf(items)
+    .map((item, index) => ({ item, index, stamp: getStamp ? getStamp(item) : null }))
+    .sort((a, b) => {
+      if (a.stamp == null && b.stamp == null) {
+        return a.index - b.index;
+      }
+      if (a.stamp == null) {
+        return 1;
+      }
+      if (b.stamp == null) {
+        return -1;
+      }
+      if (a.stamp !== b.stamp) {
+        return b.stamp - a.stamp;
+      }
+      return a.index - b.index;
+    })
+    .map(({ item }) => item);
+}
+
 function compactText(value, limit = 96) {
   const text = String(value || '').trim();
   if (!text) {
@@ -1290,6 +1466,36 @@ function compactText(value, limit = 96) {
     return text;
   }
   return `${text.slice(0, Math.max(0, limit - 3)).trim()}...`;
+}
+
+function attachmentLabel(item) {
+  if (typeof item === 'string') {
+    return item.trim();
+  }
+  if (item && typeof item === 'object') {
+    return String(item.name || item.fileName || item.filename || item.label || item.title || item.url || '').trim();
+  }
+  return '';
+}
+
+function attachmentHref(item) {
+  if (!item || typeof item !== 'object') {
+    return '';
+  }
+  return String(item.downloadHref || item.downloadUrl || item.previewUrl || item.fileUrl || item.url || item.href || item.path || '').trim();
+}
+
+function resolveMilestoneIdFromNode(node) {
+  const nodeId = String(node?.id || node?.nodeId || '').trim();
+  if (!nodeId.startsWith('milestone-')) {
+    return null;
+  }
+  const rawId = nodeId.slice('milestone-'.length).trim();
+  if (!rawId) {
+    return null;
+  }
+  const numericId = Number(rawId);
+  return Number.isFinite(numericId) ? numericId : null;
 }
 
 function isFailedResult(result) {
@@ -1312,20 +1518,41 @@ function normalizeNode(node) {
       : null;
   const enterpriseFeedback =
     node?.enterpriseFeedback && typeof node.enterpriseFeedback === 'object' ? node.enterpriseFeedback : null;
+  const statusCode = String(node?.statusCode || node?.milestoneStatus || '').trim().toUpperCase();
+  const statusText = node?.status || '待开始';
+  const isCompleted = node?.isCompleted === true || statusCode === 'DONE' || ['已完成', '已取消'].includes(statusText);
+  const isCurrent = node?.isCurrent === true || statusCode === 'IN_PROGRESS';
 
   return {
     id: node?.nodeId || node?.id || '',
     title: node?.title || '未命名节点',
-    status: node?.status || '待开始',
-    progress: node?.completion || node?.progress || '',
+    status: statusText,
+    statusCode,
+    milestoneStatus: String(node?.milestoneStatus || '').trim().toUpperCase(),
+    isCurrent,
+    isCompleted,
+    progress: node?.progress || node?.completion || node?.percent || node?.progressPercent || '',
     updatedAt: node?.time || node?.updatedAt || '',
     summary: node?.summary || node?.talentSubmission?.content || '当前还没有节点说明。',
+    aiReviewSummary: String(
+      node?.aiReviewSummary ||
+        aiReview?.summary ||
+        aiReview?.note ||
+        aiReview?.result ||
+        ''
+    ).trim(),
     workdayLabel: node?.workdayLabel || '',
     plannedDate: node?.plannedDate || '',
     expectedDeliverables: node?.expectedDeliverables || '',
     stageType: node?.stageType || '',
     supportNeeded: node?.supportNeeded || '',
-    attachments: listOf(node?.attachments).length ? listOf(node.attachments) : listOf(node?.talentSubmission?.attachments),
+    attachments: listOf(node?.attachmentFiles).length
+      ? listOf(node.attachmentFiles)
+      : (listOf(node?.attachments).length
+          ? listOf(node.attachments)
+          : (listOf(node?.talentSubmission?.attachmentFiles).length
+              ? listOf(node.talentSubmission.attachmentFiles)
+              : listOf(node?.talentSubmission?.attachments))),
     submissionTime: node?.talentSubmission?.time || node?.time || '',
     submissionContent: node?.talentSubmission?.content || node?.summary || '',
     aiReview,
@@ -1343,6 +1570,68 @@ function normalizeNode(node) {
       updatedAt: businessSuggestionObject?.updatedAt || enterpriseFeedback?.updatedAt || '',
       author: businessSuggestionObject?.author || ''
     }
+  };
+}
+
+function normalizeProgressItem(item, index = 0) {
+  const rawAttachments = listOf(item?.attachmentFiles).length ? listOf(item?.attachmentFiles) : listOf(item?.attachments);
+  const attachments = sortLatestFirst(rawAttachments, resolveStamp).map((asset) => {
+    if (typeof asset === 'string') {
+      const value = asset.trim();
+      return {
+        name: value,
+        type: '',
+        downloadHref: value
+      };
+    }
+
+    return {
+      ...asset,
+      name: String(
+        asset?.name ||
+          asset?.fileName ||
+          asset?.filename ||
+          asset?.label ||
+          asset?.title ||
+          asset?.downloadHref ||
+          asset?.downloadUrl ||
+          asset?.previewUrl ||
+          asset?.url ||
+          asset?.path ||
+          ''
+      ).trim(),
+      type: String(asset?.type || asset?.fileType || asset?.mimeType || '').trim(),
+      downloadHref: String(
+        asset?.downloadHref ||
+          asset?.downloadUrl ||
+          asset?.previewUrl ||
+          asset?.fileUrl ||
+          asset?.url ||
+          asset?.href ||
+          asset?.path ||
+          ''
+      ).trim()
+    };
+  });
+
+  return {
+    key: String(item?.id || item?.progressId || item?.time || `progress-${index}`),
+    time: String(item?.time || item?.submittedAt || item?.updatedAt || '').trim(),
+    progress: String(item?.progress || item?.percent || item?.completion || item?.status || '').trim(),
+    summary: String(item?.summary || item?.note || item?.description || item?.content || '').trim(),
+    description: String(item?.description || item?.detail || item?.content || '').trim(),
+    stage: String(item?.stage || '').trim(),
+    completion: String(item?.completion || '').trim(),
+    status: String(item?.status || '').trim(),
+    aiReviewSummary: String(
+      item?.aiReviewSummary ||
+        item?.aiReview?.summary ||
+        item?.aiReview?.note ||
+        item?.aiReview?.result ||
+        item?.reviewSummary ||
+        ''
+    ).trim(),
+    attachments
   };
 }
 
@@ -1470,6 +1759,11 @@ async function scrollToProgressForm() {
 }
 
 function openTaskFlowModal(mode) {
+  if (workspaceTradingBlocked.value) {
+    taskFlowError.value = workspaceTradingRestriction.value;
+    taskFlowResult.value = '';
+    return;
+  }
   taskFlowMode.value = mode;
   taskFlowError.value = '';
   taskFlowResult.value = '';
@@ -1494,6 +1788,10 @@ async function submitProgressForm() {
   if (!page.value?.summary?.taskId) {
     return;
   }
+  if (workspaceTradingBlocked.value) {
+    progressResult.value = workspaceTradingRestriction.value;
+    return;
+  }
 
   submittingProgress.value = true;
   progressResult.value = '';
@@ -1514,9 +1812,12 @@ async function submitProgressForm() {
     return;
   }
 
+  const activeMilestoneId = resolveMilestoneIdFromNode(focusedNode.value || currentNode.value);
+  const resolvedStageName = String(progressForm.value.stageName || focusedNode.value?.title || '').trim();
   const result = await submitTaskProgress(page.value.summary.taskId, {
     submitterUserId: page.value.summary.talentUserId || page.value.summary.businessUserId || '',
-    stage: progressForm.value.stageName,
+    stage: resolvedStageName,
+    milestoneId: activeMilestoneId,
     progressText: progressForm.value.progressSummary,
     supportNeeded: progressForm.value.supportNeeded,
     completionPercent: progressForm.value.completion,
@@ -1538,11 +1839,33 @@ async function submitProgressForm() {
   };
   progressFiles.value = [];
   await loadPage();
+  if (result?.nextMilestoneId) {
+    activeNode.value = null;
+    await router.replace({
+      path: route.path,
+      query: buildWorkspaceContextQuery({
+        nodeId: `milestone-${result.nextMilestoneId}`
+      })
+    });
+    await scrollCurrentNodeIntoView();
+  } else if (result?.enteredAcceptancePhase) {
+    activeNode.value = null;
+    await router.replace({
+      path: route.path,
+      query: buildWorkspaceContextQuery({
+        nodeId: undefined
+      })
+    });
+  }
   submittingProgress.value = false;
 }
 
 async function submitNodeFeedback() {
   if (!activeNode.value?.id || !page.value?.summary?.taskId) {
+    return;
+  }
+  if (workspaceTradingBlocked.value) {
+    feedbackResult.value = workspaceTradingRestriction.value;
     return;
   }
 
@@ -1580,6 +1903,10 @@ async function submitNodeFeedback() {
 
 async function submitTaskFlowAction() {
   if (!page.value?.summary?.taskId || !taskFlowMode.value) {
+    return;
+  }
+  if (workspaceTradingBlocked.value) {
+    taskFlowError.value = workspaceTradingRestriction.value;
     return;
   }
 
@@ -1669,205 +1996,444 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.workspace-workbench {
-  min-width: 0;
+.workspace-page {
+  --workspace-bg: #f3f5f7;
+  --workspace-panel: #ffffff;
+  --workspace-soft: #f7f9fc;
+  --workspace-soft-strong: #eef3f8;
+  --workspace-border: #d9e1ea;
+  --workspace-border-strong: #c6d4e3;
+  --workspace-text: #132238;
+  --workspace-muted: #617287;
+  --workspace-accent: #1562c5;
+  --workspace-accent-soft: #e8f0ff;
+  gap: 20px;
+  padding-bottom: 32px;
+  color: var(--workspace-text);
 }
 
-.workspace-action-summary {
+.workspace-page :is(.hero-card, .glass-panel, .mini-card, .result-card, .dashboard-detail-card, .workspace-loading-card) {
+  background: var(--workspace-panel);
+  border: 1px solid var(--workspace-border);
+  box-shadow: 0 18px 40px rgba(15, 35, 63, 0.08);
+  backdrop-filter: none;
+}
+
+.workspace-page .muted,
+.workspace-page .workspace-task-rail-head-note {
+  color: var(--workspace-muted);
+}
+
+.workspace-page .soft-pill {
+  border: 1px solid var(--workspace-border);
+  background: #f6f8fb;
+  color: #27415e;
+  box-shadow: none;
+}
+
+.workspace-page .soft-pill.is-warning {
+  border-color: #f1d39b;
+  background: #fff7e3;
+  color: #8e6200;
+}
+
+.workspace-page :is(.button-primary, .button-secondary) {
+  min-height: 42px;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.workspace-page .button-primary {
+  background: var(--workspace-accent);
+  border-color: var(--workspace-accent);
+}
+
+.workspace-page .button-secondary {
+  background: #ffffff;
+  border-color: var(--workspace-border-strong);
+  color: var(--workspace-text);
+}
+
+.workspace-hero {
+  padding: 24px 28px;
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 253, 0.98)),
+    radial-gradient(circle at top right, rgba(21, 98, 197, 0.12), transparent 36%);
+}
+
+.workspace-hero :is(.dashboard-title, .hero-lead) {
+  margin: 0;
+}
+
+.workspace-object-hero-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.workspace-layout {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.workspace-summary-item {
-  display: grid;
-  gap: 0.25rem;
-  padding: 0.95rem 1rem;
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--glass-bg, rgba(255, 255, 255, 0.7)) 72%, rgba(23, 34, 57, 0.06));
-  border: 1px solid color-mix(in srgb, var(--glass-border, rgba(255, 255, 255, 0.36)) 82%, rgba(23, 34, 57, 0.08));
-}
-
-.workspace-summary-label {
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted, rgba(80, 91, 112, 0.82));
-}
-
-.workspace-summary-item strong {
-  font-size: 0.98rem;
-  line-height: 1.35;
-  color: var(--text-strong, #14213d);
-}
-
-.workspace-main-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
-  gap: 1rem;
+  grid-template-columns: minmax(250px, 290px) minmax(0, 1fr);
+  gap: 24px;
   align-items: start;
 }
 
-.workspace-main-primary,
-.workspace-main-secondary {
-  min-width: 0;
+.workspace-layout--single {
+  grid-template-columns: 1fr;
 }
 
-.workspace-main-secondary {
+.workspace-column-rail {
   position: sticky;
-  top: 1.25rem;
+  top: 24px;
   align-self: start;
 }
 
+.workspace-pane--main,
+.workspace-workbench,
+.workspace-main-primary,
 .workspace-main-card {
   min-width: 0;
 }
 
-.workspace-node-timeline {
+.workspace-main-card,
+.workspace-loading-shell {
+  border-radius: 24px;
+}
+
+.workspace-command-grid {
   display: grid;
-  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1.4fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.workspace-command-sidebar {
+  display: grid;
+  gap: 18px;
+}
+
+.workspace-command-copy {
+  margin: 0;
+}
+
+.workspace-command-tags,
+.workspace-command-node-grid,
+.workspace-command-context-grid,
+.workspace-process-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-command-node-grid,
+.workspace-command-context-grid,
+.workspace-process-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workspace-command-node-fact,
+.workspace-command-context-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--workspace-soft);
+  border: 1px solid var(--workspace-border);
+}
+
+.workspace-command-next {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f9fbfe, #eef3fa);
+  border: 1px solid var(--workspace-border);
+}
+
+.workspace-node-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .workspace-node-card {
-  display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
-  gap: 0.9rem;
-  align-items: start;
+  display: flex;
+  gap: 16px;
   width: 100%;
+  padding: 0;
+  color: inherit;
   text-align: left;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.workspace-node-card.is-current {
-  transform: translateX(2px);
-}
-
-.workspace-node-card.is-current .workspace-node-index {
-  color: var(--text-strong, #14213d);
-}
-
-.workspace-node-card.is-current .workspace-node-line {
-  background: linear-gradient(180deg, rgba(76, 201, 255, 0.92), rgba(118, 102, 255, 0.72));
-}
-
-.workspace-node-card.is-current .workspace-node-main {
-  padding: 0.9rem 1rem;
-  border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, rgba(76, 201, 255, 0.28) 82%, rgba(23, 34, 57, 0.08));
-  background: color-mix(in srgb, rgba(76, 201, 255, 0.08) 72%, rgba(255, 255, 255, 0.92));
-  box-shadow: 0 18px 32px rgba(12, 25, 47, 0.08);
+  border: 0;
+  background: transparent;
 }
 
 .workspace-node-rail {
-  display: grid;
-  justify-items: center;
-  gap: 0.45rem;
-  padding-top: 0.15rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 56px;
+  flex: 0 0 56px;
 }
 
 .workspace-node-index {
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  color: var(--muted, rgba(80, 91, 112, 0.82));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--workspace-border);
+  background: #ffffff;
+  color: #51657d;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 .workspace-node-line {
+  flex: 1 1 auto;
   width: 2px;
-  min-height: 100%;
-  background: linear-gradient(180deg, rgba(88, 116, 255, 0.45), rgba(88, 116, 255, 0.05));
+  min-height: 92px;
   border-radius: 999px;
+  background: linear-gradient(180deg, #d6dfeb, rgba(214, 223, 235, 0.2));
 }
 
 .workspace-node-main {
-  min-width: 0;
+  flex: 1 1 auto;
   display: grid;
-  gap: 0.65rem;
+  gap: 10px;
+  padding: 18px 20px;
+  border-radius: 22px;
+  border: 1px solid var(--workspace-border);
+  background: linear-gradient(180deg, #ffffff, #f8fbfe);
+  box-shadow: 0 12px 28px rgba(15, 35, 63, 0.06);
+}
+
+.workspace-node-card.is-current .workspace-node-index {
+  border-color: #8eb6ea;
+  background: var(--workspace-accent-soft);
+  color: var(--workspace-accent);
+}
+
+.workspace-node-card.is-current .workspace-node-line {
+  background: linear-gradient(180deg, #6f9fe7, rgba(111, 159, 231, 0.22));
+}
+
+.workspace-node-card.is-current .workspace-node-main {
+  border-color: #98bae6;
+  box-shadow: 0 18px 34px rgba(21, 98, 197, 0.11);
 }
 
 .workspace-node-head {
   display: flex;
   justify-content: space-between;
+  gap: 16px;
   align-items: flex-start;
-  gap: 0.75rem;
 }
 
 .workspace-node-head h4,
-.workspace-node-head p {
-  margin: 0;
-}
-
-.workspace-node-head p {
-  margin-top: 0.25rem;
-  color: var(--muted, rgba(80, 91, 112, 0.82));
-}
-
-.workspace-node-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem 0.8rem;
-  color: var(--muted, rgba(80, 91, 112, 0.82));
-  font-size: 0.86rem;
-}
-
-.workspace-node-deliverable {
-  margin: 0;
-}
-
-.workspace-record-list {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.workspace-record-card {
-  padding: 0.95rem 1rem;
-}
-
+.workspace-node-head p,
 .workspace-record-card h4,
 .workspace-record-card p {
   margin: 0;
 }
 
-.workspace-record-card .panel-header {
-  align-items: flex-start;
+.workspace-node-head h4 {
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--workspace-text);
 }
 
-.workspace-record-card .panel-header p {
-  margin-top: 0.2rem;
+.workspace-node-head p,
+.workspace-node-ai-review,
+.workspace-node-deliverable {
+  color: var(--workspace-muted);
 }
 
-@media (max-width: 1180px) {
-  .workspace-action-summary,
-  .workspace-main-grid {
+.workspace-node-main .tag-row,
+.workspace-progress-attachments,
+.workspace-record-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workspace-node-main .tag-row .soft-pill,
+.workspace-progress-attachment,
+.workspace-node-attachment-pill {
+  background: var(--workspace-soft);
+}
+
+.workspace-node-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--workspace-muted);
+  font-size: 13px;
+}
+
+.workspace-node-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--workspace-border);
+  background: #ffffff;
+}
+
+.workspace-progress-list,
+.workspace-record-list {
+  display: grid;
+  gap: 14px;
+}
+
+.workspace-progress-card,
+.workspace-record-card,
+.workspace-process-card {
+  border-radius: 20px;
+  background: var(--workspace-soft);
+}
+
+.workspace-progress-form {
+  display: grid;
+  gap: 16px;
+}
+
+.workspace-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.workspace-page :is(input, select, textarea) {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--workspace-border);
+  background: #ffffff;
+  color: var(--workspace-text);
+}
+
+.workspace-page textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.workspace-page .form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-page .form-field span {
+  font-weight: 600;
+  color: var(--workspace-text);
+}
+
+.workspace-loading-shell {
+  padding: 28px;
+}
+
+.workspace-loading-card {
+  padding: 18px 20px;
+}
+
+.workspace-page :deep(.workspace-task-rail) {
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid var(--workspace-border);
+  box-shadow: 0 18px 40px rgba(15, 35, 63, 0.08);
+}
+
+.workspace-page :deep(.workspace-task-rail-card) {
+  border-radius: 18px;
+  border: 1px solid var(--workspace-border);
+  background: linear-gradient(180deg, #ffffff, #f8fbfe);
+  box-shadow: none;
+}
+
+.workspace-page :deep(.workspace-task-rail-card:hover) {
+  border-color: #a3c2eb;
+  transform: translateY(-1px);
+}
+
+.workspace-page :deep(.workspace-task-rail-card.is-active) {
+  border-color: #95b7e8;
+  background: var(--workspace-accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(21, 98, 197, 0.05);
+}
+
+.workspace-page :deep(.workspace-task-rail-card.is-active::before) {
+  background: linear-gradient(180deg, #2d7ae2, #82aaf0);
+}
+
+.workspace-page :deep(.workspace-task-rail-card-top h4),
+.workspace-page :deep(.workspace-task-rail-card-completion) {
+  color: var(--workspace-text);
+}
+
+.workspace-page :deep(.workspace-task-rail-card-status),
+.workspace-page :deep(.workspace-task-rail-card-summary),
+.workspace-page :deep(.workspace-task-rail-card-meta),
+.workspace-page :deep(.workspace-task-rail-head-note) {
+  color: var(--workspace-muted);
+}
+
+.workspace-page .dashboard-detail-card,
+.workspace-page .workspace-loading-card,
+.workspace-page .workspace-process-card,
+.workspace-page .workspace-command-node,
+.workspace-page .workspace-command-action-card,
+.workspace-page .workspace-command-context-card {
+  border-radius: 22px;
+}
+
+@media (max-width: 1240px) {
+  .workspace-command-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1080px) {
+  .workspace-layout {
     grid-template-columns: 1fr;
   }
 
-  .workspace-main-secondary {
+  .workspace-column-rail {
     position: static;
-    top: auto;
   }
 }
 
 @media (max-width: 860px) {
-  .workspace-node-card {
+  .workspace-object-hero-head,
+  .workspace-node-head {
+    flex-direction: column;
+  }
+
+  .workspace-command-node-grid,
+  .workspace-command-context-grid,
+  .workspace-process-grid,
+  .workspace-progress-grid {
     grid-template-columns: 1fr;
   }
 
+  .workspace-node-card {
+    flex-direction: column;
+  }
+
   .workspace-node-rail {
-    display: flex;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 0.5rem;
-    padding-top: 0;
+    width: 100%;
+    flex: none;
+    flex-direction: row;
   }
 
   .workspace-node-line {
-    width: 100%;
-    min-height: 2px;
+    width: auto;
     height: 2px;
-  }
-
-  .workspace-node-head {
-    flex-direction: column;
+    min-height: 2px;
+    flex: 1 1 auto;
   }
 }
 </style>

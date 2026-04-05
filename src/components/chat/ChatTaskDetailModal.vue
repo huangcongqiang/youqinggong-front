@@ -17,7 +17,7 @@
 
       <div class="dashboard-detail-section">
         <h4>任务说明</h4>
-        <p class="muted">{{ taskDetail.brief || '待补充' }}</p>
+        <p class="muted">{{ taskDetail.brief || '任务摘要暂未同步' }}</p>
       </div>
 
       <div class="dashboard-detail-dual">

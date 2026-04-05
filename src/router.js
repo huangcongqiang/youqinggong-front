@@ -128,7 +128,7 @@ router.beforeEach((to) => {
 });
 
 router.afterEach((to) => {
-  document.title = `有轻工 | ${to.meta.title || 'AI 人才协作市场'}`;
+  document.title = `有轻功 | ${to.meta.title || 'AI 人才协作市场'}`;
 });
 
 export default router;

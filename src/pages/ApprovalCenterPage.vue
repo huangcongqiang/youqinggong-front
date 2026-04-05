@@ -20,7 +20,7 @@
     <LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />
 
     <article v-if="approvalCenterIssue" class="result-card stack-sm">
-      <strong>审批中心已切换到兜底队列</strong>
+      <strong>审批数据暂时不可用</strong>
       <p class="muted">{{ approvalCenterIssue }}</p>
     </article>
 
@@ -145,6 +145,15 @@
             <strong>{{ actionFeedback.title }}</strong>
             <p class="muted">{{ actionFeedback.message }}</p>
           </article>
+          <article v-if="reviewTrail.length" class="result-card stack-sm">
+            <strong>审核动作留痕</strong>
+            <ul class="stack-xs approval-center-context__trail">
+              <li v-for="item in reviewTrail.slice(0, 5)" :key="`${item.at}-${item.action}-${item.status}`">
+                <strong>{{ item.status }}</strong>
+                <span class="muted">{{ item.message }}</span>
+              </li>
+            </ul>
+          </article>
         </div>
 
         <div v-else class="approval-center-context__empty desktop-center-context__empty stack-sm">
@@ -193,6 +202,7 @@ const selectedItemId = ref('');
 const selectedItemMissing = ref(false);
 const actionPendingKey = ref('');
 const actionFeedback = ref(null);
+const reviewTrail = ref([]);
 const liveSyncStatus = ref(null);
 const liveSyncError = ref('');
 let stopBusinessLiveSync = null;
@@ -215,20 +225,21 @@ const approvalCenterIssue = computed(() => {
   }
 
   if (rawIssue.includes('Unknown path') && rawIssue.includes('/api/enterprise/approvals')) {
-    return '审批数据暂时无法直连，已切换到本地兜底队列。';
+    return '审批接口当前未部署或暂时不可达，请稍后再试。';
   }
 
   if (rawIssue.includes('/api/enterprise/approvals')) {
-    return '审批数据接口暂时不可用，已显示本地兜底队列。';
+    return '审批数据接口暂时不可用，请稍后再试。';
   }
 
-  return '审批数据暂时未同步到最新版本，已显示本地兜底队列。';
+  return '审批数据暂时未同步到最新版本，请稍后刷新。';
 });
 
 const approvalGroupMeta = {
+  matching: { label: '待处理申请', note: '先确认合作申请和候选人才。' },
   confirmations: { label: '待确认', note: '先确认版本和工期。' },
   changes: { label: '待修改', note: '先收口修改意见。' },
-  reviews: { label: '待评级 / 验收', note: '先处理验收和评级。' },
+  reviews: { label: '待验收 / 评级', note: '先处理验收、评级和结算前动作。' },
   cancellations: { label: '待取消', note: '先确认取消事项。' }
 };
 
@@ -386,7 +397,7 @@ function normalizeEntries(entries, fallback) {
       }
       return {
         label: textOf(entry?.label, `信息 ${index + 1}`),
-        value: textOf(entry?.value, textOf(entry?.summary, '待补充'))
+        value: textOf(entry?.value, textOf(entry?.summary, '信息暂未同步'))
       };
     })
     .filter((entry) => entry.value);
@@ -505,7 +516,7 @@ const groupItems = computed(() => {
       acc[item.groupKey] += numberOf(item.count);
       return acc;
     },
-    { confirmations: 0, changes: 0, reviews: 0, cancellations: 0 }
+    { matching: 0, confirmations: 0, changes: 0, reviews: 0, cancellations: 0 }
   );
 
   return Object.entries(approvalGroupMeta).map(([key, meta]) => ({
@@ -670,14 +681,14 @@ const secondarySummaryLabel = computed(() => {
 const totalApprovalValue = computed(() => `${approvalItems.value.reduce((sum, item) => sum + numberOf(item.count), 0)} 项`);
 const summaryStats = computed(() => [
   {
+    label: '待处理申请',
+    value: String(groupItems.value.find((item) => item.key === 'matching')?.count || 0),
+    note: '先确认合作申请和候选人才。'
+  },
+  {
     label: '待确认',
     value: String(groupItems.value.find((item) => item.key === 'confirmations')?.count || 0),
     note: '先确认版本和工期。'
-  },
-  {
-    label: '待修改',
-    value: String(groupItems.value.find((item) => item.key === 'changes')?.count || 0),
-    note: '先收口修改意见。'
   }
 ]);
 const summaryHighlights = computed(() => {
@@ -707,9 +718,9 @@ const listDescription = computed(() => {
 
   return approvalGroupMeta[activeGroup.value]?.note || '只看当前待批项。';
 });
-const emptyListTitle = computed(() => (approvalCenterIssue.value ? '审批队列已切换到兜底数据' : '当前没有待审批事项'));
+const emptyListTitle = computed(() => (approvalCenterIssue.value ? '审批数据暂不可用' : '当前没有待审批事项'));
 const emptyListDescription = computed(() =>
-  approvalCenterIssue.value || '待确认、待修改、待评级和待取消都会收口到这里。'
+  approvalCenterIssue.value || '待处理申请、待确认、待修改、待验收和待取消都会收口到这里。'
 );
 const footerActions = computed(() =>
   selectedItemMissing.value
@@ -773,6 +784,14 @@ function syncSelectedItemFromRoute() {
 
   const items = approvalItems.value.filter((item) => item.groupKey === activeGroup.value);
   if (!items.length) {
+    const firstAvailable = approvalItems.value[0] || null;
+    if (firstAvailable) {
+      activeGroup.value = firstAvailable.groupKey || activeGroup.value;
+      selectedItemId.value = firstAvailable.id;
+      selectedItemMissing.value = false;
+      syncSelectionQuery(firstAvailable);
+      return;
+    }
     selectedItemId.value = '';
     selectedItemMissing.value = false;
     return;
@@ -847,6 +866,22 @@ function goTo(target) {
   if (!target) {
     return;
   }
+  const resolved = router.resolve(target);
+  const resolvedPath = String(resolved?.path || '');
+  const resolvedTaskId = String(resolved?.query?.taskId || '').trim();
+  const needsTaskContext = (
+    resolvedPath.includes('/chat')
+    || resolvedPath.includes('/room')
+    || resolvedPath.includes('/workspace')
+  );
+  if (needsTaskContext && !resolvedTaskId) {
+    actionFeedback.value = {
+      title: '跳转缺少 taskId',
+      message: '当前入口没有带上任务上下文，已阻止跳转。请先从具体任务、通知详情或审批详情里进入。'
+    };
+    return;
+  }
+  actionFeedback.value = null;
   router.push(target);
 }
 
@@ -860,6 +895,10 @@ function handleAction({ action }) {
   if (action?.to) {
     goTo(action.to);
   }
+}
+
+function isMutationFailed(result) {
+  return Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED');
 }
 
 async function handleDecisionAction(action) {
@@ -876,11 +915,20 @@ async function handleDecisionAction(action) {
   });
   actionPendingKey.value = '';
 
-  if (result?.requestError) {
+  if (isMutationFailed(result)) {
     actionFeedback.value = {
       title: '审批动作提交失败',
       message: result.requestIssue || approvalCenterIssue.value || '审批动作暂时无法提交，已保留当前队列。'
     };
+    reviewTrail.value = [
+      {
+        at: new Date().toLocaleString(),
+        action: action.action,
+        status: '失败',
+        message: actionFeedback.value.message
+      },
+      ...reviewTrail.value
+    ].slice(0, 5);
     return;
   }
 
@@ -899,6 +947,15 @@ async function handleDecisionAction(action) {
       '审批结果已同步到当前队列。'
     )
   };
+  reviewTrail.value = [
+    {
+      at: new Date().toLocaleString(),
+      action: action.action,
+      status: result?.result?.actionBlocked ? '未推进' : '已提交',
+      message: actionFeedback.value.message
+    },
+    ...reviewTrail.value
+  ].slice(0, 5);
 }
 
 function handleFooterAction(action) {

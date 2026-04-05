@@ -2,7 +2,7 @@
 """
 修复 Nginx 配置：
 1. 恢复 cyxss.xyz 的 default 站点 symlink
-2. 把有轻工前台从 80 改到 8082（避免冲突）
+2. 把有轻功前台从 80 改到 8082（避免冲突）
 3. reload Nginx 验证
 """
 import paramiko, io, os
@@ -11,7 +11,7 @@ HOST = os.environ.get("YOUQINGGONG_DEPLOY_HOST", "")
 USER = os.environ.get("YOUQINGGONG_DEPLOY_USER", "")
 PASS = os.environ.get("YOUQINGGONG_DEPLOY_PASSWORD", "")
 
-# 有轻工新的 Nginx 配置：使用 8082 端口，不抢占 80/443
+# 有轻功新的 Nginx 配置：使用 8082 端口，不抢占 80/443
 YOUQINGGONG_CONF = """\
 server {
     listen 8082;
@@ -73,14 +73,14 @@ def run(client, label, cmd, timeout=30):
 
 def main():
     print("=" * 60)
-    print("修复 Nginx 配置（恢复 cyxss.xyz，有轻工改为 8082）")
+    print("修复 Nginx 配置（恢复 cyxss.xyz，有轻功改为 8082）")
     print("=" * 60)
 
     client = connect()
     sftp = client.open_sftp()
 
-    # 1. 更新有轻工 Nginx 配置（80 → 8082）
-    print("\n[1/4] 更新有轻工 Nginx 配置（改为 8082 端口）...")
+    # 1. 更新有轻功 Nginx 配置（80 → 8082）
+    print("\n[1/4] 更新有轻功 Nginx 配置（改为 8082 端口）...")
     sftp.putfo(io.BytesIO(YOUQINGGONG_CONF.encode()), "/etc/nginx/sites-available/youqinggong.conf")
     print("  written: /etc/nginx/sites-available/youqinggong.conf")
 
@@ -108,8 +108,8 @@ def main():
     # 5. 验证
     print("\n[4/4] 验证各服务...")
     run(client, "sites-enabled 列表", "ls -la /etc/nginx/sites-enabled/")
-    run(client, "有轻工前台 8082", "curl -s http://127.0.0.1:8082/ | head -c 80 && echo '--- OK'")
-    run(client, "有轻工管理后台 8081", "curl -s http://127.0.0.1:8081/ | head -c 80 && echo '--- OK'")
+    run(client, "有轻功前台 8082", "curl -s http://127.0.0.1:8082/ | head -c 80 && echo '--- OK'")
+    run(client, "有轻功管理后台 8081", "curl -s http://127.0.0.1:8081/ | head -c 80 && echo '--- OK'")
     run(client, "Mock API 8080", "curl -s http://127.0.0.1:8080/api/landing | head -c 100 && echo '--- OK'")
     run(client, "cyxss.xyz HTTP→HTTPS 重定向",
         "curl -s -o /dev/null -w '%{http_code} -> %{redirect_url}' http://cyxss.xyz/ 2>/dev/null || "
@@ -121,8 +121,8 @@ def main():
 
     print("\n" + "=" * 60)
     print("✅ 修复完成！")
-    print(f"有轻工前台:    http://{HOST}:8082")
-    print(f"有轻工管理后台: http://{HOST}:8081")
+    print(f"有轻功前台:    http://{HOST}:8082")
+    print(f"有轻功管理后台: http://{HOST}:8081")
     print(f"Mock API:      http://{HOST}:8080/api/landing")
     print(f"cyxss.xyz:     https://cyxss.xyz （已恢复）")
     print("=" * 60)

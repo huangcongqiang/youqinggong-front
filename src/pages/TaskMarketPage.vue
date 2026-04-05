@@ -1,5 +1,15 @@
 <template>
   <section class="page-stack task-market-workbench-page office-list-page task-market-workbench-shell" v-if="page">
+    <article v-if="page.requestError" class="result-card stack-sm">
+      <strong>任务广场数据暂时不可用</strong>
+      <p class="muted">{{ page.requestError }}</p>
+    </article>
+
+    <article v-if="taskMarketRestrictionMessage" class="result-card stack-sm">
+      <strong>当前账号还不能申请任务</strong>
+      <p class="muted">{{ taskMarketRestrictionMessage }}</p>
+    </article>
+
     <header class="stack-md task-market-page-header task-market-sticky-header">
       <div class="task-market-page-intro">
         <SectionTitle
@@ -133,19 +143,32 @@
             <span class="soft-pill is-info">{{ activeTaskDetail.companyRating || 'A级' }}</span>
           </div>
 
+          <div class="dashboard-detail-dual task-market-detail-dual task-market-detail-grid">
+            <div class="mini-card stack-sm task-market-detail-card">
+              <h4>{{ activeTaskDetail.matchLabel || '对你适配' }}</h4>
+              <strong class="task-market-detail-highlight">{{ activeTaskDetail.match || '待评估' }}</strong>
+              <p class="muted">{{ activeTaskDetail.matchNote || '系统会结合你的公开技能、评分和任务标签做当前判断。' }}</p>
+            </div>
+            <div class="mini-card stack-sm task-market-detail-card">
+              <h4>当前动作</h4>
+              <strong class="task-market-detail-highlight">{{ activeTaskAction.label || '先看详情' }}</strong>
+              <p class="muted">{{ activeTaskAction.note || '当前还没有可执行动作。' }}</p>
+            </div>
+          </div>
+
           <div class="dashboard-detail-section task-market-detail-section task-market-detail-block">
             <h4>一句话说明</h4>
-            <p class="muted">{{ activeTaskDetail.brief || activeTaskDetail.summary || '待补充' }}</p>
+            <p class="muted">{{ activeTaskDetail.brief || activeTaskDetail.summary || '任务摘要暂未同步' }}</p>
           </div>
 
           <div class="dashboard-detail-dual task-market-detail-dual task-market-detail-grid">
             <div class="mini-card stack-sm task-market-detail-card">
               <h4>风险提示</h4>
-              <p class="muted">{{ activeTaskDetail.risk || '待补充' }}</p>
+              <p class="muted">{{ activeTaskDetail.risk || '当前风险暂未同步' }}</p>
             </div>
             <div class="mini-card stack-sm task-market-detail-card">
               <h4>前提假设</h4>
-              <p class="muted">{{ activeTaskDetail.assumption || '待补充' }}</p>
+              <p class="muted">{{ activeTaskDetail.assumption || '平台判断依据暂未同步' }}</p>
             </div>
           </div>
 
@@ -178,8 +201,20 @@
           </div>
 
           <div class="toolbar task-market-detail-actions task-market-detail-footer">
+            <button
+              class="button-primary"
+              type="button"
+              :disabled="detailActionPending || activeTaskAction.disabled || taskMarketTradingBlocked"
+              @click="handlePrimaryTaskAction"
+            >
+              {{ detailActionPending ? '处理中...' : (activeTaskAction.label || '申请合作') }}
+            </button>
             <router-link class="button-secondary" to="/talent">返回人才工作台</router-link>
           </div>
+
+          <p v-if="taskMarketRestrictionMessage" class="soft-pill is-warning task-market-detail-feedback">{{ taskMarketRestrictionMessage }}</p>
+          <p v-if="detailActionError" class="soft-pill is-danger task-market-detail-feedback">{{ detailActionError }}</p>
+          <p v-else-if="detailActionSuccess" class="soft-pill is-info task-market-detail-feedback">{{ detailActionSuccess }}</p>
         </article>
 
         <article v-else class="mini-card stack-md task-market-detail-placeholder task-market-detail-empty">
@@ -198,13 +233,21 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import MetricCard from '../components/MetricCard.vue';
 import SectionTitle from '../components/SectionTitle.vue';
-import { getTaskMarketplaceData } from '../services/api';
+import { getTaskMarketplaceData, initiateTaskRoom, requestTaskCollaboration } from '../services/api';
+import { useAuthState } from '../stores/auth';
+import { tradingRestrictionMessage } from '../utils/tradingAccess';
+import { roleRouteMap } from '../utils/roleRoutes';
 
 const page = ref(null);
 const activeTaskDetail = ref(null);
 const activeTaskKey = ref(null);
+const detailActionPending = ref(false);
+const detailActionError = ref('');
+const detailActionSuccess = ref('');
+const taskActionStateOverrides = reactive({});
 const selectedFilters = reactive({
   tag: '全部',
   period: '全部',
@@ -212,23 +255,164 @@ const selectedFilters = reactive({
   companyRating: '全部'
 });
 let marketplaceRefreshTimer = null;
+const router = useRouter();
+const authState = useAuthState();
 
 function openTaskDetail(task) {
   activeTaskKey.value = task?.id ?? null;
   activeTaskDetail.value = task?.taskDetail || task || null;
+  clearDetailActionFeedback();
 }
 
 function closeTaskDetail() {
   activeTaskDetail.value = null;
   activeTaskKey.value = null;
+  clearDetailActionFeedback();
 }
 
 function taskJudgmentItems(task = {}) {
   return [
     { label: '预算', value: task.budget || '未填写预算' },
     { label: '工期', value: task.period || '待确认工期' },
-    { label: '匹配', value: task.match || '待计算' }
+    { label: task.matchLabel || '对你适配', value: task.match || '待计算' }
   ];
+}
+
+function deriveTalentTaskActionState(task = {}, overrideState = '') {
+  if (overrideState === 'waiting') {
+    return {
+      type: 'waiting',
+      label: '等待企业确认',
+      note: '申请已提交，正在等待企业确认。',
+      disabled: true
+    };
+  }
+
+  if (overrideState === 'enter_chat') {
+    return {
+      type: 'enter_chat',
+      label: '进入沟通',
+      note: '企业已确认，可以直接进入聊天。',
+      disabled: false
+    };
+  }
+
+  const roomKey = String(task?.roomKey || task?.taskRoom?.roomKey || '').trim();
+  const applicationStatus = String(task?.applicationStatus || task?.action?.status || task?.status || '').trim().toUpperCase();
+  const actionType = String(task?.action?.type || '').trim();
+  const actionLabel = String(task?.action?.label || '').trim();
+  const statusText = String(task?.status || '').trim();
+
+  if (
+    roomKey ||
+    actionType === 'enter_chat' ||
+    applicationStatus === 'SELECTED' ||
+    actionLabel.includes('进入沟通') ||
+    statusText.includes('已确认')
+  ) {
+    return {
+      type: 'enter_chat',
+      label: '进入沟通',
+      note: '企业已确认，可以直接进入聊天。',
+      disabled: false
+    };
+  }
+
+  if (
+    applicationStatus === 'PENDING' ||
+    applicationStatus === 'WAITING' ||
+    actionType === 'waiting' ||
+    actionLabel.includes('等待企业确认') ||
+    statusText.includes('等待企业确认')
+  ) {
+    return {
+      type: 'waiting',
+      label: '等待企业确认',
+      note: '申请已提交，正在等待企业确认。',
+      disabled: true
+    };
+  }
+
+  return {
+    type: 'request',
+    label: '申请合作',
+    note: '先提交合作申请，企业确认后再进入聊天。',
+    disabled: false
+  };
+}
+
+const activeTaskAction = computed(() =>
+  deriveTalentTaskActionState(activeTaskDetail.value || {}, taskActionStateOverrides[activeTaskKey.value] || '')
+);
+const taskMarketRestrictionMessage = computed(() => tradingRestrictionMessage(authState.user, 'talent'));
+const taskMarketTradingBlocked = computed(() => Boolean(taskMarketRestrictionMessage.value));
+
+function clearDetailActionFeedback() {
+  detailActionError.value = '';
+  detailActionSuccess.value = '';
+}
+
+async function enterTaskCommunication(task) {
+  if (taskMarketTradingBlocked.value) {
+    throw new Error(taskMarketRestrictionMessage.value);
+  }
+  const response = await initiateTaskRoom({
+    taskId: task?.id
+  });
+  const roomKey = String(response?.roomKey || response?.taskRoom?.roomKey || response?.room?.roomKey || '').trim();
+  if (response?.requestError || response?.success === false || !roomKey) {
+    throw new Error(response?.requestError || response?.message || response?.nextStep || '当前暂时无法进入沟通，请稍后重试。');
+  }
+  await router.push({
+    path: roleRouteMap.talent.messages,
+    query: {
+      room: roomKey,
+      taskId: task.id,
+      source: 'task-market'
+    }
+  });
+}
+
+async function handlePrimaryTaskAction() {
+  const task = activeTaskDetail.value;
+  const action = activeTaskAction.value;
+  if (!task || !action || action.disabled || taskMarketTradingBlocked.value) {
+    if (taskMarketTradingBlocked.value) {
+      detailActionError.value = taskMarketRestrictionMessage.value;
+    }
+    return;
+  }
+
+  detailActionPending.value = true;
+  clearDetailActionFeedback();
+  try {
+    if (action.type === 'enter_chat') {
+      await enterTaskCommunication(task);
+      return;
+    }
+
+    if (action.type === 'request') {
+      const response = await requestTaskCollaboration(task.id);
+      const requestRoomKey = String(response?.roomKey || response?.taskRoom?.roomKey || response?.room?.roomKey || '').trim();
+      if (response?.requestError || response?.applicationStatus === 'FAILED') {
+        throw new Error(response?.requestError || response?.nextStep || '当前暂时无法提交合作申请，请稍后重试。');
+      }
+      if (response?.applicationStatus === 'SELECTED' || requestRoomKey) {
+        taskActionStateOverrides[task.id] = 'enter_chat';
+        detailActionSuccess.value = response?.nextStep || '企业已确认当前合作，正在进入沟通。';
+        await enterTaskCommunication(task);
+        return;
+      }
+      taskActionStateOverrides[task.id] = 'waiting';
+      detailActionSuccess.value = response?.nextStep || '申请已提交，等待企业确认。';
+      await loadPage();
+      return;
+    }
+  } catch (error) {
+    detailActionError.value = error?.message || '当前暂时无法处理这个动作，请稍后重试。';
+  } finally {
+    detailActionPending.value = false;
+  }
 }
 
 function normalizeOptions(items = [], fallback = ['全部']) {
@@ -417,6 +601,16 @@ watch(filteredItems, () => {
 .task-market-page-header {
   display: grid;
   gap: 8px;
+}
+
+.task-market-detail-highlight {
+  font-size: 28px;
+  line-height: 1;
+  color: rgba(245, 249, 255, 0.98);
+}
+
+.task-market-detail-feedback {
+  align-self: flex-start;
 }
 
 .task-market-decision-strip {

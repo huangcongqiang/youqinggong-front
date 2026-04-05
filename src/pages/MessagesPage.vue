@@ -1,5 +1,12 @@
 <template>
-  <section class="page-stack" v-if="pageReady">
+  <section class="page-stack messages-page" v-if="pageReady">
+    <ActionErrorDialog title="聊天操作暂时失败" :message="composerErrorNote || taskActionError || roomsRequestError" />
+    <article v-if="requiresTaskSelectionForTargetConversation" class="result-card stack-sm">
+      <span class="eyebrow">先选任务</span>
+      <h3>聊天必须绑定 taskId</h3>
+      <p class="muted">请先从任务详情或合作入口选择任务，再进入当前聊天页。系统不会按旧会话自动猜对象。</p>
+    </article>
+
     <section class="message-shell-grid">
       <article class="glass-panel stack-md message-room-panel">
         <div class="message-room-header">
@@ -77,116 +84,78 @@
           </div>
 
           <div class="toolbar message-panel-meta">
-            <span class="soft-pill">{{ roomParticipants.length }} 位协作成员</span>
-            <span class="soft-pill">{{ messageTransportLabel }}</span>
             <router-link
               v-if="messageBackRoute"
               class="button-secondary"
               :to="messageBackRoute"
-            >
-              返回来源
-            </router-link>
-            <button
-              v-if="roomTaskDetail"
-              class="button-secondary"
-              type="button"
-              @click="taskDetailModalOpen = true"
-            >
-              任务详情
-            </button>
-            <button class="button-secondary" type="button" @click="recordModalOpen = true">
-              沟通纪要
-            </button>
+            >返回来源</router-link>
+            <button class="button-secondary message-open-context-button" type="button" @click="contextDrawerOpen = true">任务信息</button>
+            <button class="button-secondary" type="button" @click="recordModalOpen = true">沟通纪要</button>
           </div>
         </div>
 
         <div class="message-thread-shell">
           <div class="message-feed-shell">
             <div ref="conversationFeedRef" class="conversation-feed conversation-feed-tall">
-              <section v-if="taskConfirmation" class="message-task-confirmation stack-sm">
-                <div class="message-task-confirmation-head">
-                  <div class="stack-xs">
-                    <span class="eyebrow">当前确认</span>
-                    <h4>{{ taskConfirmationVersionText }}</h4>
-                    <p class="muted">{{ taskConfirmationUpdatedText }}</p>
+              <section v-if="taskConfirmation" class="message-task-banner">
+                <button type="button" class="message-task-banner-toggle" @click="confirmationCollapsed = !confirmationCollapsed">
+                  <span class="eyebrow">任务确认</span>
+                  <span class="soft-pill" :class="taskConfirmationStatusClass(taskConfirmation.status)" style="min-height:22px;padding:0 8px;font-size:11px;border-radius:6px;">{{ taskConfirmation.status }}</span>
+                  <span class="message-task-banner-title">{{ taskConfirmationVersionText }}</span>
+                  <span class="message-task-banner-chevron">{{ confirmationCollapsed ? '▼' : '▲' }}</span>
+                </button>
+                <div v-if="!confirmationCollapsed" class="message-task-banner-body stack-sm">
+                  <p v-if="taskConfirmationSummaryText" class="muted" style="font-size:12px;">{{ taskConfirmationSummaryText }}</p>
+
+                  <div class="message-task-confirmation-facts message-task-confirmation-facts-desktop">
+                    <article class="message-task-confirmation-fact">
+                      <span class="eyebrow">任务金额</span>
+                      <strong>{{ taskConfirmationBudgetText }}</strong>
+                    </article>
+                    <article class="message-task-confirmation-fact">
+                      <span class="eyebrow">预计工期</span>
+                      <strong>{{ taskConfirmationPeriodText }}</strong>
+                    </article>
+                    <article class="message-task-confirmation-fact">
+                      <span class="eyebrow">协作安排</span>
+                      <strong>{{ taskConfirmationScheduleText }}</strong>
+                    </article>
                   </div>
-                  <div class="toolbar message-task-confirmation-status">
-                    <span class="soft-pill" :class="taskConfirmationStatusClass(taskConfirmation.status)">
-                      {{ taskConfirmation.status }}
+
+                  <div class="toolbar message-task-confirmation-actions">
+                    <button
+                      v-if="audience === 'talent' && taskConfirmation.status !== '已确认'"
+                      class="button-primary"
+                      type="button"
+                      :disabled="isSubmittingTaskAction || messageTradingBlocked"
+                      @click="openTaskActionModal('confirm')"
+                    >确认任务</button>
+                    <button
+                      v-if="audience === 'talent' && taskConfirmation.status !== '已确认'"
+                      class="button-secondary"
+                      type="button"
+                      :disabled="isSubmittingTaskAction || messageTradingBlocked"
+                      @click="openTaskActionModal('request_changes')"
+                    >提出修改</button>
+                    <button
+                      v-if="audience === 'enterprise'"
+                      v-show="canEnterpriseOpenUpdate"
+                      class="button-secondary"
+                      type="button"
+                      :disabled="isSubmittingTaskAction || messageTradingBlocked"
+                      @click="openTaskActionModal('update')"
+                    >{{ enterpriseTaskActionLabel }}</button>
+                    <button
+                      v-if="canWithdrawTaskChange"
+                      class="button-secondary"
+                      type="button"
+                      :disabled="isSubmittingTaskAction || messageTradingBlocked"
+                      @click="openTaskActionModal('withdraw_update')"
+                    >撤回本次变更</button>
+                    <span v-if="enterpriseWaitingTalentConfirm" class="soft-pill is-warning">
+                      {{ taskConfirmationVersionText }}已发出，等待人才确认
                     </span>
                   </div>
-                </div>
-
-                <p v-if="taskConfirmationSummaryText" class="muted message-task-confirmation-summary">
-                  {{ taskConfirmationSummaryText }}
-                </p>
-
-                <div class="message-task-confirmation-facts message-task-confirmation-facts-desktop">
-                  <article class="message-task-confirmation-fact">
-                    <span class="eyebrow">任务金额</span>
-                    <strong>{{ taskConfirmationBudgetText }}</strong>
-                  </article>
-                  <article class="message-task-confirmation-fact">
-                    <span class="eyebrow">预计工期</span>
-                    <strong>{{ taskConfirmationPeriodText }}</strong>
-                  </article>
-                  <article class="message-task-confirmation-fact">
-                    <span class="eyebrow">协作安排</span>
-                    <strong>{{ taskConfirmationScheduleText }}</strong>
-                  </article>
-                </div>
-
-                <div v-if="taskConfirmationFocusNotes.length" class="message-task-confirmation-notes">
-                  <span
-                    v-for="note in taskConfirmationFocusNotes"
-                    :key="note"
-                    class="tag-pill tag-pill-muted"
-                  >
-                    {{ note }}
-                  </span>
-                </div>
-
-                <div class="toolbar message-task-confirmation-actions">
-                  <button
-                    v-if="audience === 'talent' && taskConfirmation.status !== '已确认'"
-                    class="button-primary"
-                    type="button"
-                    :disabled="isSubmittingTaskAction"
-                    @click="openTaskActionModal('confirm')"
-                  >
-                    确认任务
-                  </button>
-                  <button
-                    v-if="audience === 'talent' && taskConfirmation.status !== '已确认'"
-                    class="button-secondary"
-                    type="button"
-                    :disabled="isSubmittingTaskAction"
-                    @click="openTaskActionModal('request_changes')"
-                  >
-                    提出修改
-                  </button>
-                  <button
-                    v-if="audience === 'enterprise'"
-                    class="button-secondary"
-                    type="button"
-                    :disabled="isSubmittingTaskAction"
-                    @click="openTaskActionModal('update')"
-                    v-show="canEnterpriseOpenUpdate"
-                  >
-                    {{ enterpriseTaskActionLabel }}
-                  </button>
-                  <button
-                    v-if="canWithdrawTaskChange"
-                    class="button-secondary"
-                    type="button"
-                    :disabled="isSubmittingTaskAction"
-                    @click="openTaskActionModal('withdraw_update')"
-                  >
-                    撤回本次变更
-                  </button>
-                  <span v-if="enterpriseWaitingTalentConfirm" class="soft-pill is-warning">
-                    {{ taskConfirmationVersionText }}已发出，等待人才确认
-                  </span>
                 </div>
               </section>
 
@@ -262,6 +231,7 @@
             type="file"
             multiple
             accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.zip,.rar,.7z,.fig,.csv"
+            :disabled="messageTradingBlocked"
             @change="handleComposerFilesChange"
           />
 
@@ -276,7 +246,7 @@
                 :key="reply"
                 type="button"
                 class="button-secondary message-quick-reply"
-                :disabled="isSendingMessage"
+                :disabled="isSendingMessage || messageTradingBlocked"
                 @mousedown.prevent
                 @click="handleQuickReply(reply)"
               >
@@ -285,13 +255,14 @@
             </div>
           </div>
 
-          <label class="muted" for="message-text">输入消息</label>
           <textarea
             id="message-text"
             ref="messageInputRef"
             v-model="draftMessage"
             class="textarea message-input"
-            placeholder="例如：这轮我先回传首页结构，支付放到第二阶段。"
+            rows="3"
+            :disabled="messageTradingBlocked"
+            placeholder="输入消息，例如：这轮我先回传首页结构，支付放到第二阶段。"
           ></textarea>
 
           <div v-if="composerAttachments.length" class="message-composer-files">
@@ -312,60 +283,62 @@
             <p>{{ sendStatusText }}</p>
           </div>
 
+          <p v-if="messageTradingRestriction" class="soft-pill is-warning">{{ messageTradingRestriction }}</p>
           <p v-if="composerErrorNote" class="soft-pill is-danger">{{ composerErrorNote }}</p>
 
           <div class="toolbar">
-            <button class="button-secondary" type="button" :disabled="isSendingMessage" @mousedown.prevent @click="openComposerFilePicker">添加附件</button>
-            <button class="button-primary" type="button" :disabled="isSendingMessage" @mousedown.prevent @click="handleSend">{{ sendButtonLabel }}</button>
+            <button class="button-secondary" type="button" :disabled="isSendingMessage || messageTradingBlocked" @mousedown.prevent @click="openComposerFilePicker">添加附件</button>
+            <button class="button-primary" type="button" :disabled="isSendingMessage || messageTradingBlocked" @mousedown.prevent @click="handleSend">{{ sendButtonLabel }}</button>
             <router-link class="button-secondary" :to="primaryRoute">{{ primaryLabel }}</router-link>
           </div>
         </div>
       </article>
 
       <aside v-if="room" class="glass-panel stack-md message-context-panel">
-        <div class="message-context-header">
-          <div>
-            <span class="eyebrow">当前上下文</span>
-            <h3>任务与沟通摘要</h3>
+        <div class="message-context-panel-header">
+          <div class="stack-xs">
+            <span class="eyebrow">任务 / 确认摘要</span>
+            <h3>{{ roomTaskDetail?.title || roomHeaderTitle }}</h3>
+            <p class="muted">{{ roomHeaderSubtitle || '当前会话绑定的任务、记录与确认信息会集中显示在这里。' }}</p>
           </div>
-          <span class="soft-pill">{{ roomTaskDetail?.status || room?.stage || '待处理' }}</span>
+          <span
+            v-if="taskConfirmation"
+            class="soft-pill"
+            :class="taskConfirmationStatusClass(taskConfirmation.status)"
+          >
+            {{ taskConfirmation.status }}
+          </span>
         </div>
 
-        <article class="mini-card stack-sm">
+        <article class="mini-card stack-sm message-context-card">
           <div class="panel-header">
             <div class="stack-xs">
-              <strong>{{ roomTaskDetail?.title || roomHeaderTitle }}</strong>
-              <p class="muted">{{ roomHeaderSubtitle || '进入当前会话后，预算、工期和协作安排会同步到这里。' }}</p>
+              <strong>任务概况</strong>
+              <p class="muted">{{ taskConfirmationSummaryText || roomHeaderSubtitle || '预算、工期和协作安排会跟随当前任务同步。' }}</p>
             </div>
             <button
               v-if="roomTaskDetail"
-              class="button-secondary"
+              class="button-secondary message-context-inline-button"
               type="button"
               @click="taskDetailModalOpen = true"
             >
-              查看详情
+              完整详情
             </button>
           </div>
 
-          <div class="dashboard-preview-list">
-            <div class="dashboard-preview-item">
-              <div class="stack-xs">
-                <strong>任务金额</strong>
-                <p>{{ taskConfirmationBudgetText }}</p>
-              </div>
-            </div>
-            <div class="dashboard-preview-item">
-              <div class="stack-xs">
-                <strong>确认工期</strong>
-                <p>{{ taskConfirmationPeriodText }}</p>
-              </div>
-            </div>
-            <div class="dashboard-preview-item">
-              <div class="stack-xs">
-                <strong>协作安排</strong>
-                <p>{{ taskConfirmationScheduleText }}</p>
-              </div>
-            </div>
+          <div class="message-context-facts">
+            <article class="message-context-fact">
+              <span class="eyebrow">任务金额</span>
+              <strong>{{ taskConfirmationBudgetText }}</strong>
+            </article>
+            <article class="message-context-fact">
+              <span class="eyebrow">确认工期</span>
+              <strong>{{ taskConfirmationPeriodText }}</strong>
+            </article>
+            <article class="message-context-fact">
+              <span class="eyebrow">协作安排</span>
+              <strong>{{ taskConfirmationScheduleText }}</strong>
+            </article>
           </div>
 
           <div v-if="roomTaskDetail?.tags?.length" class="tag-row">
@@ -373,48 +346,43 @@
           </div>
         </article>
 
-        <article v-if="linkedRecord" class="mini-card stack-sm">
+        <article v-if="linkedRecord" class="mini-card stack-sm message-context-card">
           <div class="panel-header">
             <div class="stack-xs">
               <strong>当前记录</strong>
               <p class="muted">{{ linkedRecordSummary }}</p>
             </div>
-            <router-link v-if="recordDetailRoute" class="button-secondary" :to="recordDetailRoute">
+            <router-link
+              v-if="recordDetailRoute"
+              class="button-secondary message-context-inline-button"
+              :to="recordDetailRoute"
+            >
               查看记录
             </router-link>
           </div>
 
-          <div class="dashboard-preview-list">
-            <div class="dashboard-preview-item">
-              <div class="stack-xs">
-                <strong>记录阶段</strong>
-                <p>{{ linkedRecordStage }}</p>
-              </div>
-            </div>
-            <div class="dashboard-preview-item">
-              <div class="stack-xs">
-                <strong>记录金额</strong>
-                <p>{{ linkedRecordAmount }}</p>
-              </div>
-            </div>
-            <div class="dashboard-preview-item">
-              <div class="stack-xs">
-                <strong>{{ audience === 'talent' ? '企业评级' : '我的评级' }}</strong>
-                <p>{{ linkedRecordRating }}</p>
-              </div>
-            </div>
+          <div class="message-context-facts">
+            <article class="message-context-fact">
+              <span class="eyebrow">记录阶段</span>
+              <strong>{{ linkedRecordStage }}</strong>
+            </article>
+            <article class="message-context-fact">
+              <span class="eyebrow">记录金额</span>
+              <strong>{{ linkedRecordAmount }}</strong>
+            </article>
+            <article class="message-context-fact">
+              <span class="eyebrow">{{ audience === 'talent' ? '企业评级' : '我的评级' }}</span>
+              <strong>{{ linkedRecordRating }}</strong>
+            </article>
           </div>
 
-          <div v-if="linkedRecordTags.length" class="tag-row">
-            <span v-for="tag in linkedRecordTags" :key="tag" class="soft-pill">{{ tag }}</span>
-          </div>
-
-          <p v-if="linkedRecordTimelineItem" class="muted">
-            最近留痕：{{ linkedRecordTimelineItem.time || '待同步' }} · {{ linkedRecordTimelineItem.title || linkedRecordTimelineItem.note || '已更新' }}
+          <p v-if="linkedRecordTimelineItem" class="message-context-note">
+            最近留痕：{{ linkedRecordTimelineItem.time || '待同步' }} ·
+            {{ linkedRecordTimelineItem.title || linkedRecordTimelineItem.note || '已更新' }}
           </p>
         </article>
 
-        <article v-if="taskConfirmationChangeReview?.summary" class="mini-card stack-sm">
+        <article v-if="taskConfirmationChangeReview?.summary" class="mini-card stack-sm message-context-card">
           <div class="panel-header">
             <div class="stack-xs">
               <strong>AI 修改建议</strong>
@@ -422,41 +390,45 @@
             </div>
             <span v-if="taskConfirmationChangeReview.status" class="soft-pill">{{ taskConfirmationChangeReview.status }}</span>
           </div>
-          <div class="tag-row" v-if="taskConfirmationChangeReview.recommendedPeriod">
-            <span class="soft-pill">建议工期 {{ taskConfirmationChangeReview.recommendedPeriod }}</span>
-          </div>
-          <ul v-if="listOf(taskConfirmationChangeReview.suggestions).length" class="dashboard-detail-list">
+
+          <ul v-if="listOf(taskConfirmationChangeReview.suggestions).length" class="dashboard-detail-list message-context-list">
             <li v-for="item in listOf(taskConfirmationChangeReview.suggestions).slice(0, 3)" :key="item">{{ item }}</li>
           </ul>
         </article>
 
-        <article class="mini-card stack-sm">
+        <article class="mini-card stack-sm message-context-card">
           <div class="panel-header">
             <div class="stack-xs">
               <strong>沟通纪要</strong>
               <p class="muted">{{ communicationRecord?.summary || communicationRecordSummary }}</p>
             </div>
-            <button class="button-secondary" type="button" @click="recordModalOpen = true">查看纪要</button>
+            <button class="button-secondary message-context-inline-button" type="button" @click="recordModalOpen = true">
+              查看纪要
+            </button>
           </div>
+
           <div class="tag-row">
             <span class="soft-pill">{{ communicationRecord?.status || '未生成' }}</span>
             <span class="soft-pill">{{ communicationRecord?.savedAt || room?.lastTime || '待生成' }}</span>
           </div>
         </article>
 
-        <div class="dashboard-module-actions message-context-actions">
-          <router-link class="button-secondary" :to="workspaceRoute">去协作空间</router-link>
+        <div class="message-context-actions">
+          <router-link class="button-primary" :to="workspaceRoute">进入协作空间</router-link>
           <router-link v-if="canOpenAcceptanceRoute" class="button-secondary" :to="acceptanceRoute">去验收页</router-link>
+          <button class="button-secondary message-open-context-button message-open-context-button--desktop" type="button" @click="contextDrawerOpen = true">
+            打开抽屉视图
+          </button>
           <router-link class="button-secondary" :to="primaryRoute">{{ primaryLabel }}</router-link>
         </div>
       </aside>
 
-      <article v-else class="glass-panel stack-md message-chat-panel message-chat-empty-panel">
+      <article v-if="!room" class="glass-panel stack-md message-chat-panel message-chat-empty-panel">
         <div class="panel-header">
           <div class="stack-sm">
             <span class="eyebrow">聊天</span>
             <h3>还没有聊天房间</h3>
-            <p class="muted">企业发布任务并选中人才后，新的协商房间会出现在这里。现在可以先去发布任务。</p>
+            <p class="muted">请先带上 taskId 选择任务，再进入聊天。系统不会按名字或旧会话猜对象。</p>
           </div>
         </div>
 
@@ -480,6 +452,105 @@
         </div>
       </article>
     </section>
+
+    <!-- Context Drawer -->
+    <Transition name="drawer">
+      <div v-if="contextDrawerOpen && room" class="context-drawer-overlay" @click.self="contextDrawerOpen = false">
+        <aside class="context-drawer glass-panel stack-md">
+          <div class="context-drawer-header">
+            <div>
+              <span class="eyebrow">任务信息</span>
+              <h3>{{ roomTaskDetail?.title || roomHeaderTitle }}</h3>
+            </div>
+            <button type="button" class="button-secondary" style="min-height:32px;padding:0 12px;font-size:12px;" @click="contextDrawerOpen = false">关闭</button>
+          </div>
+
+          <article class="mini-card stack-sm">
+            <div class="panel-header">
+              <div class="stack-xs">
+                <strong>任务概况</strong>
+                <p class="muted">{{ roomHeaderSubtitle || '进入当前会话后，预算、工期和协作安排会同步到这里。' }}</p>
+              </div>
+              <button v-if="roomTaskDetail" class="button-secondary" type="button" style="min-height:32px;padding:0 12px;font-size:12px;" @click="taskDetailModalOpen = true">完整详情</button>
+            </div>
+            <div class="dashboard-preview-list">
+              <div class="dashboard-preview-item">
+                <div class="stack-xs"><strong>任务金额</strong><p>{{ taskConfirmationBudgetText }}</p></div>
+              </div>
+              <div class="dashboard-preview-item">
+                <div class="stack-xs"><strong>确认工期</strong><p>{{ taskConfirmationPeriodText }}</p></div>
+              </div>
+              <div class="dashboard-preview-item">
+                <div class="stack-xs"><strong>协作安排</strong><p>{{ taskConfirmationScheduleText }}</p></div>
+              </div>
+            </div>
+            <div v-if="roomTaskDetail?.tags?.length" class="tag-row">
+              <span v-for="tag in roomTaskDetail.tags.slice(0, 4)" :key="tag" class="soft-pill">{{ tag }}</span>
+            </div>
+          </article>
+
+          <article v-if="linkedRecord" class="mini-card stack-sm">
+            <div class="panel-header">
+              <div class="stack-xs">
+                <strong>当前记录</strong>
+                <p class="muted">{{ linkedRecordSummary }}</p>
+              </div>
+              <router-link v-if="recordDetailRoute" class="button-secondary" style="min-height:32px;padding:0 12px;font-size:12px;" :to="recordDetailRoute">查看记录</router-link>
+            </div>
+            <div class="dashboard-preview-list">
+              <div class="dashboard-preview-item">
+                <div class="stack-xs"><strong>记录阶段</strong><p>{{ linkedRecordStage }}</p></div>
+              </div>
+              <div class="dashboard-preview-item">
+                <div class="stack-xs"><strong>记录金额</strong><p>{{ linkedRecordAmount }}</p></div>
+              </div>
+              <div class="dashboard-preview-item">
+                <div class="stack-xs">
+                  <strong>{{ audience === 'talent' ? '企业评级' : '我的评级' }}</strong>
+                  <p>{{ linkedRecordRating }}</p>
+                </div>
+              </div>
+            </div>
+            <p v-if="linkedRecordTimelineItem" class="muted" style="font-size:12px;">
+              最近留痕：{{ linkedRecordTimelineItem.time || '待同步' }} · {{ linkedRecordTimelineItem.title || linkedRecordTimelineItem.note || '已更新' }}
+            </p>
+          </article>
+
+          <article v-if="taskConfirmationChangeReview?.summary" class="mini-card stack-sm">
+            <div class="panel-header">
+              <div class="stack-xs">
+                <strong>AI 修改建议</strong>
+                <p class="muted">{{ taskConfirmationChangeReview.summary }}</p>
+              </div>
+              <span v-if="taskConfirmationChangeReview.status" class="soft-pill">{{ taskConfirmationChangeReview.status }}</span>
+            </div>
+            <ul v-if="listOf(taskConfirmationChangeReview.suggestions).length" class="dashboard-detail-list">
+              <li v-for="item in listOf(taskConfirmationChangeReview.suggestions).slice(0, 3)" :key="item">{{ item }}</li>
+            </ul>
+          </article>
+
+          <article class="mini-card stack-sm">
+            <div class="panel-header">
+              <div class="stack-xs">
+                <strong>沟通纪要</strong>
+                <p class="muted">{{ communicationRecord?.summary || communicationRecordSummary }}</p>
+              </div>
+              <button class="button-secondary" type="button" style="min-height:32px;padding:0 12px;font-size:12px;" @click="recordModalOpen = true; contextDrawerOpen = false">查看纪要</button>
+            </div>
+            <div class="tag-row">
+              <span class="soft-pill">{{ communicationRecord?.status || '未生成' }}</span>
+              <span class="soft-pill">{{ communicationRecord?.savedAt || room?.lastTime || '待生成' }}</span>
+            </div>
+          </article>
+
+          <div class="dashboard-module-actions message-context-actions">
+            <router-link class="button-secondary" :to="workspaceRoute">去协作空间</router-link>
+            <router-link v-if="canOpenAcceptanceRoute" class="button-secondary" :to="acceptanceRoute">去验收页</router-link>
+            <router-link class="button-secondary" :to="primaryRoute">{{ primaryLabel }}</router-link>
+          </div>
+        </aside>
+      </div>
+    </Transition>
 
     <ChatAttachmentPreviewModal
       :open="Boolean(attachmentPreview)"
@@ -555,6 +626,7 @@
 <script setup>
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ActionErrorDialog from '../components/ActionErrorDialog.vue';
 import {
   getOrderRecordDetail,
   getTaskRoom,
@@ -575,6 +647,7 @@ import {
   subscribeTencentMessages
 } from '../services/tencentIm';
 import {
+  attachmentKindLabel,
   attachmentMetaText,
   buildMessagePayloads,
   calendarStateLabel,
@@ -613,6 +686,8 @@ import {
   resolveImmediateOriginContext
 } from '../utils/objectPageContext.js';
 import { resolveAudience, roleRouteMap } from '../utils/roleRoutes';
+import { useAuthState } from '../stores/auth';
+import { hasTradingAccess, tradingRestrictionMessage } from '../utils/tradingAccess';
 
 const ChatAttachmentPreviewModal = defineAsyncComponent(() => import('../components/chat/ChatAttachmentPreviewModal.vue'));
 const ChatTaskDetailModal = defineAsyncComponent(() => import('../components/chat/ChatTaskDetailModal.vue'));
@@ -622,6 +697,7 @@ const ChatTaskActionModal = defineAsyncComponent(() => import('../components/cha
 
 const route = useRoute();
 const router = useRouter();
+const authState = useAuthState();
 const MOBILE_CHAT_BREAKPOINT = 820;
 let roomLoadToken = 0;
 const roomsLoaded = ref(false);
@@ -629,6 +705,7 @@ const rooms = ref([]);
 const room = ref(null);
 const activeRoomKey = ref('');
 const draftMessage = ref('');
+const roomsRequestError = ref('');
 const conversationFeedRef = ref(null);
 const messageInputRef = ref(null);
 const composerFileInputRef = ref(null);
@@ -636,8 +713,7 @@ const imConfig = ref(null);
 const currentConversationId = ref('');
 const isMobile = ref(false);
 const audience = computed(() => resolveAudience(route));
-const isForcedMockMode = computed(() => route.query.mock === '1');
-const fallbackActor = computed(() => (audience.value === 'talent' ? '陈一宁' : '星河智能'));
+const fallbackActor = computed(() => (audience.value === 'talent' ? '当前人才账号' : '当前企业账号'));
 const runtimeUser = computed(() => imConfig.value?.currentUser || {});
 const communicationRecord = computed(() => (room.value ? room.value.communicationRecord || null : null));
 const visibleMessages = computed(() =>
@@ -651,6 +727,8 @@ const roomParticipants = computed(() => {
   return room.value?.participants || [];
 });
 const pageReady = computed(() => roomsLoaded.value);
+const messageTradingRestriction = computed(() => tradingRestrictionMessage(authState.user, audience.value));
+const messageTradingBlocked = computed(() => !hasTradingAccess(authState.user, audience.value));
 const currentActor = computed(() => runtimeUser.value.displayName || imConfig.value?.displayName || fallbackActor.value);
 const communicationRecordSummary = computed(() => {
   if (communicationRecord.value?.summary) {
@@ -679,13 +757,15 @@ const roomFilterOptions = [
   { value: 'reply', label: '待回复' },
   { value: 'record', label: '纪要待更新' }
 ];
-const draftAuthor = ref('星河智能');
+const draftAuthor = ref('当前企业账号');
 const composerAttachments = ref([]);
 const attachmentPreview = ref(null);
 const recordModalOpen = ref(false);
 const recordConfirmOpen = ref(false);
 const taskActionModalOpen = ref(false);
 const taskDetailModalOpen = ref(false);
+const contextDrawerOpen = ref(false);
+const confirmationCollapsed = ref(true);
 const taskActionError = ref('');
 const taskActionMode = ref('');
 const taskActionForm = ref({
@@ -823,7 +903,7 @@ const acceptanceRoute = computed(() => ({
 const canOpenAcceptanceRoute = computed(() =>
   Boolean(
     roomTaskDetail.value?.taskId &&
-    ['待双方评分闭环', '已提前完成', '已完成评级'].includes(String(roomTaskDetail.value?.status || ''))
+    ['待验收', '待验收与评级', '已提前完成', '已完成评级'].includes(String(roomTaskDetail.value?.status || ''))
   )
 );
 const messageEntryLabel = computed(() => {
@@ -841,6 +921,18 @@ const messageEntryLabel = computed(() => {
   }
   if (messageEntrySource.value === 'workspace') {
     return '协作空间';
+  }
+  if (messageEntrySource.value === 'publish') {
+    return '发布任务';
+  }
+  if (messageEntrySource.value === 'market') {
+    return '人才广场';
+  }
+  if (messageEntrySource.value === 'detail') {
+    return '人才详情';
+  }
+  if (messageEntrySource.value === 'task-market') {
+    return '任务广场';
   }
   if (messageEntrySource.value === 'dashboard-enterprise') {
     return '企业工作台';
@@ -871,6 +963,31 @@ const messageBackRoute = computed(() => {
       query: buildMessageContextQuery(room.value, route.query, {
         source: 'workspace'
       })
+    };
+  }
+
+  if (messageEntrySource.value === 'publish') {
+    return {
+      path: roleRouteMap.enterprise.publish,
+      query: currentTaskId.value ? { taskId: currentTaskId.value } : {}
+    };
+  }
+
+  if (messageEntrySource.value === 'market') {
+    return {
+      path: roleRouteMap.enterprise.market
+    };
+  }
+
+  if (messageEntrySource.value === 'detail') {
+    return targetTalentSlug.value
+      ? { path: roleRouteMap.enterprise.detail(targetTalentSlug.value) }
+      : { path: roleRouteMap.enterprise.market };
+  }
+
+  if (messageEntrySource.value === 'task-market') {
+    return {
+      path: roleRouteMap.talent.market
     };
   }
 
@@ -950,10 +1067,10 @@ const messageTransportLabel = computed(() => {
   if (room.value?.provider === 'Tencent IM') {
     return '消息来源：Tencent IM';
   }
-  if (imConfig.value?.status === 'CONNECT_FAILED' || imConfig.value?.status === 'SEND_FAILED_FALLBACK') {
-    return '消息来源：聊天记录（IM 降级）';
+  if (imConfig.value?.status === 'CONNECT_FAILED' || imConfig.value?.status === 'SEND_FAILED') {
+    return '消息来源：Tencent IM（只读历史）';
   }
-  return '消息来源：聊天记录';
+  return '消息来源：已同步历史消息';
 });
 const linkedRecord = computed(() => recordContext.value?.record || null);
 const linkedRecordStage = computed(() => linkedRecord.value?.stage || linkedRecord.value?.statusGroup || linkedRecord.value?.status || '待同步');
@@ -1004,7 +1121,7 @@ const taskConfirmationVersionText = computed(() => `第 ${taskConfirmation.value
 const roomTaskDetail = computed(() => (room.value?.taskDetail ? room.value.taskDetail : null));
 const taskConfirmationBudgetText = computed(() => roomTaskDetail.value?.budget || taskConfirmation.value?.budget || '未填写预算');
 const taskConfirmationPeriodText = computed(() => taskConfirmation.value?.period || roomTaskDetail.value?.period || '待确认');
-const taskConfirmationScheduleText = computed(() => taskConfirmation.value?.scheduleNote || roomTaskDetail.value?.scheduleNote || '待补充');
+const taskConfirmationScheduleText = computed(() => taskConfirmation.value?.scheduleNote || roomTaskDetail.value?.scheduleNote || '协作安排待确认');
 const taskConfirmationChangeReview = computed(() => taskConfirmation.value?.changeReview || null);
 const roomTalentCalendar = computed(() => room.value?.talentCalendar || roomTaskDetail.value?.calendarPreview || null);
 const roomTalentCalendarHeadline = computed(() => roomTalentCalendar.value?.headline || '');
@@ -1069,6 +1186,12 @@ const targetCounterpartPlatformUserId = computed(() =>
 const targetCounterpartName = computed(() =>
   typeof route.query.counterpartName === 'string' ? route.query.counterpartName.trim() : ''
 );
+const targetTalentSlug = computed(() =>
+  typeof route.query.talentSlug === 'string' ? route.query.talentSlug.trim() : ''
+);
+const requiresTaskSelectionForTargetConversation = computed(
+  () => Boolean(targetCounterpartPlatformUserId.value) && !currentTaskId.value && !activeRoomKey.value
+);
 const roomQuickReplies = computed(() => {
   if (room.value?.quickRepliesByAudience && typeof room.value.quickRepliesByAudience === 'object') {
     return room.value.quickRepliesByAudience[audience.value] || room.value.quickRepliesByAudience.enterprise || [];
@@ -1077,7 +1200,13 @@ const roomQuickReplies = computed(() => {
 });
 const sendButtonLabel = computed(() => {
   if (!isSendingMessage.value) {
+    if (!activeRoomKey.value && targetCounterpartPlatformUserId.value && !currentTaskId.value) {
+      return '请先选择任务';
+    }
     return '发送消息';
+  }
+  if (!activeRoomKey.value && targetCounterpartPlatformUserId.value && !currentTaskId.value) {
+    return '等待选择任务';
   }
   if (!activeRoomKey.value && targetCounterpartPlatformUserId.value) {
     return '正在建立聊天...';
@@ -1091,6 +1220,9 @@ const sendButtonLabel = computed(() => {
   return '消息发送中...';
 });
 const sendStatusText = computed(() => {
+  if (!activeRoomKey.value && targetCounterpartPlatformUserId.value && !currentTaskId.value) {
+    return '请先选择一个任务，再进入与这位人才的聊天。';
+  }
   if (!activeRoomKey.value && targetCounterpartPlatformUserId.value) {
     return '正在建立与当前人才的聊天房间，建立成功后会自动发送这条消息。';
   }
@@ -1633,8 +1765,8 @@ function syncViewportMode() {
   }
 }
 
-function applyMockRoom(baseRoom, runtime, status, extraNotes = []) {
-  const normalizedStatus = status || runtime?.status || 'MOCK_FALLBACK';
+function applyUnavailableRoom(baseRoom, runtime, status, extraNotes = []) {
+  const normalizedStatus = status || runtime?.status || 'UNAVAILABLE';
   const mergedNotes = [...(runtime?.notes || []), ...extraNotes]
     .filter(Boolean)
     .filter((item, index, array) => array.indexOf(item) === index);
@@ -1648,9 +1780,10 @@ function applyMockRoom(baseRoom, runtime, status, extraNotes = []) {
   currentConversationId.value = '';
   room.value = {
     ...baseRoom,
-    provider: '聊天记录',
+    provider: 'Tencent IM',
     taskRoom: baseRoom.taskRoom || runtime?.taskRoom,
-    members: baseRoom.members || runtime?.members || []
+    members: baseRoom.members || runtime?.members || [],
+    messages: Array.isArray(baseRoom?.messages) ? baseRoom.messages : []
   };
 }
 
@@ -1736,16 +1869,17 @@ function buildTargetedEmptyRoom() {
   return buildTargetedEmptyRoomModel({
     targetCounterpartName: targetCounterpartName.value,
     targetCounterpartPlatformUserId: targetCounterpartPlatformUserId.value,
+    targetTaskId: currentTaskId.value,
     matchingRooms: findRoomsForTargetCounterpart()
   });
 }
 
 function findRoomsForTargetCounterpart(items = rooms.value) {
-  return findRoomsForTargetCounterpartInList(items, targetCounterpartPlatformUserId.value);
+  return findRoomsForTargetCounterpartInList(items, targetCounterpartPlatformUserId.value, currentTaskId.value);
 }
 
 function findRoomForTargetCounterpart(items = rooms.value) {
-  return findRoomForTargetCounterpartInList(items, targetCounterpartPlatformUserId.value);
+  return findRoomForTargetCounterpartInList(items, targetCounterpartPlatformUserId.value, currentTaskId.value);
 }
 
 function showTargetedEmptyRoom() {
@@ -1778,15 +1912,26 @@ async function ensureActiveRoomForSend() {
     return activeRoomKey.value;
   }
   if (!targetCounterpartPlatformUserId.value) {
+    composerErrorNote.value = '当前会话还没有明确的沟通对象，请先从任务合作入口进入。';
+    return '';
+  }
+  if (!currentTaskId.value) {
+    composerErrorNote.value = '请先选择一个任务，再进入与这位人才的聊天。';
     return '';
   }
 
   const created = await initiateTaskRoom({
+    taskId: currentTaskId.value,
     counterpartPlatformUserId: targetCounterpartPlatformUserId.value,
     counterpartName: targetCounterpartName.value
   });
+  if (isFailedResult(created)) {
+    composerErrorNote.value = created?.requestError || created?.message || created?.nextStep || '当前暂时无法建立聊天房间，请稍后再试。';
+    return '';
+  }
   const nextRoomKey = typeof created?.roomKey === 'string' ? created.roomKey.trim() : '';
   if (!nextRoomKey) {
+    composerErrorNote.value = '当前暂时无法建立聊天房间，请稍后再试。';
     return '';
   }
 
@@ -1799,6 +1944,10 @@ async function ensureActiveRoomForSend() {
 }
 
 async function handleSend() {
+  if (messageTradingBlocked.value) {
+    composerErrorNote.value = messageTradingRestriction.value;
+    return;
+  }
   const normalizedText = draftMessage.value.trim();
   const localComposerAttachments = composerAttachments.value.slice();
   const attachments = composerAttachmentPayloadValue();
@@ -1839,24 +1988,23 @@ async function handleSend() {
           unreadCount: '0'
         };
       } catch (error) {
-        nextRoom = await persistComposerMessages(normalizedText, uploadedAttachments);
         imConfig.value = {
           ...imConfig.value,
           enabled: false,
-          status: 'SEND_FAILED_FALLBACK',
+          status: 'SEND_FAILED',
           notes: [
-            '腾讯 IM 发送失败，当前已切换为已同步聊天记录视图。',
+            '腾讯 IM 发送失败，当前只保留已同步的历史消息，暂不再接受新消息发送。',
             error?.message ? `失败原因：${error.message}` : '失败原因：请检查腾讯 IM 群组与用户配置。'
           ]
         };
         currentConversationId.value = '';
-        nextRoom = {
-          ...nextRoom,
-          provider: '聊天记录'
-        };
+        composerErrorNote.value = error?.message || '腾讯 IM 发送失败，当前暂时不能继续发送消息。';
+        applyUnavailableRoom(room.value || buildEmptyTaskRoomFallback(ensuredRoomKey), imConfig.value, 'SEND_FAILED');
+        return;
       }
     } else {
-      nextRoom = await persistComposerMessages(normalizedText, uploadedAttachments);
+      composerErrorNote.value = '腾讯 IM 当前不可用，暂不支持继续发送消息。';
+      return;
     }
 
     room.value = nextRoom;
@@ -1876,12 +2024,20 @@ async function handleSend() {
 }
 
 async function handleQuickReply(reply) {
+  if (messageTradingBlocked.value) {
+    composerErrorNote.value = messageTradingRestriction.value;
+    return;
+  }
   draftMessage.value = reply;
   await handleSend();
 }
 
 async function handleGenerateRecord() {
-  if (!activeRoomKey.value || isGeneratingRecord.value) {
+  if (isGeneratingRecord.value) {
+    return;
+  }
+  if (!activeRoomKey.value) {
+    composerErrorNote.value = '当前还没有可用的聊天房间，暂时无法生成沟通纪要。';
     return;
   }
 
@@ -1889,6 +2045,10 @@ async function handleGenerateRecord() {
 
   try {
     const nextRoom = await refreshTaskRoomCommunicationRecord(activeRoomKey.value);
+    if (isFailedResult(nextRoom)) {
+      composerErrorNote.value = nextRoom?.requestError || '当前暂时无法更新沟通纪要，请稍后再试。';
+      return;
+    }
     room.value = {
       ...nextRoom,
       provider: room.value?.provider || nextRoom.provider
@@ -1911,7 +2071,19 @@ async function handleGenerateRecord() {
 }
 
 async function submitTaskAction() {
-  if (!room.value?.taskId || !taskActionMode.value || isSubmittingTaskAction.value) {
+  if (isSubmittingTaskAction.value) {
+    return;
+  }
+  if (messageTradingBlocked.value) {
+    taskActionError.value = messageTradingRestriction.value;
+    return;
+  }
+  if (!room.value?.taskId) {
+    taskActionError.value = '当前任务上下文缺失，暂时无法提交确认动作。';
+    return;
+  }
+  if (!taskActionMode.value) {
+    taskActionError.value = '请先选择一个处理动作，再提交任务确认单。';
     return;
   }
 
@@ -1967,6 +2139,7 @@ async function refreshMessageSurface() {
   }
 
   const payload = await getTaskRooms();
+  roomsRequestError.value = payload?.requestError || '';
   const nextRooms = (payload.items || []).map((item) => enrichCurrentRoomItem(item));
   const previousActiveSummary = rooms.value.find((item) => item.roomKey === activeRoomKey.value) || null;
   rooms.value = nextRooms;
@@ -2069,6 +2242,7 @@ onMounted(async () => {
   });
 
   const payload = await getTaskRooms();
+  roomsRequestError.value = payload?.requestError || '';
   rooms.value = (payload.items || []).map((item) => enrichCurrentRoomItem(item));
   roomsLoaded.value = true;
   await loadRecordContext();
@@ -2084,16 +2258,14 @@ onMounted(async () => {
     } else if (targetCounterpartPlatformUserId.value) {
       showTargetedEmptyRoom();
     } else {
-      const defaultRoom = findDefaultRoom(rooms.value);
-      if (defaultRoom?.roomKey) {
-        await selectRoom(defaultRoom.roomKey, { preserveEntryContext: false });
-      }
+      activeRoomKey.value = '';
+      room.value = null;
+      draftAuthor.value = fallbackActor.value;
+      composerErrorNote.value = '当前任务还没有可用的沟通房间，请先从合作入口进入。';
     }
   } else {
-    const targetedRoom = findRoomForTargetCounterpart(rooms.value);
-    if (targetedRoom?.roomKey) {
-      await selectRoom(targetedRoom.roomKey, { preserveEntryContext: false });
-    } else if (targetCounterpartPlatformUserId.value) {
+    if (targetCounterpartPlatformUserId.value) {
+      composerErrorNote.value = '请先选择一个任务，再进入与这位人才的聊天。';
       showTargetedEmptyRoom();
     } else {
       const defaultRoom = findDefaultRoom(rooms.value);
@@ -2138,6 +2310,11 @@ watch(
         if (taskMatchedRoom.roomKey !== activeRoomKey.value || !room.value) {
           await selectRoom(taskMatchedRoom.roomKey, { preserveEntryContext: true });
         }
+      } else {
+        activeRoomKey.value = '';
+        room.value = null;
+        draftAuthor.value = fallbackActor.value;
+        composerErrorNote.value = '当前任务还没有可用的沟通房间，请先从合作入口进入。';
       }
       return;
     }
@@ -2147,14 +2324,8 @@ watch(
       : '';
 
     if (normalizedCounterpart) {
-      const targetedRoom = findRoomForTargetCounterpart(rooms.value);
-      if (targetedRoom?.roomKey) {
-        if (targetedRoom.roomKey !== activeRoomKey.value) {
-          await selectRoom(targetedRoom.roomKey, { preserveEntryContext: false });
-        }
-      } else {
-        showTargetedEmptyRoom();
-      }
+      composerErrorNote.value = '请先选择一个任务，再进入与这位人才的聊天。';
+      showTargetedEmptyRoom();
       return;
     }
 
@@ -2187,13 +2358,8 @@ async function loadTencentRoom(roomKey, baseRoom, requestToken = roomLoadToken) 
   currentConversationId.value = runtime?.groupId ? `GROUP${runtime.groupId}` : '';
   draftAuthor.value = runtime?.currentUser?.displayName || fallbackActor.value;
 
-  if (isForcedMockMode.value) {
-    applyMockRoom(baseRoom, runtime, 'FORCED_MOCK', ['当前页面正在展示已同步的聊天记录。']);
-    return;
-  }
-
   if (!runtime?.enabled) {
-    applyMockRoom(baseRoom, runtime, runtime?.status || 'MOCK_FALLBACK');
+    applyUnavailableRoom(baseRoom, runtime, runtime?.status || 'UNAVAILABLE');
     return;
   }
 
@@ -2215,10 +2381,492 @@ async function loadTencentRoom(roomKey, baseRoom, requestToken = roomLoadToken) 
     if (!isCurrentRoomRequest(roomKey, requestToken)) {
       return;
     }
-    applyMockRoom(baseRoom, runtime, 'CONNECT_FAILED', [
-      '腾讯 IM 连接失败，当前继续展示已同步的聊天记录。',
+    applyUnavailableRoom(baseRoom, runtime, 'CONNECT_FAILED', [
+      '腾讯 IM 连接失败，当前仅展示已同步的历史消息。',
       error?.message ? `失败原因：${error.message}` : '失败原因：请检查用户签名、群组 ID 和腾讯 IM 控制台配置。'
     ]);
   }
 }
 </script>
+
+<style scoped>
+.messages-page {
+  --workspace-bg: #f3f5f7;
+  --workspace-panel: #ffffff;
+  --workspace-soft: #f7f9fc;
+  --workspace-soft-strong: #eef2f7;
+  --workspace-border: #d8e0ea;
+  --workspace-border-strong: #bfd0e5;
+  --workspace-text: #132238;
+  --workspace-muted: #617287;
+  --workspace-accent: #1662c4;
+  --workspace-accent-soft: #dce9ff;
+  gap: 20px;
+  padding-bottom: 32px;
+  color: var(--workspace-text);
+}
+
+.messages-page :is(.glass-panel, .mini-card, .result-card, .context-drawer, .dashboard-preview-item) {
+  background: var(--workspace-panel);
+  border: 1px solid var(--workspace-border);
+  box-shadow: 0 18px 40px rgba(15, 35, 63, 0.08);
+  backdrop-filter: none;
+}
+
+.messages-page .result-card {
+  border-left: 4px solid var(--workspace-accent);
+}
+
+.messages-page .muted,
+.messages-page .message-system-text,
+.messages-page .message-context-note {
+  color: var(--workspace-muted);
+}
+
+.messages-page .soft-pill {
+  border: 1px solid #d6e0eb;
+  background: #f6f8fb;
+  color: #27415e;
+  box-shadow: none;
+}
+
+.messages-page .soft-pill.is-warning {
+  border-color: #f2d39a;
+  background: #fff6e1;
+  color: #8a5b00;
+}
+
+.messages-page .soft-pill.is-danger {
+  border-color: #f0b6b6;
+  background: #fff1f1;
+  color: #9f2f2f;
+}
+
+.messages-page .soft-pill.is-info {
+  border-color: #bad0f6;
+  background: #eef4ff;
+  color: #2357a6;
+}
+
+.messages-page :is(.button-primary, .button-secondary) {
+  min-height: 42px;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.messages-page .button-primary {
+  background: #1662c4;
+  border-color: #1662c4;
+}
+
+.messages-page .button-secondary {
+  border-color: var(--workspace-border-strong);
+  background: #ffffff;
+  color: var(--workspace-text);
+}
+
+.message-shell-grid {
+  display: grid;
+  grid-template-columns: 296px minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+.message-room-panel,
+.message-chat-panel,
+.message-context-panel {
+  border-radius: 24px;
+}
+
+.message-room-panel,
+.message-context-panel {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+
+.message-room-panel {
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+.message-room-header,
+.message-chat-header,
+.message-context-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.message-room-header h3,
+.message-chat-header h3,
+.message-context-panel-header h3 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.message-room-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--workspace-soft);
+  border: 1px solid var(--workspace-border);
+  color: var(--workspace-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.room-search-input,
+.message-input {
+  border-radius: 14px;
+  border: 1px solid var(--workspace-border);
+  background: #fff;
+  color: var(--workspace-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.room-filter-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.room-filter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1px solid var(--workspace-border);
+  background: var(--workspace-soft);
+  color: var(--workspace-muted);
+}
+
+.room-filter-button.is-active-tab {
+  border-color: #aac3ea;
+  background: #eaf2ff;
+  color: #174c9b;
+}
+
+.room-filter-button em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.message-room-list {
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.room-card-button {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--workspace-border);
+  background: linear-gradient(180deg, #ffffff, #f9fbfd);
+  text-align: left;
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.room-card-button:hover,
+.room-card-button.is-active {
+  border-color: #9fc0ee;
+  box-shadow: 0 12px 28px rgba(22, 59, 111, 0.09);
+  transform: translateY(-1px);
+}
+
+.room-card-title,
+.message-context-fact strong {
+  margin: 0;
+  color: var(--workspace-text);
+}
+
+.room-card-subtitle,
+.room-card-last-message,
+.room-card-meta {
+  margin: 0;
+}
+
+.message-chat-panel {
+  min-width: 0;
+  min-height: calc(100vh - 120px);
+}
+
+.message-thread-shell,
+.message-feed-shell {
+  min-height: 0;
+}
+
+.message-feed-shell {
+  border-radius: 22px;
+  background: linear-gradient(180deg, #fbfcfe, #f3f7fb);
+  border: 1px solid var(--workspace-border);
+}
+
+.conversation-feed {
+  padding: 18px;
+}
+
+.message-task-banner {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--workspace-border);
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.message-task-banner-toggle {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.message-task-banner-title {
+  min-width: 0;
+  font-weight: 700;
+}
+
+.message-task-banner-body {
+  margin-top: 12px;
+}
+
+.message-task-confirmation-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.message-task-confirmation-fact,
+.message-context-fact {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--workspace-soft);
+  border: 1px solid var(--workspace-border);
+}
+
+.message-row {
+  gap: 12px;
+}
+
+.message-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid var(--workspace-border);
+  background: #ebf1f8;
+  color: #1c476d;
+  font-weight: 700;
+}
+
+.message-bubble {
+  border-radius: 18px;
+  border: 1px solid var(--workspace-border);
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(15, 35, 63, 0.06);
+}
+
+.message-bubble.is-self {
+  border-color: #1662c4;
+  background: linear-gradient(180deg, #1f70d7, #145cb4);
+  color: #ffffff;
+}
+
+.message-bubble.is-self .message-text {
+  color: inherit;
+}
+
+.message-meta-line {
+  color: var(--workspace-muted);
+}
+
+.message-meta-line.is-self {
+  color: #6f86a8;
+}
+
+.message-system-time {
+  color: #8091a6;
+}
+
+.message-attachment-card {
+  border-radius: 14px;
+  border: 1px solid var(--workspace-border);
+  background: var(--workspace-soft);
+}
+
+.message-composer {
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid var(--workspace-border);
+}
+
+.message-composer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.message-composer-head h4 {
+  margin: 0;
+}
+
+.message-composer-files,
+.message-quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.message-composer-file-chip {
+  display: inline-grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--workspace-border);
+  background: var(--workspace-soft);
+  color: var(--workspace-text);
+}
+
+.message-send-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f4f8fd;
+  border: 1px solid var(--workspace-border);
+}
+
+.message-context-panel {
+  min-height: calc(100vh - 120px);
+}
+
+.message-context-panel-header {
+  align-items: flex-start;
+}
+
+.message-context-card {
+  gap: 14px;
+}
+
+.message-context-inline-button {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.message-context-facts {
+  display: grid;
+  gap: 10px;
+}
+
+.message-context-list {
+  margin: 0;
+}
+
+.message-context-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.message-open-context-button {
+  display: none;
+}
+
+.message-open-context-button--desktop {
+  display: inline-flex;
+}
+
+.message-context-actions :is(.button-primary, .button-secondary) {
+  justify-content: center;
+}
+
+.context-drawer-overlay {
+  background: rgba(18, 28, 44, 0.32);
+}
+
+.context-drawer {
+  background: #ffffff;
+}
+
+@media (max-width: 1220px) {
+  .message-shell-grid {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .message-context-panel {
+    display: none;
+  }
+
+  .message-open-context-button {
+    display: inline-flex;
+  }
+
+  .message-open-context-button--desktop {
+    display: none;
+  }
+}
+
+@media (max-width: 920px) {
+  .message-shell-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .message-room-panel,
+  .message-chat-panel {
+    position: static;
+    max-height: none;
+    min-height: 0;
+  }
+
+  .message-chat-panel {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .messages-page {
+    gap: 16px;
+  }
+
+  .message-room-header,
+  .message-chat-header,
+  .message-task-banner-toggle {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .message-task-confirmation-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .room-filter-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .conversation-feed {
+    padding: 14px;
+  }
+}
+</style>

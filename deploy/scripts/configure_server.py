@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-有轻工 服务器配置脚本 - 配置 Nginx 并启动 Mock API
+有轻功 服务器配置脚本 - 配置 Nginx 并启动 Mock API
 Usage: python3 deploy/scripts/configure_server.py
 """
 import paramiko, os
@@ -90,7 +90,7 @@ def write_remote_file(sftp, remote_path, content):
 
 def main():
     print("=" * 60)
-    print("有轻工 服务器配置脚本")
+    print("有轻功 服务器配置脚本")
     print("=" * 60)
 
     client = connect()

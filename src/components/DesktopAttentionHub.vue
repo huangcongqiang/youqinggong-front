@@ -56,7 +56,7 @@
         >
           <div class="stack-xs">
             <strong>{{ item.label }}</strong>
-            <p class="muted">{{ item.note || '待补充处理入口' }}</p>
+            <p class="muted">{{ item.note || '处理入口即将开放' }}</p>
           </div>
           <span class="desktop-attention-hub__count">{{ item.count || 0 }}</span>
         </div>

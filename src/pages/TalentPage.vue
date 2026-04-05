@@ -1,5 +1,10 @@
 <template>
   <section class="page-stack dashboard-page" v-if="page">
+    <article v-if="page.requestError" class="result-card stack-sm">
+      <strong>工作台数据暂时不可用</strong>
+      <p class="muted">{{ page.requestError }}</p>
+    </article>
+
     <section class="dashboard-cockpit-grid" :class="{ 'is-single': !showOverviewRail }">
       <DesktopAttentionHub
         :eyebrow="dashboardHubEyebrow"
@@ -33,6 +38,82 @@
           </article>
         </div>
       </article>
+    </section>
+
+    <section class="glass-panel dashboard-wallet-panel stack-md">
+      <div class="panel-header">
+        <div>
+          <span class="eyebrow">钱包中心</span>
+          <h3>收入与提现</h3>
+        </div>
+        <div class="toolbar">
+          <router-link v-if="claimableRoute" class="button-secondary" :to="claimableRoute">去发起请款</router-link>
+          <button class="button-secondary" type="button" @click="openWithdrawalSheet">申请提现</button>
+        </div>
+      </div>
+
+      <div class="dashboard-wallet-kpis">
+        <article v-for="item in walletSummaryCards" :key="item.label" class="dashboard-wallet-kpi">
+          <span class="dashboard-wallet-kpi__label">{{ item.label }}</span>
+          <strong class="dashboard-wallet-kpi__value">{{ item.value }}</strong>
+          <p class="dashboard-wallet-kpi__note muted">{{ item.note }}</p>
+        </article>
+      </div>
+
+      <article v-if="claimableRecords.length || hasPendingIncome" class="result-card stack-sm dashboard-wallet-claimable-card">
+        <span class="eyebrow">{{ claimableRecords.length ? '待请款' : '待入账' }}</span>
+        <h3>{{ walletPendingTitle }}</h3>
+        <p class="muted">{{ walletPendingNote }}</p>
+
+        <div v-if="claimableRecords.length" class="dashboard-wallet-claimable-list">
+          <article v-for="item in claimableRecords" :key="item.id" class="dashboard-wallet-row">
+            <div class="dashboard-wallet-row__copy">
+              <strong>{{ item.title }}</strong>
+              <p class="muted">{{ item.meta }}</p>
+            </div>
+            <div class="dashboard-wallet-row__aside">
+              <strong>{{ item.amount }}</strong>
+              <router-link class="button-secondary" :to="item.route">去发起请款</router-link>
+            </div>
+          </article>
+        </div>
+      </article>
+
+      <div class="dashboard-wallet-columns">
+        <section class="dashboard-wallet-column">
+          <div class="dashboard-wallet-column__header">
+            <span class="eyebrow">最近收入</span>
+          </div>
+          <article v-for="item in recentIncome" :key="item.id" class="dashboard-wallet-row">
+            <div class="dashboard-wallet-row__copy">
+              <strong>{{ item.title }}</strong>
+              <p class="muted">{{ item.meta }}</p>
+            </div>
+            <div class="dashboard-wallet-row__aside">
+              <strong>{{ item.amount }}</strong>
+              <span class="muted">{{ item.time }}</span>
+            </div>
+          </article>
+          <p v-if="!recentIncome.length" class="muted dashboard-wallet-empty">暂无最近收入记录。</p>
+        </section>
+
+        <section class="dashboard-wallet-column">
+          <div class="dashboard-wallet-column__header">
+            <span class="eyebrow">提现记录</span>
+          </div>
+          <article v-for="item in recentWithdrawals" :key="item.id" class="dashboard-wallet-row">
+            <div class="dashboard-wallet-row__copy">
+              <strong>{{ item.title }}</strong>
+              <p class="muted">{{ item.meta }}</p>
+            </div>
+            <div class="dashboard-wallet-row__aside">
+              <strong>{{ item.amount }}</strong>
+              <span class="muted">{{ item.time }}</span>
+            </div>
+          </article>
+          <p v-if="!recentWithdrawals.length" class="muted dashboard-wallet-empty">暂无提现记录。</p>
+        </section>
+      </div>
     </section>
 
     <LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />
@@ -109,6 +190,94 @@
         </div>
       </article>
     </div>
+
+    <div v-if="withdrawalSheetOpen" class="dashboard-detail-modal" @click.self="closeWithdrawalSheet">
+      <article class="dashboard-detail-card stack-md" role="dialog" aria-modal="true">
+        <div class="panel-header">
+          <div>
+            <span class="eyebrow">提现申请</span>
+            <h3>提交提现申请</h3>
+          </div>
+          <button class="button-secondary" type="button" @click="closeWithdrawalSheet">关闭</button>
+        </div>
+
+        <p class="muted">填写收款方式与账户信息后提交，平台审核通过后会进入人工打款处理。</p>
+
+        <form class="stack-md" @submit.prevent="submitWithdrawal">
+          <label class="stack-xs">
+            <span class="dashboard-wallet-form__label">提现金额</span>
+            <input
+              v-model="withdrawalForm.amount"
+              class="dashboard-wallet-form__input"
+              type="number"
+              min="0"
+              step="0.01"
+              inputmode="decimal"
+              placeholder="请输入提现金额"
+            >
+          </label>
+
+          <label class="stack-xs">
+            <span class="dashboard-wallet-form__label">收款方式</span>
+            <select v-model="withdrawalForm.payoutChannel" class="dashboard-wallet-form__input">
+              <option value="BANK_TRANSFER">银行卡</option>
+              <option value="ALIPAY">支付宝</option>
+              <option value="WECHAT">微信收款</option>
+            </select>
+          </label>
+
+          <label class="stack-xs">
+            <span class="dashboard-wallet-form__label">收款人姓名</span>
+            <input
+              v-model="withdrawalForm.accountName"
+              class="dashboard-wallet-form__input"
+              type="text"
+              placeholder="请输入收款人姓名"
+            >
+          </label>
+
+          <label class="stack-xs">
+            <span class="dashboard-wallet-form__label">收款账号</span>
+            <input
+              v-model="withdrawalForm.accountNo"
+              class="dashboard-wallet-form__input"
+              type="text"
+              inputmode="text"
+              placeholder="请输入银行卡号 / 支付宝账号 / 微信号"
+            >
+          </label>
+
+          <label v-if="withdrawalForm.payoutChannel === 'BANK_TRANSFER'" class="stack-xs">
+            <span class="dashboard-wallet-form__label">开户行</span>
+            <input
+              v-model="withdrawalForm.bankName"
+              class="dashboard-wallet-form__input"
+              type="text"
+              placeholder="请输入开户行名称"
+            >
+          </label>
+
+          <label class="stack-xs">
+            <span class="dashboard-wallet-form__label">备注</span>
+          <textarea
+            v-model="withdrawalForm.note"
+            class="dashboard-wallet-form__textarea"
+            rows="3"
+            placeholder="选填，说明提现用途或备注"
+          ></textarea>
+          </label>
+
+          <p v-if="withdrawalError" class="dashboard-wallet-form__error">{{ withdrawalError }}</p>
+
+          <div class="dashboard-module-actions">
+            <button class="button-primary" type="submit" :disabled="withdrawalSubmitting">
+              {{ withdrawalSubmitting ? '提交中...' : '提交申请' }}
+            </button>
+            <button class="button-secondary" type="button" @click="closeWithdrawalSheet">取消</button>
+          </div>
+        </form>
+      </article>
+    </div>
   </section>
 </template>
 
@@ -116,7 +285,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import DesktopAttentionHub from '../components/DesktopAttentionHub.vue';
 import LiveSyncStatusBar from '../components/LiveSyncStatusBar.vue';
-import { getTalentData } from '../services/api';
+import { createWithdrawalRequest, getTalentData } from '../services/api';
 import { startBusinessLiveSync } from '../services/businessEventStream';
 import { roleRouteMap } from '../utils/roleRoutes';
 import { buildCenterEntryRoute, pickPreferredAttentionItem } from '../utils/attentionNavigation';
@@ -142,9 +311,225 @@ function listOf(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function textOf(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return '';
+}
+
+function moneyText(value, fallback = '¥0') {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+
+  const normalized = Number(value);
+  if (Number.isFinite(normalized)) {
+    return `¥${normalized.toLocaleString('zh-CN')}`;
+  }
+
+  return fallback;
+}
+
+function timeText(value) {
+  if (!value) {
+    return '待同步';
+  }
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return date.toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  return textOf(value, '待同步');
+}
+
+const walletSummary = computed(() => page.value?.walletSummary || {});
+const walletSummaryCards = computed(() => [
+  {
+    label: '已入账',
+    value: moneyText(walletSummary.value.totalEarned),
+    note: '已经完成结算并进入钱包'
+  },
+  {
+    label: '待入账',
+    value: moneyText(walletSummary.value.pendingIncome),
+    note: '已完成但还没进入钱包的金额'
+  },
+  {
+    label: '可提现',
+    value: moneyText(walletSummary.value.availableToWithdraw),
+    note: '可以直接发起申请'
+  },
+  {
+    label: '提现中',
+    value: moneyText(walletSummary.value.frozenAmount),
+    note: '正在处理中的金额'
+  },
+  {
+    label: '已提现',
+    value: moneyText(walletSummary.value.withdrawnAmount),
+    note: '历史已完成打款金额'
+  }
+]);
+const hasPendingIncome = computed(() => moneyNumber(walletSummary.value.pendingIncomeValue, walletSummary.value.pendingIncome) > 0);
+const claimableRecords = computed(() =>
+  listOf(walletSummary.value.claimableRecords).map((item, index) => {
+    const taskId = textOf(item?.taskId, item?.recordId, '');
+    return {
+      id: textOf(item?.taskId, item?.incomeId, item?.id, `claimable-${index}`),
+      title: textOf(item?.title, '待请款任务'),
+      meta: textOf(item?.note, item?.status, '企业已完成验收和评级，当前可以发起请款。'),
+      amount: moneyText(item?.amount ?? item?.amountValue),
+      route: buildAcceptanceRoute({
+        taskId,
+        recordId: taskId,
+        source: 'wallet'
+      })
+    };
+  })
+);
+const claimableRoute = computed(() => claimableRecords.value[0]?.route || null);
+const walletPendingTitle = computed(() => {
+  if (claimableRecords.value.length) {
+    return `有 ${claimableRecords.value.length} 笔已完成收入待请款`;
+  }
+  return '当前有金额正在等待入账';
+});
+const walletPendingNote = computed(() =>
+  textOf(walletSummary.value.withdrawHint, hasPendingIncome.value ? '当前有金额处于审批、对账或结算阶段。' : '')
+);
+const recentIncome = computed(() =>
+  listOf(walletSummary.value.recentIncome).map((item, index) => ({
+    id: textOf(item?.incomeId, item?.id, `income-${index}`),
+    title: textOf(item?.title, item?.source, item?.projectName, '收入明细'),
+    meta: textOf(item?.status, item?.note, item?.category, '收入记录'),
+    amount: moneyText(item?.amount ?? item?.value ?? item?.income),
+    time: timeText(item?.earnedAt ?? item?.createdAt ?? item?.date)
+  }))
+);
+const recentWithdrawals = computed(() => {
+  const source = listOf(page.value?.withdrawals).length ? page.value?.withdrawals : walletSummary.value.withdrawals;
+  return listOf(source).map((item, index) => ({
+    id: textOf(item?.withdrawalId, item?.id, `withdrawal-${index}`),
+    title: textOf(item?.status, '提现申请'),
+    meta: textOf(item?.note, item?.requestedAt, '提现记录'),
+    amount: moneyText(item?.amount),
+    time: timeText(item?.requestedAt)
+  }));
+});
+const withdrawalSheetOpen = ref(false);
+const withdrawalSubmitting = ref(false);
+const withdrawalError = ref('');
+const withdrawalForm = ref({
+  amount: '',
+  payoutChannel: 'BANK_TRANSFER',
+  accountName: '',
+  accountNo: '',
+  bankName: '',
+  note: ''
+});
+
+function moneyNumber(...values) {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const normalized = Number(value.replace(/[￥¥,\s]/g, ''));
+      if (Number.isFinite(normalized)) {
+        return normalized;
+      }
+    }
+  }
+  return NaN;
+}
+
+function openWithdrawalSheet() {
+  const availableAmount = textOf(walletSummary.value.availableToWithdrawValue, walletSummary.value.availableToWithdraw);
+  withdrawalError.value = '';
+  withdrawalForm.value = {
+    amount: availableAmount || '',
+    payoutChannel: 'BANK_TRANSFER',
+    accountName: textOf(page.value?.hero?.name) || '',
+    accountNo: '',
+    bankName: '',
+    note: ''
+  };
+  withdrawalSheetOpen.value = true;
+}
+
+function closeWithdrawalSheet() {
+  withdrawalSheetOpen.value = false;
+  withdrawalError.value = '';
+}
+
+async function submitWithdrawal() {
+  const amount = Number(withdrawalForm.value.amount);
+  const available = moneyNumber(walletSummary.value.availableToWithdrawValue, walletSummary.value.availableToWithdraw);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    withdrawalError.value = '请输入有效的提现金额。';
+    return;
+  }
+  if (!textOf(withdrawalForm.value.accountName)) {
+    withdrawalError.value = '请填写收款人姓名。';
+    return;
+  }
+  if (!textOf(withdrawalForm.value.accountNo)) {
+    withdrawalError.value = '请填写收款账号。';
+    return;
+  }
+  if (withdrawalForm.value.payoutChannel === 'BANK_TRANSFER' && !textOf(withdrawalForm.value.bankName)) {
+    withdrawalError.value = '银行卡提现需要填写开户行。';
+    return;
+  }
+
+  if (Number.isFinite(available) && available > 0 && amount > available) {
+    withdrawalError.value = '提现金额不能超过可提现余额。';
+    return;
+  }
+
+  withdrawalSubmitting.value = true;
+  withdrawalError.value = '';
+
+  try {
+    const result = await createWithdrawalRequest({
+      amount,
+      payoutChannel: textOf(withdrawalForm.value.payoutChannel, 'BANK_TRANSFER'),
+      accountName: textOf(withdrawalForm.value.accountName),
+      accountNo: textOf(withdrawalForm.value.accountNo),
+      bankName: textOf(withdrawalForm.value.bankName),
+      note: textOf(withdrawalForm.value.note)
+    });
+
+    if (result?.requestError || result?.success === false || result?.status === 'FAILED') {
+      withdrawalError.value = textOf(result?.requestError, result?.message, '提现申请提交失败，请稍后再试。');
+      return;
+    }
+
+    closeWithdrawalSheet();
+    await loadPage();
+  } catch (error) {
+    withdrawalError.value = textOf(error?.message, '提现申请提交失败，请稍后再试。');
+  } finally {
+    withdrawalSubmitting.value = false;
+  }
+}
+
 function joinText(value, separator = ' / ') {
   const items = listOf(value).filter(Boolean);
-  return items.length ? items.join(separator) : '标签待补充';
+  return items.length ? items.join(separator) : '暂未设置标签';
 }
 
 function stringValue(value) {
@@ -297,6 +682,11 @@ function buildRecordRoute(...sources) {
   }
 
   return buildRoute(roleRouteMap.talent.records, context);
+}
+
+function buildAcceptanceRoute(...sources) {
+  const context = mergeRouteContext(...sources);
+  return buildRoute(roleRouteMap.talent.acceptance, context, ['taskId', 'recordId', 'room', 'source']);
 }
 
 function buildModuleRoute(moduleId, ...sources) {
@@ -586,3 +976,120 @@ onBeforeUnmount(() => {
   }
 });
 </script>
+
+<style scoped>
+.dashboard-wallet-panel {
+  padding: 18px;
+}
+
+.dashboard-wallet-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-wallet-kpi {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 190, 255, 0.14);
+  background: rgba(10, 18, 34, 0.78);
+}
+
+.dashboard-wallet-kpi__label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dashboard-wallet-kpi__value {
+  display: block;
+  margin-top: 6px;
+  font-size: 22px;
+  color: var(--text-strong);
+}
+
+.dashboard-wallet-kpi__note {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.dashboard-wallet-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-wallet-column {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 190, 255, 0.12);
+  background: rgba(8, 14, 26, 0.72);
+}
+
+.dashboard-wallet-column__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-wallet-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 190, 255, 0.08);
+  background: rgba(10, 18, 34, 0.66);
+}
+
+.dashboard-wallet-row__copy,
+.dashboard-wallet-row__aside {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-wallet-row__aside {
+  text-align: right;
+  min-width: 110px;
+}
+
+.dashboard-wallet-empty {
+  margin: 0;
+}
+
+.dashboard-wallet-form__label {
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.dashboard-wallet-form__input,
+.dashboard-wallet-form__textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(120, 190, 255, 0.14);
+  background: rgba(8, 15, 28, 0.72);
+  color: var(--text-strong);
+  padding: 11px 12px;
+  outline: none;
+}
+
+.dashboard-wallet-form__textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+
+.dashboard-wallet-form__error {
+  margin: 0;
+  color: #ffb4b4;
+}
+
+@media (max-width: 1080px) {
+  .dashboard-wallet-kpis,
+  .dashboard-wallet-columns {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
