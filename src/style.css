@@ -2270,26 +2270,7 @@ button:disabled {
   background: rgba(10, 22, 44, 0.52);
 }
 
-.acceptance-celebration-card {
-  background:
-    radial-gradient(circle at top right, rgba(255, 216, 102, 0.22), transparent 42%),
-    linear-gradient(180deg, rgba(22, 42, 86, 0.92), rgba(10, 22, 44, 0.92));
-  border-color: rgba(255, 216, 102, 0.26);
-}
 
-.acceptance-grade-card.is-selected,
-.acceptance-grade-card.is-current {
-  border-color: rgba(76, 201, 255, 0.32);
-  box-shadow: inset 0 0 0 1px rgba(76, 201, 255, 0.12);
-}
-
-.workspace-object-verdict .muted,
-.workspace-focus-actions-card .muted,
-.workspace-focus-next .muted,
-.acceptance-hero-verdict .muted,
-.acceptance-current-result .muted {
-  margin: 0;
-}
 
 .workspace-command-node-fact .muted,
 .workspace-command-context-item .muted {
@@ -2314,54 +2295,7 @@ button:disabled {
   color: var(--text-strong);
 }
 
-.acceptance-page {
-  max-width: 1320px;
-}
 
-.acceptance-hero {
-  gap: 18px;
-}
-
-.acceptance-hero-copy {
-  min-width: 0;
-}
-
-.acceptance-hero-copy .dashboard-lead {
-  max-width: 760px;
-  margin-bottom: 0;
-}
-
-.acceptance-hero-actions {
-  gap: 10px;
-}
-
-.acceptance-form-shell {
-  padding: 18px 20px;
-  border-radius: 24px;
-  border: 1px solid rgba(121, 155, 255, 0.1);
-  background: rgba(10, 18, 32, 0.54);
-}
-
-.acceptance-section-header h3,
-.acceptance-section-header h4 {
-  margin: 8px 0 0;
-}
-
-.acceptance-status-card .muted,
-.acceptance-signal-card .muted,
-.acceptance-timeline-item .muted {
-  margin: 0;
-}
-
-.acceptance-status-card .muted {
-  color: var(--text-faint);
-  font-size: 12px;
-}
-
-.acceptance-ai-panel .muted,
-.acceptance-feedback-panel .muted {
-  margin: 0;
-}
 
 .office-list-overview .section-title-description,
 .office-list-overview .muted {
@@ -2763,7 +2697,10 @@ button:disabled {
 .app-shell--workspace .dashboard-wallet-panel,
 .app-shell--workspace .dashboard-secondary-strip,
 .app-shell--workspace .dashboard-module-card,
-.app-shell--workspace .dashboard-overview-rail {
+.app-shell--workspace .dashboard-overview-rail,
+.app-shell--workspace .mini-card,
+.app-shell--workspace .result-card,
+.app-shell--workspace .list-card {
   background: #fffef8;
   border: 1px solid rgba(18, 18, 18, 0.08);
   box-shadow: 0 16px 34px rgba(18, 18, 18, 0.05);
@@ -2961,7 +2898,10 @@ body {
 .app-shell--workspace .dashboard-overview-rail,
 .app-shell--workspace .message-room-panel,
 .app-shell--workspace .message-chat-panel,
-.app-shell--workspace .message-context-panel {
+.app-shell--workspace .message-context-panel,
+.app-shell--workspace .mini-card,
+.app-shell--workspace .result-card,
+.app-shell--workspace .list-card {
   background: #fffef8;
   border-color: rgba(35, 51, 29, 0.08);
   box-shadow: 0 16px 34px rgba(35, 51, 29, 0.06);

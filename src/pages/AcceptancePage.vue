@@ -1648,6 +1648,10 @@ onBeforeUnmount(() => {
   color: var(--acceptance-text);
 }
 
+.acceptance-page :is(textarea, select, input)::placeholder {
+  color: #8c9b8e;
+}
+
 .acceptance-page textarea {
   min-height: 124px;
   resize: vertical;
@@ -1729,6 +1733,9 @@ onBeforeUnmount(() => {
 
 .acceptance-grid-cards {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
 .acceptance-summary-grid {
@@ -1743,13 +1750,43 @@ onBeforeUnmount(() => {
 .acceptance-option-card,
 .acceptance-summary-card,
 .acceptance-finance-card {
-  border-radius: 20px;
-  background: var(--acceptance-soft);
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid var(--acceptance-border);
+}
+
+.acceptance-option-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.acceptance-option-card .panel-header {
+  margin-bottom: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.acceptance-option-card h4 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+
+.acceptance-option-card .muted {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.acceptance-option-card .soft-pill {
+  align-self: flex-start;
+  min-height: 26px;
+  font-size: 11px;
 }
 
 .acceptance-option-card.is-selected {
   border-color: var(--acceptance-accent);
   box-shadow: 0 0 0 1px rgba(16, 138, 0, 0.1);
+  background: #f0f7ef;
 }
 
 .acceptance-finance-card.is-highlighted {
@@ -1814,7 +1851,9 @@ onBeforeUnmount(() => {
 
 .acceptance-celebration-card {
   border-radius: 24px;
+  border-left-color: #108a00;
   border-left-width: 4px;
+  background: linear-gradient(135deg, rgba(239, 247, 238, 0.9), rgba(255, 255, 255, 0.96));
 }
 
 .acceptance-lock-card {
@@ -1889,5 +1928,33 @@ onBeforeUnmount(() => {
   background: #fcfcf8;
   box-shadow: none;
   border: 1px solid rgba(17, 24, 39, 0.08);
+}
+.acceptance-form-shell {
+  padding: 18px 20px;
+  border-radius: 24px;
+  border: 1px solid var(--acceptance-border);
+  background: var(--acceptance-soft);
+}
+.acceptance-section-header {
+  margin-bottom: 0;
+}
+
+.acceptance-section-header h3,
+.acceptance-section-header h4 {
+  margin: 8px 0 0;
+}
+.acceptance-hero-copy .dashboard-lead {
+  max-width: 760px;
+  margin-bottom: 0;
+}
+.acceptance-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.acceptance-form-actions .button-primary {
+  min-width: 140px;
 }
 </style>
