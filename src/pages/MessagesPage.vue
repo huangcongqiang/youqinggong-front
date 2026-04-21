@@ -864,7 +864,7 @@ function normalizeDisplayAttachment(source, fallbackKey = 'attachment') {
   const inferredKind = inferAttachmentKind(type, name)
   const kind = rawKind && !['attachment', 'file', 'other'].includes(rawKind.toLowerCase()) ? rawKind : inferredKind
   const href = resolveAttachmentHref(rawAttachmentHref(source))
-  const previewUrl = resolveAttachmentHref(source?.previewUrl || (['image', 'video'].includes(kind) ? href : ''))
+  const previewUrl = resolveAttachmentHref(source?.previewUrl || (kind === 'image' ? href : ''))
   return {
     key: String(source?.id || source?.uploadId || `${fallbackKey}-${name}`),
     id: String(source?.id || source?.uploadId || ''),
@@ -891,45 +891,16 @@ function attachmentDownloadHref(attachment) {
   )
 }
 
-function canPreviewAttachment(attachment) {
-  return ['image', 'video'].includes(String(attachment?.kind || '').toLowerCase()) && Boolean(attachment?.previewUrl || attachmentDownloadHref(attachment))
-}
-
 function handleAttachmentOpen(attachment, event = null) {
   event?.preventDefault?.()
   event?.stopPropagation?.()
   const href = attachmentDownloadHref(attachment)
-  if (!href) {
-    errorMessage.value = '当前附件暂时没有可用的预览或下载地址。'
-    return
-  }
   const normalizedAttachment = normalizeDisplayAttachment({ ...attachment, downloadUrl: href }, attachment?.key || 'attachment')
-  if (canPreviewAttachment(normalizedAttachment)) {
-    previewAttachment.value = {
-      ...normalizedAttachment,
-      previewUrl: normalizedAttachment.previewUrl || href,
-      downloadUrl: href,
-    }
-    return
+  previewAttachment.value = {
+    ...normalizedAttachment,
+    previewUrl: normalizedAttachment.kind === 'image' ? (normalizedAttachment.previewUrl || href) : '',
+    downloadUrl: href,
   }
-  openAttachmentUrl(normalizedAttachment)
-}
-
-function openAttachmentUrl(attachment) {
-  const href = attachmentDownloadHref(attachment)
-  if (!href) return
-  if (typeof window !== 'undefined' && typeof window.open === 'function') {
-    const opened = window.open(href, '_blank', 'noopener,noreferrer')
-    if (opened) return
-  }
-  if (typeof document === 'undefined') return
-  const link = document.createElement('a')
-  link.href = href
-  link.target = '_blank'
-  link.rel = 'noreferrer'
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
 }
 
 function clear助手DraftQuery() {

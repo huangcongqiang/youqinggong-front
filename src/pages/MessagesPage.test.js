@@ -7,6 +7,7 @@ function assert(condition, message) {
 }
 
 const source = fs.readFileSync(new URL('./MessagesPage.vue', import.meta.url), 'utf8');
+const attachmentModalSource = fs.readFileSync(new URL('../components/chat/ChatAttachmentPreviewModal.vue', import.meta.url), 'utf8');
 
 assert(
   source.includes('isSelfMessage as baseIsSelfMessage'),
@@ -42,14 +43,24 @@ assert(
     && source.includes("source?.href ||")
     && source.includes("source?.fileUrl ||")
     && source.includes("source?.path ||")
-    && source.includes('function openAttachmentUrl(attachment)')
-    && source.includes("window.open(href, '_blank', 'noopener,noreferrer')")
+    && source.includes('previewAttachment.value = {')
+    && source.includes("previewUrl: normalizedAttachment.kind === 'image' ? (normalizedAttachment.previewUrl || href) : ''")
+    && !source.includes('function openAttachmentUrl(attachment)')
+    && !source.includes("window.open(href, '_blank', 'noopener,noreferrer')")
     && !source.includes(':href="attachment.href"'),
-  'MessagesPage should open attachments through explicit preview/download handling instead of a raw placeholder link.'
+  'MessagesPage should open every attachment in the preview modal instead of directly opening raw links.'
 );
 
 assert(
   source.includes("kind: inferAttachmentKind(type, name)")
     && source.includes("!['attachment', 'file', 'other'].includes(rawKind.toLowerCase()) ? rawKind : inferredKind"),
   'MessagesPage should infer image/video attachment kinds instead of preserving generic file kinds.'
+);
+
+assert(
+  attachmentModalSource.includes("attachment.kind === 'image' && attachment.previewUrl")
+    && !attachmentModalSource.includes("attachment.kind === 'video'")
+    && attachmentModalSource.includes('当前文件类型不支持在线预览，请点击上方“下载附件”后查看。')
+    && attachmentModalSource.includes('当前附件暂时没有可用下载地址，请稍后再试。'),
+  'ChatAttachmentPreviewModal should preview only images and keep non-image files download-only.'
 );

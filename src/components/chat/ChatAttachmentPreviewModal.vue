@@ -29,16 +29,10 @@
         class="message-attachment-preview-image"
       />
 
-      <video
-        v-else-if="attachment.kind === 'video' && attachment.previewUrl"
-        :src="attachment.previewUrl"
-        class="message-attachment-preview-video"
-        controls
-      ></video>
-
       <div v-else class="message-attachment-preview-empty">
         <strong>{{ attachment.name }}</strong>
-        <p class="muted">当前文件类型暂不支持在线预览，可以直接下载后查看。</p>
+        <p v-if="attachmentDownloadHref(attachment)" class="muted">当前文件类型不支持在线预览，请点击上方“下载附件”后查看。</p>
+        <p v-else class="muted">当前附件暂时没有可用下载地址，请稍后再试。</p>
       </div>
     </article>
   </div>
