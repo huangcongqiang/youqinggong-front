@@ -1751,6 +1751,11 @@ export function updateTaskConfirmation(taskId, payload) {
 }
 
 export function submitTaskProgress(taskId, payload) {
+  const attachmentFiles = Array.isArray(payload.attachmentFiles) ? payload.attachmentFiles : [];
+  const fileReferences = normalizeProgressFileReferences(
+    Array.isArray(payload.files) && payload.files.length ? payload.files : attachmentFiles
+  );
+
   return writeJson(
     `/tasks/${taskId}/progress`,
     {
@@ -1759,10 +1764,8 @@ export function submitTaskProgress(taskId, payload) {
       progressText: payload.progressText,
       supportNeeded: payload.supportNeeded,
       completionPercent: String(payload.completionPercent),
-      attachmentFiles: Array.isArray(payload.attachmentFiles) ? payload.attachmentFiles : [],
-      attachmentNames: Array.isArray(payload.attachmentFiles)
-        ? payload.attachmentFiles.map((item) => item.name).filter(Boolean)
-        : [],
+      attachmentFiles,
+      attachmentNames: attachmentFiles.map((item) => item.name).filter(Boolean),
       status: 'FAILED',
       nextStep: '当前暂时无法提交进度，请稍后再试。',
       aiSuggestions: [],
@@ -1774,10 +1777,27 @@ export function submitTaskProgress(taskId, payload) {
       progressText: payload.progressText,
       supportNeeded: payload.supportNeeded,
       completionPercent: payload.completionPercent,
-      files: Array.isArray(payload.files) ? payload.files : [],
-      attachmentFiles: Array.isArray(payload.attachmentFiles) ? payload.attachmentFiles : []
+      files: fileReferences,
+      attachmentFiles
     }
   );
+}
+
+function normalizeProgressFileReferences(files) {
+  if (!Array.isArray(files)) {
+    return [];
+  }
+  return files
+    .map((file) => {
+      if (typeof file === 'string') {
+        return file.trim();
+      }
+      if (!file || typeof file !== 'object') {
+        return '';
+      }
+      return String(file.url || file.downloadUrl || file.downloadHref || file.href || file.name || '').trim();
+    })
+    .filter(Boolean);
 }
 
 export function submitWorkspaceFeedback(taskId, payload) {

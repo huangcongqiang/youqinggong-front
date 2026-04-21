@@ -1073,15 +1073,16 @@ async function submitProgressForm() {
       uploadedFiles.push(normalizeAttachment(uploaded, file))
     }
 
-    await submitTaskProgress(currentTaskId.value, {
+    const result = await submitTaskProgress(currentTaskId.value, {
       stage: progressForm.stageName.trim() || targetNode?.title || '',
       milestoneId: milestoneSubmissionId(targetNode),
       progressText: progressForm.progressSummary.trim(),
       supportNeeded: progressForm.supportNeeded,
       completionPercent: percent,
-      files: uploadedFiles,
+      files: uploadedFiles.map(progressFileReference).filter(Boolean),
       attachmentFiles: uploadedFiles,
     })
+    ensureProgressSubmitted(result)
 
     resetProgressForm()
     showComposer.value = false
@@ -1093,6 +1094,22 @@ async function submitProgressForm() {
   } finally {
     submittingProgress.value = false
   }
+}
+
+function progressFileReference(file) {
+  return String(file?.url || file?.downloadUrl || file?.downloadHref || file?.href || file?.name || '').trim()
+}
+
+function ensureProgressSubmitted(result) {
+  const failed = Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED' || result?.actionBlocked)
+  if (!failed) return
+  throw new Error(
+    result?.requestError
+    || result?.actionMessage
+    || result?.message
+    || result?.nextStep
+    || '当前暂时无法提交这条进展。'
+  )
 }
 
 async function submitFeedbackForm() {

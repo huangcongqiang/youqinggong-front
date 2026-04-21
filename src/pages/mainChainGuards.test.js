@@ -23,6 +23,7 @@ const taskLifecycleServiceSource = fs.readFileSync(
 );
 const liveSyncSource = fs.readFileSync(new URL('../components/LiveSyncStatusBar.vue', import.meta.url), 'utf8');
 const businessSource = readSource('BusinessPage.vue');
+const workspaceSource = readSource('WorkspacePage.vue');
 const talentMarketSource = readSource('TalentMarketPage.vue');
 const recruitingSource = readSource('RecruitingPage.vue');
 
@@ -69,6 +70,16 @@ assert(
     && uploadWorkflowSource.includes('上传文件过大，请压缩后再试（单个文件建议不超过 200MB）。')
     && uploadWorkflowSource.includes('error?.status === 413'),
   'Onboarding should upload materials through the standalone upload workflow, enforce the talent skill-count guard locally, submit url strings in materials plus metadata objects in materialFiles, and translate oversized upload failures into a clear Chinese message.'
+);
+
+assert(
+  workspaceSource.includes('files: uploadedFiles.map(progressFileReference).filter(Boolean)')
+    && workspaceSource.includes('attachmentFiles: uploadedFiles')
+    && workspaceSource.includes('ensureProgressSubmitted(result)')
+    && workspaceSource.includes("result?.actionMessage")
+    && apiSource.includes('function normalizeProgressFileReferences(files)')
+    && apiSource.includes('files: fileReferences'),
+  'Workspace progress submit should send legacy files as string references, send rich metadata through attachmentFiles, and keep the dialog open with a visible error when the mutation is rejected.'
 );
 
 const publishSource = readSource('PublishTaskPage.vue');
