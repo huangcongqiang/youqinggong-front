@@ -1,5 +1,8 @@
 import assert from 'assert';
 import { buildRecordDetailViewModel } from './recordDetailViewModel.js';
+import { setUiLocale } from '../utils/uiLocale.js';
+
+setUiLocale('zh');
 
 const sampleRecord = {
   id: 'record-001',
@@ -11,7 +14,7 @@ const sampleRecord = {
   myGrade: 'S',
   stage: '进行中',
   counterpartName: '林昭',
-  notes: ['当前已经进入二次提审。'],
+  notes: ['合作方：林昭', '当前已经进入二次提审。'],
   progressFeed: [{ stage: '交互收尾', summary: '最新进展已提交。' }],
   aiReviewHistory: [{ summary: 'AI 认为当前交付质量稳定。' }],
   reviews: [{ content: '企业已给出正向评价。' }],
@@ -29,7 +32,8 @@ const sampleRecord = {
 };
 
 const detail = buildRecordDetailViewModel(sampleRecord, {
-  fallbackLead: '记录详情回退文案'
+  fallbackLead: '记录详情回退文案',
+  audience: 'talent'
 });
 
 assert.strictEqual(detail.anchor.recordId, 'record-001');
@@ -40,8 +44,21 @@ assert.strictEqual(detail.dateRangeLabel, '03.10 - 03.19');
 assert.strictEqual(detail.ratingValue, 'S 级');
 assert.strictEqual(detail.stageLabel, '进行中');
 assert.strictEqual(detail.partnerName, '林昭');
-assert.strictEqual(detail.keyResults.length, 5);
-assert.strictEqual(detail.keyResults[4].label, '争议处理');
+assert.strictEqual(detail.keyResults[0].text, '企业方：林昭');
+assert.strictEqual(detail.keyResults.length, 6);
+assert.strictEqual(detail.keyResults[5].label, '争议处理');
+
+const applicationStageDetail = buildRecordDetailViewModel({
+  ...sampleRecord,
+  roomKey: '',
+  statusKey: 'MATCHING',
+  stage: '匹配人才'
+}, {
+  fallbackLead: '记录详情回退文案',
+  audience: 'talent'
+});
+
+assert.strictEqual(applicationStageDetail.keyResults[0].text, '发布方：林昭');
 assert.strictEqual(detail.assetFiles[0].downloadHref, 'https://example.com/a.png');
 
 const emptyDetail = buildRecordDetailViewModel(null, {

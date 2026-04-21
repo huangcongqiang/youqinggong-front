@@ -1,64 +1,47 @@
 <template>
   <section
     v-if="page"
-    class="page-stack notification-center-page desktop-center-page"
+    class="page-stack notification-center-page desktop-center-page notification-message-page"
     :class="{ 'is-zero-state': isZeroState }"
   >
     <article v-if="page.requestError" class="result-card stack-sm">
-      <strong>通知数据暂时不可用</strong>
+      <strong>当前待办暂时不可用</strong>
       <p class="muted">{{ page.requestError }}</p>
     </article>
 
-    <DesktopNotificationSummaryCard
-      class="desktop-center-summary"
-      :eyebrow="summaryEyebrow"
-      :title="summaryTitle"
-      :description="summaryDescription"
-      total-label="当前待处理"
-      :total-value="totalAttentionValue"
-      :total-note="summaryTotalNote"
-      :stats="summaryStats"
-      :highlights="summaryHighlights"
-      highlight-title="当前要点"
-      :primary-action="{ label: selectedPrimaryLabel, to: selectedPrimaryRoute }"
-      @primary-action="goTo(selectedPrimaryRoute)"
-    />
+    <article class="glass-panel notification-message-header stack-sm">
+      <span class="eyebrow">通知中心</span>
+      <h1>查看公告、任务提醒与账号提醒。</h1>
+      <p class="muted">通知里只保留消息提醒，不承担处理工作台角色。每条通知都能直接跳到对应页面继续处理。</p>
+    </article>
 
     <LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />
 
-    <section class="notification-center-workbench desktop-center-workbench">
-      <aside class="glass-panel notification-center-sidebar desktop-center-sidebar stack-md">
-        <div class="desktop-center-sidebar__head">
-          <h3>{{ isZeroState ? '分组' : '分组处理' }}</h3>
-        </div>
-
-        <div class="notification-center-group-list desktop-center-group-list">
-          <button
-            v-for="group in groupItems"
-            :key="group.key"
-            type="button"
-            class="notification-center-group desktop-center-group"
-            :class="{ 'is-active': activeGroup === group.key }"
-            @click="setActiveGroup(group.key)"
-          >
-            <div class="stack-xs">
-              <strong>{{ group.label }}</strong>
-            </div>
-            <span class="notification-center-group__count desktop-center-group__count">{{ group.count }}</span>
-          </button>
-        </div>
-      </aside>
+    <section class="glass-panel notification-message-stream stack-md">
+      <div class="notification-message-filters">
+        <button
+          v-for="group in groupItems"
+          :key="group.key"
+          type="button"
+          class="notification-message-filter"
+          :class="{ 'is-active': activeGroup === group.key }"
+          @click="setActiveGroup(group.key)"
+        >
+          <strong>{{ group.label }}</strong>
+          <span>{{ group.count }}</span>
+        </button>
+      </div>
 
       <DesktopNotificationList
-        class="desktop-center-list"
-        eyebrow="通知事项"
+        class="desktop-center-list notification-message-list"
+        eyebrow="消息流"
         :title="listTitle"
         :description="listDescription"
         :items="filteredItems"
         :empty-title="listEmptyTitle"
         :empty-description="listEmptyDescription"
         :show-refresh="true"
-        refresh-label="刷新列表"
+        :refresh-label="refreshLabel"
         footer-note=""
         :footer-actions="footerActions"
         @refresh="loadPage"
@@ -67,91 +50,47 @@
         @footer-action="handleFooterAction"
       />
 
-      <article class="glass-panel notification-center-context desktop-center-context stack-md">
-          <div v-if="selectedItem" class="stack-md">
-            <div class="stack-xs desktop-center-context__summary">
-              <span class="eyebrow">当前摘要</span>
-              <h3>{{ selectedItem.title }}</h3>
-              <p class="muted">{{ selectedItem.summary }}</p>
+      <article
+        v-if="selectedItem && selectedItem.groupKey === 'tasks' && !selectedRecruitingInvite"
+        class="notification-message-helper stack-sm"
+      >
+        <span class="eyebrow">任务提醒</span>
+        <strong>{{ selectedItem.title }}</strong>
+        <p class="muted">{{ selectedItem.summary }}</p>
+        <p class="muted">涉及招聘申请时，这里只负责提醒你“有申请来了”；真正处理申请请回工作台里的 `招聘申请` 入口。当前没有独立面试节点时，确认合作后会自动开启聊天。</p>
+      </article>
+
+      <article
+        v-if="selectedRecruitingInvite"
+        class="notification-message-helper notification-message-helper--invite stack-sm"
+      >
+        <span class="eyebrow">面试邀约</span>
+        <strong>{{ selectedRecruitingInviteDetails.taskName }}</strong>
+        <p class="muted">{{ selectedRecruitingInviteDetails.companyName }}</p>
+        <div class="notification-message-invite-grid">
+          <div>
+            <span class="eyebrow">面试时间</span>
+            <strong>{{ selectedRecruitingInviteDetails.interviewTime }}</strong>
           </div>
-
-          <div class="notification-center-context__meta desktop-center-context__meta">
-            <span class="soft-pill">{{ selectedItem.groupLabel }}</span>
-            <span class="soft-pill">{{ selectedItem.countLabel }}</span>
-            <span v-if="selectedItem.status" class="soft-pill">{{ selectedItem.status }}</span>
+          <div>
+            <span class="eyebrow">腾讯会议号</span>
+            <strong>{{ selectedRecruitingInviteDetails.meetingCode }}</strong>
           </div>
-
-          <section class="notification-center-context__section desktop-center-context__section stack-sm">
-            <div class="stack-xs">
-              <span class="eyebrow">动作</span>
-            </div>
-            <div class="notification-center-context__actions desktop-center-context__actions">
-              <button
-                v-for="action in selectedContextActions"
-                :key="action.key"
-                type="button"
-                :class="action.tone === 'primary' ? 'button-primary' : 'button-secondary'"
-                @click="goTo(action.to)"
-              >
-                {{ action.label }}
-              </button>
-            </div>
-          </section>
-
-          <section class="notification-center-context__section desktop-center-context__section stack-sm">
-            <div class="stack-xs">
-              <span class="eyebrow">要点</span>
-            </div>
-            <ul class="notification-center-context__list desktop-center-context__list">
-              <li v-for="item in selectedItem.highlights" :key="`${selectedItem.id}-${item.label}`">
-                <strong>{{ item.label }}</strong>
-                <span>{{ item.value }}</span>
-              </li>
-            </ul>
-          </section>
-
-          <section class="notification-center-context__section desktop-center-context__section stack-sm">
-            <div class="stack-xs">
-              <span class="eyebrow">留痕</span>
-            </div>
-            <ul class="notification-center-context__list desktop-center-context__list">
-              <li v-for="item in selectedItem.related" :key="`${selectedItem.id}-${item.label}-${item.value}`">
-                <strong>{{ item.label }}</strong>
-                <span>{{ item.value }}</span>
-              </li>
-            </ul>
-          </section>
-        </div>
-
-        <div
-          v-else
-          class="notification-center-context__empty desktop-center-context__empty stack-sm"
-          :class="{ 'is-zero': isZeroState && !selectedItemMissing }"
-        >
-          <strong>{{ selectedItemMissing ? '当前通知已处理或暂不可用' : '当前没有待处理通知' }}</strong>
-          <p class="muted">
-            {{
-              selectedItemMissing
-                ? '请重新选择事项，或切换分组后继续处理。'
-                : '新的高优先级事项会自动汇总到这里。'
-            }}
-          </p>
-          <div v-if="selectedItemMissing" class="notification-center-context__actions desktop-center-context__actions">
-            <button
-              v-for="action in invalidRecoveryActions"
-              :key="action.key"
-              type="button"
-              :class="action.tone === 'primary' ? 'button-primary' : 'button-secondary'"
-              @click="goTo(action.to)"
-            >
-              {{ action.label }}
-            </button>
+          <div>
+            <span class="eyebrow">备注</span>
+            <strong>{{ selectedRecruitingInviteDetails.note }}</strong>
           </div>
         </div>
-        <article v-if="navigationFeedback" class="result-card stack-sm">
+        <p class="muted">这里显示的是人才侧收到的面试邀约提醒。你可以先在这里确认信息，再决定同意面试或拒绝面试。</p>
+        <div class="toolbar toolbar--wrap notification-message-invite-actions">
+          <button type="button" class="button-primary" @click="handleRecruitingInterviewDecision('ACCEPT')">同意面试</button>
+          <button type="button" class="button-secondary" @click="handleRecruitingInterviewDecision('REJECT')">拒绝面试</button>
+        </div>
+      </article>
+
+      <article v-if="navigationFeedback" class="result-card stack-sm">
           <strong>{{ navigationFeedback.title }}</strong>
           <p class="muted">{{ navigationFeedback.message }}</p>
-        </article>
       </article>
     </section>
   </section>
@@ -165,7 +104,7 @@ import DesktopNotificationList from '../components/notifications/DesktopNotifica
 import DesktopNotificationSummaryCard from '../components/notifications/DesktopNotificationSummaryCard.vue';
 import { getBusinessData, getTalentData } from '../services/api';
 import { startBusinessLiveSync } from '../services/businessEventStream';
-import { buildCurrentObjectContextActions } from '../utils/attentionNavigation';
+import { buildSettlementRoute } from './settlementHelpers.js';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
@@ -188,7 +127,7 @@ function handleLiveSyncStatus(snapshot) {
 }
 
 function handleLiveSyncError() {
-  liveSyncError.value = '最近一次实时同步出现波动，页面会自动重连或切到轮询。';
+  liveSyncError.value = isApprovalCenter.value ? '审批同步暂时中断，页面会自动重连。' : '通知同步暂时中断，页面会自动重连。';
 }
 
 const audience = computed(() => (route.meta?.audience === 'talent' ? 'talent' : 'enterprise'));
@@ -203,13 +142,10 @@ const hasNotificationGroupsContract = computed(
 );
 
 const groupMeta = {
-  all: { label: '全部', note: '看所有高优先级事项。' },
-  confirmations: { label: '待确认', note: '先确认版本和边界。' },
-  changes: { label: '待修改', note: '处理范围和补充说明。' },
-  matching: { label: '发布与选人', note: '先看候选人和当前轮选择。' },
-  reviews: { label: '待验收 / 评级', note: '先处理验收、评级和结算前动作。' },
-  cancellations: { label: '待取消', note: '双方确认的取消事项。' },
-  followup: { label: '待回看', note: '回到聊天或记录继续处理。' }
+  all: { label: '全部', note: '查看全部通知。' },
+  announcements: { label: '公告', note: '查看系统公告、维护提醒和平台更新。' },
+  tasks: { label: '任务', note: '查看任务、招聘申请、面试邀约和进度提醒。' },
+  account: { label: '账号', note: '查看账号资料、审核和权限提醒。' }
 };
 
 function listOf(value) {
@@ -224,6 +160,16 @@ function textOf(value, fallback = '') {
     return String(value);
   }
   return fallback;
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    const text = textOf(value);
+    if (text) {
+      return text;
+    }
+  }
+  return '';
 }
 
 function numberOf(value) {
@@ -278,6 +224,24 @@ function routeQueryOf(routeLike) {
   return {};
 }
 
+function routePathOf(routeLike) {
+  if (!routeLike) {
+    return '';
+  }
+
+  if (typeof routeLike === 'string') {
+    return routeLike.split('?')[0];
+  }
+
+  return String(routeLike.path || '').split('?')[0];
+}
+
+function routesSharePath(firstRoute, secondRoute) {
+  const firstPath = routePathOf(firstRoute);
+  const secondPath = routePathOf(secondRoute);
+  return Boolean(firstPath && secondPath && firstPath === secondPath);
+}
+
 function normalizeGroupKey(value) {
   const text = textOf(value).toLowerCase();
   if (!text) {
@@ -286,25 +250,30 @@ function normalizeGroupKey(value) {
   if (text.includes('all') || text.includes('全部')) {
     return 'all';
   }
-  if (text.includes('confirm') || text.includes('确认')) {
-    return 'confirmations';
+  if (
+    text.includes('announcement')
+    || text.includes('notice')
+    || text.includes('system')
+    || text.includes('公告')
+    || text.includes('维护')
+    || text.includes('更新')
+  ) {
+    return 'announcements';
   }
-  if (text.includes('change') || text.includes('修改')) {
-    return 'changes';
+  if (
+    text.includes('account')
+    || text.includes('profile')
+    || text.includes('setting')
+    || text.includes('approval')
+    || text.includes('账号')
+    || text.includes('资料')
+    || text.includes('设置')
+    || text.includes('审核')
+    || text.includes('权限')
+  ) {
+    return 'account';
   }
-  if (text.includes('selection') || text.includes('match') || text.includes('选人') || text.includes('发布')) {
-    return 'matching';
-  }
-  if (text.includes('grade') || text.includes('review') || text.includes('验收') || text.includes('评级')) {
-    return 'reviews';
-  }
-  if (text.includes('cancel') || text.includes('取消')) {
-    return 'cancellations';
-  }
-  if (text.includes('follow') || text.includes('chat') || text.includes('message') || text.includes('回看')) {
-    return 'followup';
-  }
-  return '';
+  return 'tasks';
 }
 
 function syncGroupFromRoute() {
@@ -330,26 +299,258 @@ function setActiveGroup(groupKey) {
 }
 
 function notificationGroupMeta(key) {
-  return groupMeta[key] || groupMeta.followup;
+  return groupMeta[key] || groupMeta.tasks;
 }
 
-function notificationRouteSource(key) {
+function recruitingIntentText(item = {}) {
+  return [
+    textOf(item?.source),
+    textOf(item?.originSource),
+    textOf(item?.surface),
+    textOf(item?.originSurface),
+    textOf(item?.kind),
+    textOf(item?.type),
+    textOf(item?.title),
+    textOf(item?.label),
+    textOf(item?.summary),
+    textOf(item?.description),
+    textOf(item?.note),
+    textOf(item?.contextDescription)
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function isRecruitingMessage(item = {}) {
+  return /招聘|申请|邀约|面试|interview|invite|application|apply|meeting|腾讯会议/.test(recruitingIntentText(item));
+}
+
+function hasRecruitingInviteFields(item = {}) {
+  return Boolean(
+    recruitingInviteTime(item)
+    || recruitingInviteMeetingCode(item)
+  );
+}
+
+function entryValueByLabel(entries = [], labels = []) {
+  const matched = listOf(entries).find((entry) => {
+    const labelText = textOf(entry?.label).toLowerCase();
+    return labels.some((label) => labelText.includes(String(label).toLowerCase()));
+  });
+  return textOf(matched?.value);
+}
+
+function recruitingInviteTime(item = {}) {
+  return firstText(
+    item?.interviewAt,
+    item?.interviewTime,
+    item?.meetingTime,
+    item?.appointmentTime,
+    item?.time,
+    item?.scheduleTime,
+    item?.currentInvite?.interviewAt,
+    item?.currentInvite?.time,
+    entryValueByLabel(item?.highlights, ['面试时间']),
+    entryValueByLabel(item?.related, ['面试时间'])
+  );
+}
+
+function recruitingInviteMeetingCode(item = {}) {
+  return firstText(
+    item?.meetingCode,
+    item?.tencentMeetingCode,
+    item?.meetingNumber,
+    item?.meetingNo,
+    item?.roomCode,
+    item?.currentInvite?.meetingCode,
+    item?.currentInvite?.meetingNumber,
+    entryValueByLabel(item?.highlights, ['腾讯会议号', '会议号']),
+    entryValueByLabel(item?.related, ['腾讯会议号', '会议号'])
+  );
+}
+
+function recruitingInviteCompanyName(item = {}) {
+  return firstText(
+    item?.companyName,
+    item?.organizationName,
+    item?.enterpriseName,
+    item?.businessName,
+    item?.partner,
+    item?.counterpartName,
+    item?.currentInvite?.invitedByName,
+    entryValueByLabel(item?.highlights, ['企业']),
+    entryValueByLabel(item?.related, ['企业'])
+  );
+}
+
+function talentRecruitingNotificationRoute(context = {}) {
+  const query = {
+    source: 'recruiting',
+    group: 'tasks',
+    ...(textOf(context.itemId) ? { itemId: textOf(context.itemId) } : {}),
+    ...(textOf(context.taskId) ? { taskId: textOf(context.taskId) } : {}),
+    ...(textOf(context.recordId) ? { recordId: textOf(context.recordId) } : {}),
+    ...(textOf(context.room) ? { room: textOf(context.room), roomKey: textOf(context.room) } : {})
+  };
+  return {
+    path: roleRouteMap.talent.notifications,
+    query
+  };
+}
+
+function notificationMessageGroupKey(legacyGroupKey, item = {}) {
+  const fields = [
+    textOf(item?.source),
+    textOf(item?.originSource),
+    textOf(item?.surface),
+    textOf(item?.originSurface),
+    textOf(item?.kind),
+    textOf(item?.type),
+    textOf(item?.title),
+    textOf(item?.label),
+    textOf(item?.summary),
+    textOf(item?.description)
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (
+    /announcement|notice|system|公告|维护|更新/.test(fields)
+  ) {
+    return 'announcements';
+  }
+
+  if (
+    /account|profile|setting|settings|approval|auth|register|onboarding|账号|资料|设置|审核|权限/.test(fields)
+  ) {
+    return 'account';
+  }
+
+  if (legacyGroupKey === 'all') {
+    return 'all';
+  }
+
+  return 'tasks';
+}
+
+function notificationRouteSource(key, item = {}) {
+  if (isRecruitingMessage(item)) {
+    return 'recruiting';
+  }
   if (key === 'reviews') {
+    const ownerKind = explicitReviewOwnerKind(item, item.route || item.to || item.link);
+    if (ownerKind === 'settlement' || ownerKind === 'record') {
+      return 'records';
+    }
+    if (ownerKind === 'review') {
+      return textOf(item?.taskId) ? 'tasks' : 'records';
+    }
+    if (textOf(item?.taskId)) {
+      return 'tasks';
+    }
     return 'records';
   }
   if (key === 'matching') {
-    return 'matching';
+    return 'recruiting';
   }
   if (key === 'followup') {
+    if (textOf(item?.financeAction) || textOf(item?.recordId)) {
+      return 'records';
+    }
+    if (textOf(item?.messageId) || textOf(item?.room) || textOf(item?.roomKey) || textOf(item?.roomId)) {
+      return 'messages';
+    }
+    if (textOf(item?.taskId)) {
+      return 'tasks';
+    }
+    return 'messages';
+  }
+  if (textOf(item?.recordId) || textOf(item?.financeAction)) {
+    return 'records';
+  }
+  if (textOf(item?.taskId)) {
+    return 'tasks';
+  }
+  if (textOf(item?.messageId) || textOf(item?.room) || textOf(item?.roomKey) || textOf(item?.roomId)) {
     return 'messages';
   }
   return 'tasks';
 }
 
+function explicitGroupKeyForItem(item) {
+  const routePath = typeof (item?.route || item?.to || item?.link) === 'string'
+    ? (item.route || item.to || item.link).split('?')[0]
+    : String(item?.route?.path || item?.to?.path || item?.link?.path || '');
+  const fields = [
+    textOf(item?.groupKey),
+    textOf(item?.groupId),
+    textOf(item?.group),
+    textOf(item?.category),
+    textOf(item?.type),
+    textOf(item?.source),
+    textOf(item?.originSource),
+    textOf(item?.surface),
+    textOf(item?.originSurface),
+    textOf(item?.kind),
+    routePath
+  ].filter(Boolean).map((value) => value.toLowerCase());
+
+  if (matchesExplicitOwnerFields(fields, [
+    /(^|[-_/ ])(settlement|record|records|history)([-_/ ]|$)/i,
+    /结算|记录|历史/,
+    /\/records(\/|$)/i,
+    /\/settlement(\/|$)/i
+  ])) {
+    return 'followup';
+  }
+  if (matchesExplicitOwnerFields(fields, [
+    /(^|[-_/ ])(matching|market|publish|talent|talents|selection)([-_/ ]|$)/i,
+    /选人|人才|发布/,
+    /\/talents(\/|$)/i,
+    /\/market(\/|$)/i,
+    /\/publish(\/|$)/i
+  ])) {
+    return 'matching';
+  }
+  if (matchesExplicitOwnerFields(fields, [
+    /(^|[-_/ ])(message|messages|chat|followup)([-_/ ]|$)/i,
+    /消息|聊天|回看/,
+    /\/messages(\/|$)/i,
+    /\/chat(\/|$)/i
+  ])) {
+    return 'followup';
+  }
+  if (matchesExplicitOwnerFields(fields, [
+    /(^|[-_/ ])(review|reviews|acceptance)([-_/ ]|$)/i,
+    /验收|审核|评级/,
+    /\/acceptance(\/|$)/i
+  ])) {
+    return 'reviews';
+  }
+  if (matchesExplicitOwnerFields(fields, [
+    /(^|[-_/ ])(confirm|confirmation|confirmations)([-_/ ]|$)/i,
+    /确认/
+  ])) {
+    return 'confirmations';
+  }
+  if (matchesExplicitOwnerFields(fields, [
+    /(^|[-_/ ])(change|changes|revision)([-_/ ]|$)/i,
+    /修改/
+  ])) {
+    return 'changes';
+  }
+  if (matchesExplicitOwnerFields(fields, [
+    /(^|[-_/ ])(cancel|cancellation|cancellations)([-_/ ]|$)/i,
+    /取消/
+  ])) {
+    return 'cancellations';
+  }
+
+  return '';
+}
+
 function groupKeyForItem(item) {
   return (
-    normalizeGroupKey(item?.groupKey || item?.groupId || item?.group || item?.category || item?.type) ||
-    normalizeGroupKey(item?.id || item?.key || item?.label || item?.title || item?.summary) ||
+    explicitGroupKeyForItem(item) ||
+    normalizeGroupKey(item?.groupKey || item?.groupId || item?.group || item?.category || item?.type || item?.label) ||
+    (textOf(item?.financeAction, item?.recordId, item?.record?.recordId, item?.record?.id) ? 'followup' : '') ||
+    (textOf(item?.approvalId) ? 'confirmations' : '') ||
     'followup'
   );
 }
@@ -359,28 +560,331 @@ function sourceLabel(source) {
     case 'records':
       return '记录';
     case 'messages':
-      return '聊天';
+      return '消息';
     case 'tasks':
-      return '任务';
+      return '合同';
+    case 'recruiting':
+      return '招聘';
     default:
-      return '留痕';
+      return '辅助信息';
   }
 }
 
-function routeForSource(source, preferredRoute) {
+function explicitOwnerFields(context = {}, preferredRoute) {
+  const preferredPath = typeof preferredRoute === 'string'
+    ? preferredRoute.split('?')[0]
+    : String(preferredRoute?.path || '').trim();
+
+  return [
+    textOf(context.source),
+    textOf(context.originSource),
+    textOf(context.surface),
+    textOf(context.originSurface),
+    textOf(context.group),
+    textOf(context.groupKey),
+    textOf(context.category),
+    textOf(context.type),
+    textOf(context.kind),
+    preferredPath
+  ].filter(Boolean).map((value) => value.toLowerCase());
+}
+
+function matchesExplicitOwnerFields(fields, patterns) {
+  return fields.some((field) => patterns.some((pattern) => pattern.test(field)));
+}
+
+function isExplicitApplicationTaskContext(context = {}) {
+  if (textOf(context.financeAction)) {
+    return false;
+  }
+
+  return matchesExplicitOwnerFields(explicitOwnerFields(context), [
+    /(^|[-_/ ])(application|apply)([-_/ ]|$)/i,
+    /协作申请|提交申请/,
+    /^申请$/,
+    /\/apply$/
+  ]);
+}
+
+function explicitReviewOwnerKind(context = {}, preferredRoute) {
+  const fields = explicitOwnerFields(context, preferredRoute);
+
+  if (
+    textOf(context.financeAction)
+    || matchesExplicitOwnerFields(fields, [
+      /\/settlement(\/|$)/i,
+      /(^|[-_/ ])(settlement|finance|claim|invoice|reconciliation|dispute)([-_/ ]|$)/i,
+      /结算|请款|开票|对账|争议/
+    ])
+  ) {
+    return 'settlement';
+  }
+
+  if (
+    matchesExplicitOwnerFields(fields, [
+      /\/records(\/|$)/i,
+      /(^|[-_/ ])(record|records|history|archive)([-_/ ]|$)/i,
+      /记录|历史/
+    ])
+  ) {
+    return 'record';
+  }
+
+  if (
+    matchesExplicitOwnerFields(fields, [
+      /\/acceptance(\/|$)/i,
+      /(^|[-_/ ])(review|reviews|acceptance|grade|rating)([-_/ ]|$)/i,
+      /审核|验收|评级|评分/
+    ])
+  ) {
+    return 'review';
+  }
+
+  return '';
+}
+
+function taskOwnerFallbackLabel() {
+  return isTalent.value ? '查看任务' : '打开工作台';
+}
+
+function primaryActionFallbackLabel(groupKey) {
+  if (groupKey === 'announcements') {
+    return '查看公告';
+  }
+  if (groupKey === 'account') {
+    return '继续完善设置';
+  }
+  if (groupKey === 'tasks') {
+    return '查看任务';
+  }
+  return taskOwnerFallbackLabel();
+}
+
+function secondaryActionFallbackLabel(groupKey) {
+  if (groupKey === 'announcements') {
+    return '稍后查看';
+  }
+  if (groupKey === 'account') {
+    return '查看账号状态';
+  }
+  if (groupKey === 'tasks') {
+    return '打开对应页面';
+  }
+  return taskOwnerFallbackLabel();
+}
+
+function matchingSecondaryRoute(context = {}) {
+  if (isTalent.value) {
+    return attachRouteContext(withSource(roleRouteMap.talent.market), context);
+  }
+  const requestedTalentSlugs = listOf(context.requestedTalentSlugs)
+    .map((item) => textOf(item))
+    .filter(Boolean);
+  if (requestedTalentSlugs.length) {
+    return attachRouteContext(withSource(roleRouteMap.enterprise.talentDetail(requestedTalentSlugs[0]), 'matching'), context);
+  }
+  const taskId = textOf(context.taskId);
+  return attachRouteContext(
+    withSource(
+      {
+        path: '/enterprise/recruiting',
+        query: {
+          source: 'notifications',
+          ...(taskId ? { taskId } : {})
+        }
+      },
+      'recruiting'
+    ),
+    context
+  );
+}
+
+function ctaLabelForRoute(target, fallback = taskOwnerFallbackLabel()) {
+  const path = typeof target === 'string' ? target : String(target?.path || '');
+  const query = routeQueryOf(target);
+  if (!path) {
+    return fallback;
+  }
+  if (String(query.mode || '').trim() === 'matching') {
+    return '去处理申请';
+  }
+  if (/\/tasks\/[^/]+\/apply$/.test(path)) {
+    return '打开申请';
+  }
+  if (/\/tasks\/[^/]+$/.test(path)) {
+    return '查看任务';
+  }
+  if (path.includes('/settlement')) {
+    return '打开结算';
+  }
+  if (/\/records\/[^/]+$/.test(path)) {
+    return '查看记录';
+  }
+  if (path.includes('/acceptance')) {
+    return '打开验收';
+  }
+  if (path.includes('/records')) {
+    return '查看记录';
+  }
+  if (path.includes('/messages') || path.includes('/chat') || path.includes('/room')) {
+    return '打开消息';
+  }
+  if (path.includes('/workspace')) {
+    return '打开工作台';
+  }
+  if (path.includes('/recruiting')) {
+    return isTalent.value ? '查看邀约' : '处理申请';
+  }
+  if (path.includes('/approvals')) {
+    return '打开审批';
+  }
+  if (path.includes('/notifications')) {
+    if (isTalent.value && String(query.source || '').trim() === 'recruiting') {
+      return '查看面试邀约';
+    }
+    return '查看通知';
+  }
+  if (/\/talents\/[^/]+$/.test(path)) {
+    return '查看人才详情';
+  }
+  if (path.includes('/talents') || path.includes('/market')) {
+    return isTalent.value ? '去找工作' : '搜索人才';
+  }
+  return fallback;
+}
+
+function routeForSource(source, preferredRoute, context = {}) {
   if (preferredRoute) {
     return withSource(preferredRoute);
   }
   if (source === 'records') {
     return withSource(isTalent.value ? roleRouteMap.talent.records : roleRouteMap.enterprise.records);
   }
+  if (source === 'recruiting') {
+    const taskId = textOf(context.taskId);
+    if (isTalent.value) {
+      return talentRecruitingNotificationRoute(context);
+    }
+    return withSource(
+      {
+        path: '/enterprise/recruiting',
+        query: {
+          source: 'notifications',
+          ...(taskId ? { taskId } : {})
+        }
+      },
+      'recruiting'
+    );
+  }
   if (source === 'matching') {
-    return withSource(isTalent.value ? roleRouteMap.talent.market : roleRouteMap.enterprise.publish);
+    if (!isTalent.value) {
+      const taskId = textOf(context.taskId);
+      const requestedTalentIds = listOf(context.requestedTalentIds || context.requestedTalentUserIds)
+        .map((item) => textOf(item))
+        .filter(Boolean);
+      return {
+        path: roleRouteMap.enterprise.market,
+        query: {
+          source: 'matching',
+          mode: 'matching',
+          ...(taskId ? { taskId } : {}),
+          ...(requestedTalentIds.length ? { requestedTalentIds: requestedTalentIds.join(',') } : {})
+        }
+      };
+    }
+    return withSource(roleRouteMap.talent.market);
   }
   if (source === 'tasks') {
-    return withSource(isTalent.value ? roleRouteMap.talent.workspace : roleRouteMap.enterprise.workspace);
+    if (isTalent.value) {
+      if (isRecruitingMessage(context)) {
+        return talentRecruitingNotificationRoute(context);
+      }
+      const taskId = textOf(context.taskId);
+      if (taskId) {
+        const isApplicationHint = isExplicitApplicationTaskContext(context);
+        return withSource(
+          isApplicationHint ? roleRouteMap.talent.taskApply(taskId) : roleRouteMap.talent.taskDetail(taskId)
+        );
+      }
+      return withSource(roleRouteMap.talent.market);
+    }
+    const taskId = textOf(context.taskId);
+    if (isRecruitingMessage(context)) {
+      return withSource(
+        {
+          path: '/enterprise/recruiting',
+          query: {
+            source: 'notifications',
+            ...(taskId ? { taskId } : {})
+          }
+        },
+        'recruiting'
+      );
+    }
+    if (taskId) {
+      return withSource(roleRouteMap.enterprise.workspace);
+    }
+    return withSource(roleRouteMap.enterprise.approvals, 'tasks');
   }
   return withSource(isTalent.value ? roleRouteMap.talent.messages : roleRouteMap.enterprise.messages);
+}
+
+function recordHistoryRoute(context = {}) {
+  return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.records : roleRouteMap.enterprise.records, 'reviews'), context);
+}
+
+function reviewPrimaryRoute(context = {}, preferredRoute) {
+  const routeQuery = routeQueryOf(preferredRoute);
+  const financeAction = textOf(context.financeAction, routeQuery.financeAction);
+  const ownerKind = explicitReviewOwnerKind(context, preferredRoute);
+  if (context.recordId && ownerKind === 'settlement') {
+    return buildSettlementRoute({
+      audience: audience.value,
+      recordId: context.recordId,
+      taskId: context.taskId,
+      room: context.room,
+      current: route.query,
+      source: 'reviews',
+      financeAction
+    });
+  }
+  if (context.recordId && ownerKind === 'record') {
+    return attachRouteContext(
+      withSource(
+        isTalent.value ? roleRouteMap.talent.recordDetail(context.recordId) : roleRouteMap.enterprise.recordDetail(context.recordId),
+        'reviews'
+      ),
+      context
+    );
+  }
+  if (context.taskId && ownerKind === 'review') {
+    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptance : roleRouteMap.enterprise.acceptance, 'reviews'), context);
+  }
+  if (context.recordId && !context.taskId) {
+    return attachRouteContext(
+      withSource(
+        isTalent.value ? roleRouteMap.talent.recordDetail(context.recordId) : roleRouteMap.enterprise.recordDetail(context.recordId),
+        'reviews'
+      ),
+      context
+    );
+  }
+  if (context.taskId && !context.recordId) {
+    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptance : roleRouteMap.enterprise.acceptance, 'reviews'), context);
+  }
+  if (context.recordId) {
+    return attachRouteContext(
+      withSource(
+        isTalent.value ? roleRouteMap.talent.recordDetail(context.recordId) : roleRouteMap.enterprise.recordDetail(context.recordId),
+        'reviews'
+      ),
+      context
+    );
+  }
+  if (context.taskId) {
+    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptance : roleRouteMap.enterprise.acceptance, 'reviews'), context);
+  }
+  return recordHistoryRoute(context);
 }
 
 function attachRouteContext(target, context = {}) {
@@ -414,7 +918,7 @@ function normalizeNotificationEntries(entries, groupKey, fallbackLabel) {
       );
       const value = textOf(entry.value || entry.description || entry.summary || entry.note, label);
       const route = entry.route
-        ? routeForSource(entry.source || notificationRouteSource(groupKey), entry.route)
+        ? routeForSource(entry.source || notificationRouteSource(groupKey, entry), entry.route)
         : null;
 
       return {
@@ -425,6 +929,21 @@ function normalizeNotificationEntries(entries, groupKey, fallbackLabel) {
     })
     .filter((entry) => entry.label && entry.value)
     .slice(0, 3);
+}
+
+function itemSummaryText(item, fallback = '') {
+  return firstText(item?.summary, item?.description, item?.content, item?.note, fallback);
+}
+
+function itemContextDescription(item, groupKey, fallback = '') {
+  return firstText(
+    item?.contextDescription,
+    item?.context,
+    itemSummaryText(item),
+    fallback,
+    notificationGroupMeta(groupKey).note,
+    '打开对应页面继续处理。'
+  );
 }
 
 function buildLegacyRelatedEntries() {
@@ -440,8 +959,8 @@ function buildLegacyRelatedEntries() {
   if (isTalent.value) {
     listOf(page.value?.pendingConfirmations).forEach((item) => {
       related.confirmations.push({
-        label: textOf(item.title, '待确认任务'),
-        value: `${textOf(item.version, '1')} 版 · ${textOf(item.period, '待确认')} · ${textOf(item.summary, '企业已发送新的任务版本')}`,
+        label: textOf(item.title, '待确认合同'),
+        value: `${textOf(item.version, 'v1')} · ${textOf(item.period, '待确认')} · ${textOf(item.summary, '客户已发来新版本')}`,
         route: routeForSource('messages', {
           path: roleRouteMap.talent.messages,
           query: {
@@ -460,22 +979,22 @@ function buildLegacyRelatedEntries() {
           ? 'changes'
           : 'followup';
       related[group].push({
-        label: textOf(task.title, '任务'),
-        value: textOf(task.note, progress || '进入协作空间继续处理'),
+        label: textOf(task.title, '合同'),
+        value: textOf(task.note, progress || '打开合同继续处理。'),
         route: routeForSource('tasks')
       });
     });
 
     listOf(page.value?.acceptRecords).forEach((record) => {
       related.reviews.push({
-        label: textOf(record.title, '接单记录'),
-        value: `${textOf(record.amountValue, '金额待确认')} · ${textOf(record.stage, '待验收')}`,
+        label: textOf(record.title, '合同记录'),
+        value: `${textOf(record.amountValue, '待处理金额')} · ${textOf(record.stage, '待验收')}`,
         route: routeForSource('records', record.route)
       });
     });
 
     listOf(page.value?.messages).forEach((message) => {
-      const text = `${textOf(message.from, '协作对象')} · ${textOf(message.text, '进入聊天继续处理')}`;
+      const text = `${textOf(message.from, '合同伙伴')} · ${textOf(message.text, '打开消息继续处理')}`;
       const group = text.includes('取消') ? 'cancellations' : 'followup';
       related[group].push({
         label: textOf(message.time, '最新消息'),
@@ -498,8 +1017,8 @@ function buildLegacyRelatedEntries() {
               ? 'confirmations'
               : 'followup';
       related[group].push({
-        label: textOf(task.title, '任务'),
-        value: `${status || '待处理'} · ${textOf(task.note, '进入协作空间继续处理')}`,
+        label: textOf(task.title, '合同'),
+        value: `${status || '待处理'} · ${textOf(task.note, '打开合同继续处理。')}`,
         route: routeForSource('tasks')
       });
     });
@@ -510,16 +1029,16 @@ function buildLegacyRelatedEntries() {
         ? 'reviews'
         : 'followup';
       related[group].push({
-        label: textOf(record.title, '发单记录'),
-        value: `${textOf(record.amountValue, '金额待确认')} · ${stage || '查看记录详情'}`,
+        label: textOf(record.title, '发布记录'),
+        value: `${textOf(record.amountValue, '待处理金额')} · ${stage || '打开记录详情'}`,
         route: routeForSource('records', record.route)
       });
     });
 
     listOf(page.value?.liveConversation).forEach((message) => {
       related.followup.push({
-        label: textOf(message.author, '协作成员'),
-        value: `${textOf(message.text, '进入聊天继续处理')} · ${textOf(message.time, '刚刚')}`,
+        label: textOf(message.author, '协作者'),
+        value: `${textOf(message.text, '打开消息继续处理')} · ${textOf(message.time, '刚刚')}`,
         route: routeForSource('messages')
       });
     });
@@ -527,7 +1046,7 @@ function buildLegacyRelatedEntries() {
     listOf(page.value?.recommendedTalents).forEach((talent) => {
       related.matching.push({
         label: textOf(talent.name, '推荐人才'),
-        value: `${textOf(talent.role, '待确认角色')} · ${textOf(talent.reason, '继续查看匹配理由')}`,
+        value: `${textOf(talent.role, '职位待补充')} · ${textOf(talent.reason, '查看推荐原因')}`,
         route: routeForSource('matching')
       });
     });
@@ -539,130 +1058,107 @@ function buildLegacyRelatedEntries() {
 function buildLegacyNotificationItems() {
   const related = buildLegacyRelatedEntries();
   return listOf(page.value?.attentionItems).map((item, index) => {
-    const groupKey = groupKeyForItem(item);
+    const legacyGroupKey = groupKeyForItem(item);
+    const groupKey = notificationMessageGroupKey(legacyGroupKey, item);
     const originalRouteValue = item?.route || item?.to || item?.link;
     const routeQuery = routeQueryOf(item?.route || item?.to || item?.link);
     const itemId = textOf(item.itemId, item.id, routeQuery.itemId, `notification-${index}`);
     const taskId = textOf(item.taskId, item.summary?.taskId, item.task?.taskId, routeQuery.taskId);
     const recordId = textOf(item.recordId, item.record?.recordId, item.record?.id, routeQuery.recordId);
     const room = textOf(item.room, item.roomKey, item.roomId, item.taskRoom?.roomKey, routeQuery.room, routeQuery.roomKey);
-    const route = attachRouteContext(routeForSource(notificationRouteSource(groupKey), item.route), {
+    const count = numberOf(item.count);
+    const groupLabel = notificationGroupMeta(groupKey).label;
+    const summaryText = itemSummaryText(item, `${groupLabel}里有 ${count} 条新提醒。`);
+    const contextText = itemContextDescription(item, groupKey, notificationGroupMeta(groupKey).note);
+    const routeSource = notificationRouteSource(legacyGroupKey, item);
+    const routeContext = {
       group: groupKey,
       itemId,
       taskId,
       recordId,
-      room
-    });
-    const baseRelated = listOf(related[groupKey]).slice(0, 3);
-    const count = numberOf(item.count);
-    const groupLabel = notificationGroupMeta(groupKey).label;
+      room,
+      requestedTalentIds: listOf(item?.requestedTalentUserIds || item?.requestedTalentIds),
+      requestedTalentSlugs: listOf(item?.requestedTalentSlugs),
+      financeAction: textOf(item.financeAction, routeQuery.financeAction),
+      source: textOf(routeSource, item.source, routeQuery.source),
+      originSource: textOf(item.originSource, routeQuery.originSource),
+      surface: textOf(item.surface, routeQuery.surface),
+      originSurface: textOf(item.originSurface, routeQuery.originSurface),
+      kind: textOf(item.kind, item.type, routeQuery.kind)
+    };
+    const route = legacyGroupKey === 'reviews'
+      ? reviewPrimaryRoute(routeContext, item.route)
+      : attachRouteContext(routeForSource(routeSource, item.route, {
+          ...routeContext,
+          primaryActionLabel: item.primaryActionLabel,
+          secondaryActionLabel: item.secondaryActionLabel,
+          title: item.title,
+          summary: item.summary,
+          status: item.status
+        }), routeContext);
+    const primaryActionLabel = ctaLabelForRoute(route, primaryActionFallbackLabel(groupKey));
+    const secondaryRoute = legacyGroupKey === 'reviews'
+      ? recordHistoryRoute(routeContext)
+      : legacyGroupKey === 'matching'
+        ? matchingSecondaryRoute(routeContext)
+        : originalRouteValue
+          ? attachRouteContext(routeForSource(routeSource, originalRouteValue, {
+              ...routeContext,
+              primaryActionLabel: item.primaryActionLabel,
+              secondaryActionLabel: item.secondaryActionLabel,
+              title: item.title,
+              summary: item.summary,
+              status: item.status
+            }), routeContext)
+          : null;
+    const normalizedSecondaryRoute = routesSharePath(route, secondaryRoute) ? null : secondaryRoute;
+    const secondaryActionLabel = normalizedSecondaryRoute ? ctaLabelForRoute(normalizedSecondaryRoute, secondaryActionFallbackLabel(groupKey)) : '';
+    const baseRelated = listOf(related[legacyGroupKey]).slice(0, 3);
 
     return {
       id: textOf(item.id, `notification-${index}`),
       itemId,
       title: textOf(item.label, groupLabel),
-      summary: `${groupLabel}当前有 ${count} 项，建议集中处理后再进入其它模块。`,
+      summary: summaryText,
       groupKey,
       groupLabel,
       count,
       countLabel: `${count} 项`,
       status: textOf(item.label, groupLabel),
-      note: count > 0 ? '支持直接进入处理上下文' : '当前分组暂无事项',
+      note: textOf(item.note, count > 0 ? '点开对应按钮继续处理。' : '当前还没有新的提醒。'),
       updatedAt: textOf(page.value?.summary?.latestUpdatedAt, '实时汇总'),
       taskId,
       recordId,
       room,
       route,
-      primaryActionLabel: groupKey === 'reviews' ? '去查看记录' : groupKey === 'followup' ? '去聊天' : '去处理',
-      secondaryActionLabel: groupKey === 'reviews' ? '去协作空间' : groupKey === 'matching' ? '去人才广场' : '保留原入口',
-      secondaryRoute: groupKey === 'reviews'
-        ? attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.workspace : roleRouteMap.enterprise.workspace), {
-            group: groupKey,
-            itemId,
-            taskId,
-            recordId,
-            room
-          })
-        : groupKey === 'matching'
-          ? attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.market : roleRouteMap.enterprise.market), {
-              group: groupKey,
-              itemId,
-              taskId,
-              recordId,
-              room
-            })
-          : originalRouteValue
-            ? attachRouteContext(routeForSource(notificationRouteSource(groupKey), originalRouteValue), {
-                group: groupKey,
-                itemId,
-                taskId,
-                recordId,
-                room
-              })
-            : attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.messages : roleRouteMap.enterprise.messages), {
-                group: groupKey,
-                itemId,
-                taskId,
-                recordId,
-                room
-              }),
-      contextDescription: notificationGroupMeta(groupKey).note || '先进入对应页面处理。',
+      primaryActionLabel,
+      secondaryActionLabel,
+      secondaryRoute: normalizedSecondaryRoute,
+      contextDescription: contextText,
       unread: count > 0,
-      urgent: groupKey !== 'followup',
+      urgent: groupKey !== 'announcements',
       active: false,
-      highlights: baseRelated.length
-        ? baseRelated
-        : [
-            { label: '下一步', value: notificationGroupMeta(groupKey).note || '进入对应页面处理。' },
-            { label: '入口', value: textOf(item.label, '通知项') }
-          ],
+      highlights: [
+        { label: '当前处理对象', value: summaryText || textOf(item.label, '当前通知') },
+        { label: '下一步', value: contextText || notificationGroupMeta(groupKey).note || '打开对应页面继续处理。' }
+      ],
       related: baseRelated.length
         ? baseRelated
         : [
-            { label: sourceLabel(notificationRouteSource(groupKey)), value: '当前没有更多留痕，可直接进入处理入口。' }
+            { label: sourceLabel(notificationRouteSource(groupKey, routeContext)), value: '暂时还没有更多辅助信息，先打开主入口继续。' }
           ],
       actions: [
         {
           key: 'open',
-          label: groupKey === 'reviews' ? '查看记录' : groupKey === 'followup' ? '进入聊天' : groupKey === 'matching' ? '去选人' : '进入处理',
+          label: primaryActionLabel,
           tone: 'primary',
           to: route
         },
         {
           key: 'secondary',
-          label: groupKey === 'reviews' ? '查看协作' : groupKey === 'matching' ? '去人才广场' : '保留原入口',
+          label: secondaryActionLabel,
           tone: 'secondary',
-          to: groupKey === 'reviews'
-            ? attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.workspace : roleRouteMap.enterprise.workspace), {
-                group: groupKey,
-                itemId,
-                taskId,
-                recordId,
-                room
-              })
-            : groupKey === 'matching'
-              ? attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.market : roleRouteMap.enterprise.market), {
-                  group: groupKey,
-                  itemId,
-                  taskId,
-                  recordId,
-                  room
-                })
-              : originalRouteValue
-                ? attachRouteContext(routeForSource(notificationRouteSource(groupKey), originalRouteValue), {
-                    group: groupKey,
-                    itemId,
-                    taskId,
-                    recordId,
-                    room
-                  })
-                : attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.messages : roleRouteMap.enterprise.messages), {
-                    group: groupKey,
-                    itemId,
-                    taskId,
-                    recordId,
-                    room
-                  })
+          to: secondaryRoute
         }
       ]
     };
@@ -676,9 +1172,10 @@ function buildContractNotificationItems() {
 
   const related = buildLegacyRelatedEntries();
   return notificationItemsSource.value.map((item, index) => {
-    const groupKey = groupKeyForItem(item);
+    const legacyGroupKey = groupKeyForItem(item);
+    const groupKey = notificationMessageGroupKey(legacyGroupKey, item);
     const group = notificationGroupMeta(groupKey);
-    const routeSource = notificationRouteSource(groupKey);
+    const routeSource = notificationRouteSource(legacyGroupKey, item);
     const count = numberOf(item?.count ?? item?.unreadCount ?? item?.total ?? item?.size ?? 1);
     const originalRouteValue = item?.route || item?.to || item?.link;
     const routeQuery = routeQueryOf(item?.route || item?.to || item?.link);
@@ -686,48 +1183,84 @@ function buildContractNotificationItems() {
     const taskId = textOf(item?.taskId, item?.summary?.taskId, item?.task?.taskId, routeQuery.taskId);
     const recordId = textOf(item?.recordId, item?.record?.recordId, item?.record?.id, routeQuery.recordId);
     const room = textOf(item?.room, item?.roomKey, item?.roomId, item?.taskRoom?.roomKey, routeQuery.room, routeQuery.roomKey);
-    const route = attachRouteContext(routeForSource(item?.source || routeSource, item?.route || item?.to || item?.link), {
+    const summaryText = itemSummaryText(item, `${group.label}里有 ${count} 条新提醒。`);
+    const contextText = itemContextDescription(item, groupKey, group.note);
+    const routeContext = {
       group: groupKey,
       itemId,
       taskId,
       recordId,
-      room
-    });
+      room,
+      requestedTalentIds: listOf(item?.requestedTalentUserIds || item?.requestedTalentIds),
+      requestedTalentSlugs: listOf(item?.requestedTalentSlugs),
+      financeAction: textOf(item?.financeAction, routeQuery.financeAction),
+      source: textOf(item?.source, routeQuery.source, routeSource),
+      originSource: textOf(item?.originSource, routeQuery.originSource),
+      surface: textOf(item?.surface, routeQuery.surface),
+      originSurface: textOf(item?.originSurface, routeQuery.originSurface),
+      kind: textOf(item?.kind, item?.type, routeQuery.kind)
+    };
+    const primaryActionLabelFallback = primaryActionFallbackLabel(groupKey);
+    const secondaryActionLabelFallback = secondaryActionFallbackLabel(groupKey);
+    const secondaryActionLabelSeed = textOf(item?.secondaryActionLabel || item?.secondaryLabel, secondaryActionLabelFallback);
+    const route = legacyGroupKey === 'reviews'
+      ? reviewPrimaryRoute(routeContext, item?.route || item?.to || item?.link)
+      : attachRouteContext(routeForSource(routeSource, item?.route || item?.to || item?.link, {
+          ...routeContext,
+          primaryActionLabel: textOf(item?.primaryActionLabel || item?.actionLabel || item?.cta, primaryActionLabelFallback),
+          secondaryActionLabel: secondaryActionLabelSeed,
+          title: item?.title || item?.label || item?.name,
+          summary: item?.summary || item?.description || item?.content,
+          status: item?.status || item?.state
+        }), routeContext);
     const primaryActionLabel = textOf(
       item?.primaryActionLabel || item?.actionLabel || item?.cta,
-      groupKey === 'reviews' ? '去查看记录' : groupKey === 'followup' ? '去聊天' : groupKey === 'matching' ? '去选人' : '去处理'
-    );
-    const secondaryActionLabel = textOf(
-      item?.secondaryActionLabel || item?.secondaryLabel,
-      groupKey === 'reviews' ? '去协作空间' : groupKey === 'matching' ? '去人才广场' : '保留原入口'
+      ctaLabelForRoute(route, primaryActionLabelFallback)
     );
     const relatedEntries = normalizeNotificationEntries(item?.related || item?.context || item?.details, groupKey, sourceLabel(routeSource));
     const highlights = normalizeNotificationEntries(item?.highlights || item?.summaryItems, groupKey, group.label);
-    const baseRelated = relatedEntries.length ? relatedEntries : listOf(related[groupKey]).slice(0, 3);
+    const baseRelated = relatedEntries.length ? relatedEntries : listOf(related[legacyGroupKey]).slice(0, 3);
     const secondaryRouteValue = item?.secondaryRoute || item?.secondaryTo || item?.secondaryLink;
+    const secondarySource = item?.secondarySource || (routeSource === 'recruiting'
+      ? 'recruiting'
+      : legacyGroupKey === 'reviews'
+        ? 'records'
+        : legacyGroupKey === 'matching'
+          ? 'matching'
+          : 'messages');
     const fallbackSecondaryRoute =
-      groupKey === 'reviews'
-        ? withSource(isTalent.value ? roleRouteMap.talent.workspace : roleRouteMap.enterprise.workspace)
-        : groupKey === 'matching'
-          ? withSource(isTalent.value ? roleRouteMap.talent.market : roleRouteMap.enterprise.market)
+      legacyGroupKey === 'reviews'
+        ? recordHistoryRoute(routeContext)
+        : legacyGroupKey === 'matching'
+          ? matchingSecondaryRoute(routeContext)
           : originalRouteValue
-            ? routeForSource(item?.source || routeSource, originalRouteValue)
-            : withSource(isTalent.value ? roleRouteMap.talent.messages : roleRouteMap.enterprise.messages);
+            ? routeForSource(routeSource, originalRouteValue, {
+                ...routeContext,
+                primaryActionLabel,
+                secondaryActionLabel: secondaryActionLabelSeed,
+            title: item?.title || item?.label || item?.name,
+            summary: item?.summary || item?.description || item?.content,
+            status: item?.status || item?.state
+              })
+            : null;
+    const secondaryActionLabel = textOf(
+      item?.secondaryActionLabel || item?.secondaryLabel,
+      fallbackSecondaryRoute ? ctaLabelForRoute(fallbackSecondaryRoute, secondaryActionLabelFallback) : ''
+    );
 
     return {
       id: textOf(item?.id || item?.key, `notification-${index}`),
       itemId,
       title: textOf(item?.title || item?.label || item?.name, group.label),
-      summary: textOf(
-        item?.summary || item?.description || item?.content,
-        `${group.label}当前有 ${count} 项，建议集中处理后再进入其它模块。`
-      ),
+      summary: summaryText,
+      talentUserId: textOf(item?.talentUserId, item?.summary?.talentUserId),
+      platformUserId: textOf(item?.platformUserId, item?.summary?.platformUserId),
       groupKey,
       groupLabel: textOf(item?.groupLabel || item?.categoryLabel, group.label),
       count,
       countLabel: `${count} 项`,
       status: textOf(item?.status || item?.state, textOf(item?.title || item?.label || item?.name, group.label)),
-      note: textOf(item?.note, count > 0 ? '支持直接进入处理上下文' : '当前分组暂无事项'),
+      note: textOf(item?.note, count > 0 ? '点开对应按钮继续处理。' : '当前还没有新的提醒。'),
       updatedAt: textOf(item?.updatedAt || item?.time || item?.updatedTime, textOf(page.value?.summary?.latestUpdatedAt, '实时汇总')),
       taskId,
       recordId,
@@ -735,51 +1268,62 @@ function buildContractNotificationItems() {
       route,
       primaryActionLabel,
       secondaryActionLabel,
-      secondaryRoute: secondaryRouteValue
-        ? attachRouteContext(routeForSource(item?.secondarySource || (groupKey === 'reviews' ? 'tasks' : groupKey === 'matching' ? 'matching' : 'messages'), secondaryRouteValue), {
+      secondaryRoute: secondaryRouteValue && !routesSharePath(route, attachRouteContext(routeForSource(secondarySource, secondaryRouteValue), {
+        group: groupKey,
+        itemId,
+        taskId,
+        recordId,
+        room
+      }))
+        ? attachRouteContext(routeForSource(secondarySource, secondaryRouteValue), {
+          group: groupKey,
+          itemId,
+          taskId,
+          recordId,
+          room
+        })
+        : !routesSharePath(route, fallbackSecondaryRoute)
+          ? attachRouteContext(fallbackSecondaryRoute, {
             group: groupKey,
             itemId,
             taskId,
             recordId,
             room
           })
-        : attachRouteContext(fallbackSecondaryRoute, {
-            group: groupKey,
-            itemId,
-            taskId,
-            recordId,
-            room
-          }),
-      contextDescription: textOf(item?.contextDescription || item?.context || item?.note, group.note || '先进入对应页面处理。'),
+          : null,
+      contextDescription: contextText,
       unread: count > 0,
-      urgent: groupKey !== 'followup',
+      urgent: groupKey !== 'announcements',
       active: false,
       highlights: highlights.length
         ? highlights
-        : baseRelated.length
-          ? baseRelated
-          : [
-              { label: '下一步', value: group.note || '进入对应页面处理。' },
-              { label: '入口', value: textOf(item?.label || item?.title || item?.name, '通知项') }
-            ],
+        : [
+            { label: '当前处理对象', value: summaryText || textOf(item?.label || item?.title || item?.name, '当前通知') },
+            { label: '下一步', value: contextText || group.note || '打开对应页面继续处理。' }
+          ],
       related: baseRelated.length
         ? baseRelated
         : [
-            { label: sourceLabel(routeSource), value: '当前没有更多留痕，可直接进入处理入口。' }
+            { label: sourceLabel(routeSource), value: '暂时还没有更多辅助信息，先打开主入口继续。' }
           ],
       actions: Array.isArray(item?.actions) && item.actions.length
-        ? item.actions.map((action, actionIndex) => ({
-            key: textOf(action?.key, `action-${actionIndex}`),
-            label: textOf(action?.label, primaryActionLabel),
-            tone: action?.tone === 'secondary' ? 'secondary' : 'primary',
-            to: attachRouteContext(action?.to ? routeForSource(action?.source || routeSource, action.to) : route, {
+        ? item.actions.map((action, actionIndex) => {
+            const tone = action?.tone === 'secondary' ? 'secondary' : 'primary';
+            const resolvedRoute = attachRouteContext(action?.to ? routeForSource(action?.source || routeSource, action.to) : route, {
               group: groupKey,
               itemId,
               taskId,
               recordId,
               room
-            })
-          }))
+            });
+            const fallbackLabel = tone === 'secondary' ? secondaryActionLabel : primaryActionLabel;
+            return {
+              key: textOf(action?.key, `action-${actionIndex}`),
+              label: textOf(action?.label, ctaLabelForRoute(resolvedRoute, fallbackLabel)),
+              tone,
+              to: resolvedRoute
+            };
+          })
         : [
             {
               key: 'open',
@@ -791,13 +1335,15 @@ function buildContractNotificationItems() {
               key: 'secondary',
               label: secondaryActionLabel,
               tone: 'secondary',
-              to: attachRouteContext(fallbackSecondaryRoute, {
-                group: groupKey,
-                itemId,
-                taskId,
-                recordId,
-                room
-              })
+              to: fallbackSecondaryRoute
+                ? attachRouteContext(fallbackSecondaryRoute, {
+                    group: groupKey,
+                    itemId,
+                    taskId,
+                    recordId,
+                    room
+                  })
+                : null
             }
           ]
     };
@@ -815,7 +1361,7 @@ function buildNotificationGroups(items) {
       acc[item.groupKey] += numberOf(item.count);
       return acc;
     },
-    { all: 0, confirmations: 0, changes: 0, matching: 0, reviews: 0, cancellations: 0, followup: 0 }
+    { all: 0, announcements: 0, tasks: 0, account: 0 }
   );
 
   if (hasNotificationGroupsContract.value) {
@@ -853,6 +1399,7 @@ const totalAttentionValue = computed(
   () => `${totalAttentionCount.value} 项`
 );
 const isZeroState = computed(() => !selectedItemMissing.value && totalAttentionCount.value === 0);
+const isMatchingView = computed(() => false);
 
 const groupItems = computed(() => buildNotificationGroups(notificationItems.value));
 
@@ -900,7 +1447,7 @@ const invalidRecoveryActions = computed(() => {
   if (currentGroupFirstItem.value) {
     actions.push({
       key: 'recover-group',
-      label: '查看当前分组首项',
+      label: '打开这个分类的第一条',
       tone: 'primary',
       to: buildCenterSelectionRoute(currentGroupFirstItem.value)
     });
@@ -915,7 +1462,7 @@ const invalidRecoveryActions = computed(() => {
 
   actions.push({
     key: 'clear-anchor',
-    label: '清除当前定位',
+    label: '清除当前焦点',
     tone: actions.length ? 'secondary' : 'primary',
     to: clearedSelectionRoute.value
   });
@@ -930,6 +1477,47 @@ const selectedItem = computed(() => {
 
   return filteredItems.value.find((item) => item.id === selectedItemId.value) || filteredItems.value[0] || null;
 });
+const selectedRecruitingInvite = computed(() => {
+  if (!selectedItem.value || selectedItemMissing.value) {
+    return null;
+  }
+  if (selectedItem.value.groupKey !== 'tasks') {
+    return null;
+  }
+  return isRecruitingMessage(selectedItem.value) && hasRecruitingInviteFields(selectedItem.value)
+    ? selectedItem.value
+    : null;
+});
+const selectedRecruitingInviteDetails = computed(() => {
+  if (!selectedRecruitingInvite.value) {
+    return null;
+  }
+
+  const item = selectedRecruitingInvite.value;
+  return {
+    taskName: firstText(
+      item?.taskTitle,
+      item?.taskName,
+      item?.task?.title,
+      item?.title,
+      item?.label,
+      '面试邀约'
+    ),
+    companyName: firstText(
+      recruitingInviteCompanyName(item),
+      '邀请企业'
+    ),
+    interviewTime: firstText(
+      recruitingInviteTime(item),
+      '待确认'
+    ),
+    meetingCode: firstText(
+      recruitingInviteMeetingCode(item),
+      '待确认'
+    ),
+    note: firstText(item?.note, item?.summary, item?.description, '暂无备注')
+  };
+});
 const selectedRouteContext = computed(() => ({
   group: selectedItem.value?.groupKey || (activeGroup.value === 'all' ? '' : activeGroup.value),
   itemId: selectedItem.value?.itemId || selectedItem.value?.id || '',
@@ -940,7 +1528,7 @@ const selectedRouteContext = computed(() => ({
 const selectedPrimaryRoute = computed(() => {
   if (isZeroState.value) {
     return attachRouteContext(
-      withSource(isTalent.value ? roleRouteMap.talent.workspace : roleRouteMap.enterprise.approvals),
+      withSource(isTalent.value ? roleRouteMap.talent.market : roleRouteMap.enterprise.approvals),
       selectedRouteContext.value
     );
   }
@@ -957,93 +1545,198 @@ const selectedPrimaryRoute = computed(() => {
 });
 const selectedPrimaryLabel = computed(() => {
   if (isZeroState.value) {
-    return isTalent.value ? '去协作空间' : '去审批中心';
+    return isTalent.value ? '去找工作' : '打开审批';
+  }
+
+  const contextPrimaryAction = selectedContextActions.value.find((action) => action.tone === 'primary' && action.to)
+    || selectedContextActions.value.find((action) => action.to);
+
+  if (contextPrimaryAction?.label) {
+    return contextPrimaryAction.label;
   }
 
   if (selectedItem.value?.primaryActionLabel) {
     return selectedItem.value.primaryActionLabel;
   }
 
-  return selectedItemMissing.value ? invalidRecoveryActions.value[0]?.label || '清除当前定位' : '去处理';
+  return selectedItemMissing.value
+    ? invalidRecoveryActions.value[0]?.label || '清除当前焦点'
+    : ctaLabelForRoute(selectedPrimaryRoute.value);
 });
 const selectedContextActions = computed(() => {
   if (selectedItemMissing.value) {
     return invalidRecoveryActions.value;
   }
 
-  return buildCurrentObjectContextActions({
-    item: selectedItem.value,
-    audience: isTalent.value ? 'talent' : 'enterprise',
-    primaryAction: {
+  const itemActions = listOf(selectedItem.value?.actions)
+    .map((action, actionIndex) => ({
+      key: textOf(action?.key, `action-${actionIndex}`),
+      label: textOf(
+        action?.label,
+        ctaLabelForRoute(
+          action?.to,
+          action?.tone === 'secondary'
+            ? secondaryActionFallbackLabel(selectedItem.value?.groupKey)
+            : primaryActionFallbackLabel(selectedItem.value?.groupKey)
+        )
+      ),
+      tone: action?.tone === 'secondary' ? 'secondary' : 'primary',
+      to: action?.to
+    }))
+    .filter((action) => action.to);
+
+  if (itemActions.length) {
+    const deduped = [];
+    const seenPaths = new Set();
+    const seenLabels = new Set();
+
+    itemActions.forEach((action) => {
+      const path = typeof action.to === 'string'
+        ? action.to.split('?')[0]
+        : String(action.to?.path || '');
+      const labelKey = String(action.label || '').trim().toLowerCase();
+      if (!path || seenPaths.has(path) || seenLabels.has(labelKey) || deduped.length >= 2) {
+        return;
+      }
+      seenPaths.add(path);
+      if (labelKey) {
+        seenLabels.add(labelKey);
+      }
+      deduped.push(action);
+    });
+
+    if (deduped.length) {
+      return deduped;
+    }
+  }
+
+  const secondaryRoute = (() => {
+    const target = selectedItem.value?.secondaryRoute;
+    if (!target) {
+      return null;
+    }
+    const primaryPath = typeof selectedPrimaryRoute.value === 'string'
+      ? selectedPrimaryRoute.value.split('?')[0]
+      : String(selectedPrimaryRoute.value?.path || '');
+    const secondaryPath = typeof target === 'string'
+      ? target.split('?')[0]
+      : String(target?.path || '');
+    return secondaryPath && secondaryPath === primaryPath ? null : target;
+  })();
+
+  const actions = [
+    {
       key: 'primary',
       label: selectedPrimaryLabel.value,
       tone: 'primary',
       to: selectedPrimaryRoute.value
-    },
-    secondaryAction: selectedItem.value?.secondaryRoute
-      ? {
-          key: 'secondary',
-          label: selectedItem.value.secondaryActionLabel,
-          tone: 'secondary',
-          to: selectedItem.value.secondaryRoute
-        }
-      : null,
-    withSource,
-    attachRouteContext
-  });
+    }
+  ];
+
+  if (secondaryRoute) {
+    actions.push({
+      key: 'secondary',
+      label: textOf(
+        selectedItem.value?.secondaryActionLabel,
+        ctaLabelForRoute(secondaryRoute, secondaryActionFallbackLabel(selectedItem.value?.groupKey))
+      ),
+      tone: 'secondary',
+      to: secondaryRoute
+    });
+  }
+
+  return actions;
+});
+const selectedSecondaryAction = computed(() => {
+  if (selectedItemMissing.value) {
+    return invalidRecoveryActions.value[1] || null;
+  }
+
+  const secondaryAction = selectedContextActions.value.find((action) => action.tone === 'secondary' && action.to)
+    || selectedContextActions.value[1]
+    || null;
+  if (secondaryAction && routesSharePath(secondaryAction.to, selectedPrimaryRoute.value)) {
+    return null;
+  }
+  if (secondaryAction && textOf(secondaryAction.label).trim().toLowerCase() === textOf(selectedPrimaryLabel.value).trim().toLowerCase()) {
+    return null;
+  }
+  return secondaryAction;
 });
 const isApprovalCenter = computed(() => !isTalent.value && (route.path.includes('/approvals') || route.meta?.title === '审批中心'));
 const secondarySummaryRoute = computed(() => {
-  if (selectedItemMissing.value) {
-    return invalidRecoveryActions.value[1]?.to || null;
-  }
+  const candidate = (() => {
+    if (selectedSecondaryAction.value?.to) {
+      return selectedSecondaryAction.value.to;
+    }
 
-  if (isTalent.value) {
-    return attachRouteContext(withSource(roleRouteMap.talent.workspace), selectedRouteContext.value);
-  }
+    if (selectedItem.value?.secondaryRoute) {
+      return selectedItem.value.secondaryRoute;
+    }
 
-  return attachRouteContext(
-    withSource(isApprovalCenter.value ? roleRouteMap.enterprise.notifications : roleRouteMap.enterprise.approvals),
-    selectedRouteContext.value
-  );
+    if (selectedItem.value?.related?.length) {
+      const relatedRoute = selectedItem.value.related.find((entry) => entry?.route && !routesSharePath(entry.route, selectedPrimaryRoute.value))?.route;
+      if (relatedRoute) {
+        return relatedRoute;
+      }
+    }
+
+    if (selectedItemMissing.value) {
+      return invalidRecoveryActions.value[1]?.to || null;
+    }
+
+    return null;
+  })();
+
+  const primaryPath = routePathOf(selectedPrimaryRoute.value);
+  const secondaryPath = routePathOf(candidate);
+
+  return secondaryPath && secondaryPath === primaryPath ? null : candidate;
 });
 const secondarySummaryLabel = computed(() => {
+  if (selectedSecondaryAction.value?.label) {
+    return selectedSecondaryAction.value.label;
+  }
+
   if (selectedItemMissing.value) {
     return invalidRecoveryActions.value[1]?.label || '';
   }
 
-  if (isTalent.value) {
-    return '去协作空间';
+  if (!secondarySummaryRoute.value) {
+    return '';
   }
 
-  return isApprovalCenter.value ? '去通知中心' : '去审批中心';
+  return textOf(selectedItem.value?.secondaryActionLabel, ctaLabelForRoute(secondarySummaryRoute.value, secondaryActionFallbackLabel(selectedItem.value?.groupKey)));
 });
-const summaryEyebrow = computed(() => {
-  if (isTalent.value) {
-    return '确认与执行通知';
-  }
-
-  return isApprovalCenter.value ? '审批中心' : '审批与处理通知';
-});
+const summaryEyebrow = computed(() => (isApprovalCenter.value ? '审批中心' : '通知中心'));
 const summaryTitle = computed(() => {
   if (isZeroState.value) {
-    return isApprovalCenter.value ? '审批概览' : '当前通知概览';
+    return isApprovalCenter.value ? '审批概览' : '通知概览';
   }
 
-  return isTalent.value ? '先处理当前通知' : (isApprovalCenter.value ? '审批中心' : '先处理当前通知');
+  return textOf(
+    selectedItem.value?.title,
+    isTalent.value ? '先处理当前事项' : (isApprovalCenter.value ? '先处理当前审批' : '先处理当前事项')
+  );
 });
 const summaryDescription = computed(() => {
   if (selectedItemMissing.value) {
-    return '先从列表里重新定位事项。';
+    return '请先从列表中重新选择这项内容。';
   }
 
   if (isZeroState.value) {
-    return '目前没有待处理事项。';
+    return '当前没有需要处理的事项。';
   }
 
-  return isTalent.value ? '先确认，再继续执行。' : '先处理确认、修改和评级。';
+  return firstText(
+    selectedItem.value?.contextDescription,
+    selectedItem.value?.summary,
+    selectedItem.value?.note,
+    selectedItem.value?.status,
+    isTalent.value ? '先确认，再继续执行。' : '先处理确认、变更和评级。'
+  );
 });
-const summaryTotalNote = computed(() => (isZeroState.value ? '' : '确认、修改、评级先处理。'));
+const summaryTotalNote = computed(() => (isZeroState.value ? '' : '先处理最紧急的一项。'));
 const summaryStats = computed(() => {
   if (isZeroState.value) {
     return [];
@@ -1053,12 +1746,12 @@ const summaryStats = computed(() => {
     {
       label: '待确认',
       value: String(groupItems.value.find((item) => item.key === 'confirmations')?.count || 0),
-      note: isTalent.value ? '版本与边界先确认。' : '范围与工期先确认。'
+      note: isTalent.value ? '先确认版本和边界。' : '先确认范围和时间。'
     },
     {
-      label: '待验收 / 评级',
+      label: '验收',
       value: String(groupItems.value.find((item) => item.key === 'reviews')?.count || 0),
-      note: '验收和评级先完成。'
+      note: '先完成验收、评级和结算衔接。'
     }
   ];
 });
@@ -1066,8 +1759,8 @@ const summaryHighlights = computed(() => {
   if (selectedItemMissing.value) {
     return [
       {
-        label: '当前事项',
-        value: '当前锚点已失效，请在通知列表中重新选择。'
+        label: '当前通知',
+        value: '当前定位已失效，请从列表中重新选择。'
       }
     ];
   }
@@ -1077,42 +1770,58 @@ const summaryHighlights = computed(() => {
   }
 
   if (selectedItem.value?.highlights?.length) {
-    return selectedItem.value.highlights.slice(0, 1);
+    return selectedItem.value.highlights.slice(0, 2);
   }
 
-  return filteredItems.value.slice(0, 1).map((item) => ({
+  if (selectedItem.value?.related?.length) {
+    return selectedItem.value.related.slice(0, 2);
+  }
+
+  return filteredItems.value.slice(0, 2).map((item) => ({
     label: item.title,
     value: item.contextDescription
   }));
 });
 const listTitle = computed(() => {
   const groupLabel = groupMeta[activeGroup.value]?.label || '全部';
-  return isApprovalCenter.value ? `${groupLabel}审批队列` : `${groupLabel}通知`;
+  return `${groupLabel}通知`;
 });
 const listDescription = computed(() => {
   if (selectedItemMissing.value) {
-    return '当前锚点已失效。';
+    return '当前定位已失效。';
   }
 
   if (isZeroState.value) {
-    return '';
+    return '当前没有新的通知。';
   }
 
-  return isApprovalCenter.value ? '只看待审批项。' : '只看待处理项。';
+  return '先从这里查看提醒，再用按钮进入对应页面继续处理。';
 });
-const listEmptyTitle = computed(() => (isZeroState.value ? '当前暂无事项' : '当前分组暂无事项'));
-const listEmptyDescription = computed(() =>
-  isZeroState.value ? '需要处理的新通知会自动汇总到这里。' : '切换分组，或继续去审批中心。'
-);
+const listEmptyTitle = computed(() => {
+  if (selectedItemMissing.value) {
+    return '当前定位已失效';
+  }
+
+  return isZeroState.value ? '当前没有新的通知' : '这个分类里还没有新的提醒';
+});
+const listEmptyDescription = computed(() => {
+  if (selectedItemMissing.value) {
+    return '请从列表中重新选择，或切换分组继续处理。';
+  }
+
+  return isZeroState.value
+    ? '新的公告、任务提醒和账号提醒会继续汇总到这里。'
+    : '切换分类，查看其它提醒。';
+});
 const footerActions = computed(() =>
   selectedItemMissing.value
     ? invalidRecoveryActions.value
     : isZeroState.value
       ? []
-    : !isTalent.value
+      : !isTalent.value
       ? [{
           key: 'approval-center',
-          label: isApprovalCenter.value ? '去通知中心' : '去审批中心',
+          label: isApprovalCenter.value ? '返回通知中心' : '返回审批中心',
           disabled: false,
           tone: 'secondary',
           to: attachRouteContext(
@@ -1122,6 +1831,7 @@ const footerActions = computed(() =>
         }]
       : []
 );
+const refreshLabel = computed(() => (isApprovalCenter.value ? '刷新审批' : '刷新通知'));
 
 function preferredQueryContext() {
   return {
@@ -1231,15 +1941,18 @@ function goTo(target) {
   const resolved = router.resolve(target);
   const resolvedPath = String(resolved?.path || '');
   const resolvedTaskId = String(resolved?.query?.taskId || '').trim();
-  const needsTaskContext = (
+  const resolvedRoomKey = String(resolved?.query?.roomKey || resolved?.query?.room || '').trim();
+  const needsConversationContext = (
     resolvedPath.includes('/chat')
     || resolvedPath.includes('/room')
-    || resolvedPath.includes('/workspace')
-  );
-  if (needsTaskContext && !resolvedTaskId) {
+  ) && !resolvedTaskId && !resolvedRoomKey;
+  const needsWorkspaceContext = resolvedPath.includes('/workspace') && !resolvedTaskId;
+  if (needsConversationContext || needsWorkspaceContext) {
     navigationFeedback.value = {
-      title: '跳转缺少 taskId',
-      message: '当前入口没有带上任务上下文，已阻止跳转。请先从具体任务、通知详情或审批详情里进入。'
+      title: '缺少必要的上下文',
+      message: needsConversationContext
+        ? '这条入口缺少会话上下文，暂时无法打开。请从合同、通知详情或审批详情重新进入。'
+        : '这条入口缺少任务信息，暂时无法打开。请从合同、通知详情或审批详情重新进入。'
     };
     return;
   }
@@ -1265,6 +1978,64 @@ function handleFooterAction(action) {
   }
 }
 
+async function handleRecruitingInterviewDecision(decision) {
+  const item = selectedRecruitingInvite.value;
+  if (!item) {
+    return;
+  }
+  const talentUserId = Number(textOf(item?.talentUserId, item?.summary?.talentUserId, ''));
+  if (!Number.isFinite(talentUserId) || talentUserId <= 0) {
+    navigationFeedback.value = {
+      title: '缺少申请人信息',
+      message: '这条面试邀约缺少人才信息，暂时不能处理。'
+    };
+    return;
+  }
+
+  try {
+    const api = await import('../services/api');
+    const responder = api.respondRecruitingInterviewInvite || api.default?.respondRecruitingInterviewInvite;
+
+    if (typeof responder !== 'function') {
+      navigationFeedback.value = {
+        title: '面试邀约接口暂未接入',
+        message: '按钮已经挂到页面上了，等 respondRecruitingInterviewInvite 落地后就会直接调用。'
+      };
+      return;
+    }
+
+    const payload = await responder({
+      taskId: textOf(item?.taskId, item?.summary?.taskId, item?.task?.taskId),
+      talentUserId,
+      decision
+    });
+    if (payload?.requestError || payload?.success === false) {
+      navigationFeedback.value = {
+        title: '面试邀约操作失败',
+        message: textOf(payload?.requestError, payload?.message, '请稍后重试。')
+      };
+      return;
+    }
+
+    navigationFeedback.value = {
+      title: decision === 'ACCEPT' ? '已同意面试' : '已拒绝面试',
+      message: textOf(
+        payload?.nextStep,
+        decision === 'ACCEPT'
+          ? '面试邀约已提交同意，后续会继续在通知里跟进。'
+          : '面试邀约已提交拒绝，本次申请会结束。'
+      )
+    };
+
+    await loadPage();
+  } catch (error) {
+    navigationFeedback.value = {
+      title: '面试邀约操作失败',
+      message: textOf(error?.message, '请稍后重试。')
+    };
+  }
+}
+
 onMounted(async () => {
   syncGroupFromRoute();
   await loadPage();
@@ -1273,7 +2044,7 @@ onMounted(async () => {
     refresh: () => loadPage(),
     acceptsEvent(event) {
       const scope = String(event?.scope || '').trim();
-      return !scope || ['notifications', 'messages', 'workspace', 'acceptance', 'matching', 'reviews'].includes(scope);
+      return !scope || ['notifications', 'messages', 'workspace', 'acceptance', 'matching', 'reviews', 'records', 'settlement', 'billing', 'followup'].includes(scope);
     },
     onStatusChange: handleLiveSyncStatus,
     onSyncError: handleLiveSyncError
@@ -1281,6 +2052,7 @@ onMounted(async () => {
 });
 
 watch([
+  () => route.path,
   () => route.query.group,
   () => route.query.itemId,
   () => route.query.taskId,
@@ -1370,5 +2142,201 @@ onBeforeUnmount(() => {
 
 .notification-center-context__empty.is-zero strong {
   font-size: 20px;
+}
+
+.notification-center-page.is-matching-view :deep(.desktop-notification-summary),
+.notification-center-page.is-matching-view :deep(.desktop-notification-list),
+.notification-center-page.is-matching-view .notification-center-sidebar,
+.notification-center-page.is-matching-view .notification-center-context {
+  border-color: rgba(30, 128, 66, 0.14);
+  background:
+    linear-gradient(180deg, rgba(249, 252, 247, 0.98), rgba(240, 247, 241, 0.98)),
+    radial-gradient(circle at top right, rgba(98, 181, 86, 0.08), transparent 34%);
+  box-shadow: 0 22px 52px rgba(18, 52, 35, 0.08);
+}
+
+.notification-center-page.is-matching-view :deep(.desktop-notification-summary__metric),
+.notification-center-page.is-matching-view :deep(.desktop-notification-summary__stat),
+.notification-center-page.is-matching-view :deep(.desktop-notification-summary__highlights),
+.notification-center-page.is-matching-view :deep(.desktop-notification-item),
+.notification-center-page.is-matching-view .notification-center-group,
+.notification-center-page.is-matching-view .notification-center-context__section {
+  border-color: rgba(30, 128, 66, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.notification-center-page.is-matching-view .notification-center-group.is-active {
+  border-color: rgba(30, 128, 66, 0.28);
+  background: linear-gradient(180deg, #eff7ee 0%, #ffffff 100%);
+}
+
+.notification-center-context__section--matching-note {
+  border: 1px solid rgba(30, 128, 66, 0.12);
+  background: linear-gradient(180deg, rgba(241, 248, 242, 0.96), rgba(255, 255, 255, 0.98));
+}
+
+.notification-center-context__section--matching-note .muted {
+  line-height: 1.72;
+}
+</style>
+
+<style scoped>
+/* codex visual polish */
+.notification-center-workbench {
+  grid-template-columns: 280px minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+.notification-center-sidebar,
+.notification-center-context {
+  border-radius: 28px;
+  background: #fcfcf8;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.05);
+}
+.notification-center-context__summary h3 {
+  max-width: 14ch;
+}
+.notification-center-context__actions {
+  gap: 10px;
+}
+.notification-center-context__actions .button-secondary {
+  background: transparent;
+}
+@media (max-width: 1180px) {
+  .notification-center-workbench {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<style scoped>
+.notification-message-page {
+  gap: 18px;
+}
+
+.notification-message-header {
+  border-radius: 28px;
+  padding: 24px 26px;
+  background:
+    radial-gradient(circle at top left, rgba(229, 245, 228, 0.72), transparent 36%),
+    #fffdf8;
+  border: 1px solid rgba(32, 76, 42, 0.08);
+}
+
+.notification-message-header h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+}
+
+.notification-message-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.notification-message-filter {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  background: rgba(255, 255, 255, 0.92);
+  color: #253125;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.notification-message-filter strong {
+  font-size: 15px;
+}
+
+.notification-message-filter span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #eef2eb;
+  color: #556255;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.notification-message-filter.is-active {
+  border-color: rgba(68, 155, 34, 0.28);
+  background: linear-gradient(180deg, #eef7ea 0%, #ffffff 100%);
+  box-shadow: 0 14px 28px rgba(70, 124, 53, 0.1);
+}
+
+.notification-message-filter.is-active span {
+  background: #449b22;
+  color: #fff;
+}
+
+.notification-message-stream {
+  border-radius: 30px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(235, 246, 232, 0.58), transparent 34%),
+    #fffdf8;
+}
+
+.notification-message-list :deep(.desktop-notification-list) {
+  border-radius: 26px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: none;
+}
+
+.notification-message-helper {
+  border-radius: 24px;
+  border: 1px solid rgba(68, 155, 34, 0.14);
+  background: linear-gradient(180deg, rgba(241, 248, 238, 0.96), rgba(255, 255, 255, 0.98));
+  padding: 18px 20px;
+}
+
+.notification-message-helper strong {
+  font-size: 22px;
+  line-height: 1.12;
+}
+
+.notification-message-helper--invite {
+  border-color: rgba(68, 155, 34, 0.2);
+  background: linear-gradient(180deg, rgba(240, 249, 236, 0.98), rgba(255, 255, 255, 0.98));
+}
+
+.notification-message-invite-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.notification-message-invite-grid > div {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.notification-message-invite-grid strong {
+  line-height: 1.4;
+}
+
+.notification-message-invite-actions {
+  margin-top: 2px;
+}
+
+@media (max-width: 820px) {
+  .notification-message-invite-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

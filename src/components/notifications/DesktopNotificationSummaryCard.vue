@@ -61,15 +61,15 @@
 import { computed } from 'vue';
 
 const props = defineProps({
-  eyebrow: { type: String, default: '通知总览' },
+  eyebrow: { type: String, default: '通知概览' },
   title: { type: String, required: true },
   description: { type: String, default: '' },
-  totalLabel: { type: String, default: '待处理事项' },
-  totalValue: { type: String, default: '0 项' },
+  totalLabel: { type: String, default: '需要处理' },
+  totalValue: { type: String, default: '0 条事项' },
   totalNote: { type: String, default: '' },
   stats: { type: Array, default: () => [] },
   highlights: { type: Array, default: () => [] },
-  highlightTitle: { type: String, default: '处理建议' },
+  highlightTitle: { type: String, default: '建议下一步' },
   primaryAction: { type: Object, default: null },
   secondaryAction: { type: Object, default: null }
 });
@@ -104,11 +104,11 @@ const normalizedHighlights = computed(() =>
 .desktop-notification-summary {
   padding: 24px;
   border-radius: 28px;
-  border: 1px solid rgba(102, 137, 196, 0.14);
+  border: 1px solid rgba(29, 79, 53, 0.12);
   background:
-    linear-gradient(180deg, rgba(15, 20, 31, 0.96), rgba(8, 12, 20, 0.98)),
-    radial-gradient(circle at top right, rgba(108, 154, 255, 0.15), transparent 32%);
-  box-shadow: 0 28px 72px rgba(0, 4, 16, 0.28);
+    linear-gradient(180deg, rgba(247, 251, 247, 0.98), rgba(238, 246, 240, 0.98)),
+    radial-gradient(circle at top right, rgba(98, 181, 86, 0.14), transparent 34%);
+  box-shadow: 0 24px 56px rgba(18, 52, 35, 0.12);
 }
 
 .desktop-notification-summary__header,
@@ -136,8 +136,8 @@ const normalizedHighlights = computed(() =>
 .desktop-notification-summary__highlights {
   padding: 18px 20px;
   border-radius: 22px;
-  border: 1px solid rgba(158, 179, 212, 0.1);
-  background: rgba(10, 15, 26, 0.8);
+  border: 1px solid rgba(29, 79, 53, 0.1);
+  background: rgba(255, 255, 255, 0.86);
 }
 
 .desktop-notification-summary__label,
@@ -185,8 +185,8 @@ const normalizedHighlights = computed(() =>
   gap: 6px;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid rgba(158, 179, 212, 0.08);
-  background: rgba(12, 18, 29, 0.7);
+  border: 1px solid rgba(29, 79, 53, 0.08);
+  background: rgba(245, 249, 245, 0.96);
 }
 
 .desktop-notification-summary__highlight-list strong {

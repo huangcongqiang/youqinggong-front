@@ -1,812 +1,337 @@
 <template>
-  <section v-if="page" class="page-stack record-page record-page--office office-list-page">
-    <article class="record-page-header">
-      <SectionTitle
-        :eyebrow="audience === 'talent' ? '人才接单记录' : '企业发单记录'"
-        :title="page.summary?.title || page.title || '记录列表'"
-        :description="page.summary?.description || defaultLead"
-        tag="h1"
-      />
-
-      <div class="record-summary-bar record-summary-bar--compact record-summary-bar--office" aria-label="记录摘要">
-        <div v-for="item in summaryCards" :key="item.label" class="record-summary-item record-summary-item--compact">
-          <span class="record-summary-label">{{ item.label }}</span>
-          <strong class="record-summary-value">{{ item.value }}</strong>
-          <span class="record-summary-note">{{ item.note }}</span>
+    <section class="history-page stack-xl">
+      <header class="history-hero panel stack-lg">
+        <div class="history-hero__topline">
+          <div>
+            <p class="eyebrow">申请 / 面试 / 合作</p>
+            <h1>{{ page?.summary?.title || defaultTitle }}</h1>
+            <p class="muted">{{ page?.summary?.description || defaultLead }}</p>
+          </div>
+          <div class="hero-actions">
+            <router-link class="button-secondary" :to="dashboardRoute">返回工作台</router-link>
+          </div>
         </div>
+
+      <div class="signal-grid">
+        <article class="signal-card">
+          <span>全部记录</span>
+          <strong>{{ page?.summary?.total || records.length }}</strong>
+        </article>
+        <article class="signal-card">
+          <span>进行中</span>
+          <strong>{{ page?.summary?.ongoing || 0 }}</strong>
+        </article>
+        <article class="signal-card">
+          <span>已完成</span>
+          <strong>{{ page?.summary?.completed || 0 }}</strong>
+        </article>
       </div>
+    </header>
+
+    <article v-if="errorMessage" class="result-card stack-sm history-error-banner">
+      <span class="eyebrow">暂时无法加载</span>
+      <h3>申请与合作记录暂时不可用</h3>
+      <p class="muted">{{ errorMessage }}</p>
     </article>
 
-    <article class="record-workbench">
-      <div class="record-workbench-header record-workbench-header--office">
-        <div class="record-workbench-copy record-workbench-copy--office">
-          <span class="eyebrow">记录筛选</span>
-          <h3>按状态查看发单与接单</h3>
-          <p class="muted">固定筛选区、批量选择和行级动作都收在同一条工作带里，方便快速处理当前页记录。</p>
-        </div>
-        <div class="record-workbench-meta record-workbench-meta--office">
-          <span class="record-workbench-count">{{ filteredRecords.length }} 条记录</span>
-          <span class="record-workbench-tip">最近更新 {{ page.summary?.latestUpdatedAt || '待同步' }}</span>
-        </div>
-      </div>
-
-      <div class="record-workbench-sticky">
-        <div class="record-tab-row record-tab-row--office record-tab-row--sticky" role="tablist" aria-label="记录状态筛选">
-          <button
-            v-for="tab in tabs"
-            :key="tab.key"
-            type="button"
-            class="record-tab-button"
-            :class="{ 'is-active-tab': activeTab === tab.key }"
-            :aria-pressed="activeTab === tab.key"
-            @click="setTab(tab.key)"
-          >
-            <span class="record-tab-button-label">{{ tab.label }}</span>
-            <span v-if="typeof tab.count === 'number'" class="record-tab-button-count">{{ tab.count }}</span>
-          </button>
-        </div>
-
-        <div class="record-batch-bar" aria-label="批量操作">
-          <label class="record-batch-select-all">
-            <input
-              :checked="isAllVisibleSelected"
-              :indeterminate="isSelectionIndeterminate"
-              type="checkbox"
-              @change="toggleVisibleSelection($event.target.checked)"
-            />
-            <span class="record-batch-select-all-label">全选当前页</span>
-          </label>
-
-          <div class="record-batch-meta">
-            <span class="record-batch-count">已选 {{ selectedVisibleCount }} 条</span>
-            <span class="record-batch-tip">{{ filteredRecords.length }} 条可批量处理</span>
-            <span class="soft-pill">归档仅整理当前视图</span>
+    <section class="history-layout">
+      <section class="panel stack-md history-main">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">记录与筛选</p>
+            <h2>按申请、面试和合作状态浏览记录</h2>
           </div>
+          <span class="soft-pill">{{ filteredRecords.length }} 条结果</span>
+        </div>
 
-          <div class="record-batch-actions toolbar">
-            <button type="button" class="record-batch-action" :disabled="selectedVisibleCount === 0" @click="archiveSelectedRecords">
-              本地归档
-            </button>
-            <button type="button" class="record-batch-action" :disabled="selectedVisibleCount === 0" @click="exportSelectedRecords">
-              批量导出
-            </button>
-            <button type="button" class="record-batch-action" :disabled="selectedVisibleCount === 0" @click="clearSelection">
-              清空选择
-            </button>
+        <div class="toolbar toolbar--wrap">
+          <div class="mini-chip-row">
             <button
-              v-if="archivedCount"
+              v-for="tab in tabs"
+              :key="tab.key"
               type="button"
-              class="record-batch-action"
-              @click="restoreArchivedRecords"
+              class="filter-pill"
+              :class="{ 'is-active': activeTab === tab.key }"
+              @click="setTab(tab.key)"
             >
-              恢复本地归档
+              {{ tab.label }}
+              <span v-if="typeof tab.count === 'number'">{{ tab.count }}</span>
             </button>
           </div>
+          <input v-model.trim="searchText" class="text-input history-search" type="search" :placeholder="searchPlaceholder" />
         </div>
 
-        <p v-if="batchResult" class="record-batch-result">{{ batchResult }}</p>
-      </div>
-
-      <div v-if="filteredRecords.length" class="record-list-shell record-list-shell--office">
-        <div class="record-list-head record-list-head--office" aria-hidden="true">
-          <span class="record-list-head-cell record-list-head-cell--select">
-            <span class="record-list-head-cell-label">选择</span>
-          </span>
-          <span class="record-list-head-cell record-list-head-cell--main">记录</span>
-          <span class="record-list-head-cell record-list-head-cell--amount">金额</span>
-          <span class="record-list-head-cell record-list-head-cell--time">周期</span>
-          <span class="record-list-head-cell record-list-head-cell--partner">{{ partnerLabel }}</span>
-          <span class="record-list-head-cell record-list-head-cell--grade">{{ gradeLabel }}</span>
-          <span class="record-list-head-cell record-list-head-cell--tags">标签</span>
-          <span class="record-list-head-cell record-list-head-cell--actions">操作</span>
-        </div>
-
-        <div class="record-list-body record-list-body--office">
-          <article
-            v-for="(record, index) in filteredRecords"
-            :key="record.id"
-            class="record-list-item record-list-item--office"
-            :class="{ 'is-selected': isRecordSelected(record.id) }"
-          >
-            <div class="record-list-cell record-list-cell--select">
-              <label class="record-row-select">
-                <input
-                  :checked="isRecordSelected(record.id)"
-                  type="checkbox"
-                  @change="toggleRecordSelection(record.id, $event.target.checked)"
-                />
-                <span class="record-row-select-label">选择记录</span>
-              </label>
-            </div>
-
-            <div class="record-list-cell record-list-cell--main">
-              <div class="record-list-main-head">
-                <span class="record-row-index">#{{ index + 1 }}</span>
-                <span class="record-status-chip">{{ record.statusGroup || record.stage }}</span>
+        <div v-if="filteredRecords.length" class="history-list">
+          <article v-for="record in filteredRecords" :key="record.id" class="history-card stack-sm">
+            <div class="history-card__topline">
+              <div>
+                <strong>{{ record.title }}</strong>
+                <p>{{ record.summary }}</p>
               </div>
-              <h3 class="record-list-title">{{ record.title }}</h3>
-              <p class="record-list-summary">{{ record.summary }}</p>
+              <span class="status-chip">{{ record.status }}</span>
             </div>
 
-            <div class="record-list-cell record-list-cell--amount">
-              <span class="record-cell-label">金额</span>
-              <strong class="record-cell-value">{{ record.amountValue || formatMoney(record.amount) }}</strong>
+            <div class="mini-chip-row">
+              <span class="mini-chip">{{ partnerLabel }}：{{ record.partner }}</span>
+              <span class="mini-chip">{{ record.amount }}</span>
+              <span class="mini-chip">{{ record.range }}</span>
+              <span class="mini-chip">更新于 {{ record.updatedAt }}</span>
+              <span class="mini-chip">{{ gradeLabel }}：{{ record.rating }}</span>
             </div>
 
-            <div class="record-list-cell record-list-cell--time">
-              <span class="record-cell-label">周期</span>
-              <div class="record-cell-stack">
-                <span>开始 {{ formatDateLabel(record.startAt || record.startDate) }}</span>
-                <span>结束 {{ formatDateLabel(record.endAt || record.endDate) }}</span>
-              </div>
+            <div v-if="record.tags.length" class="mini-chip-row">
+              <span v-for="tag in record.tags" :key="`${record.id}-${tag}`" class="mini-chip">{{ tag }}</span>
             </div>
 
-            <div class="record-list-cell record-list-cell--partner">
-              <span class="record-cell-label">{{ partnerLabel }}</span>
-              <span class="record-cell-value">{{ record.counterpartName || record.partnerName }}</span>
-            </div>
-
-            <div class="record-list-cell record-list-cell--grade">
-              <span class="record-cell-label">{{ gradeLabel }}</span>
-              <span class="record-cell-value">{{ ratingValue(record) }}</span>
-            </div>
-
-            <div class="record-list-cell record-list-cell--tags">
-              <span class="record-cell-label">标签</span>
-              <div class="record-tag-row">
-                <span v-for="tag in listOf(record.tags || record.taskTags)" :key="tag" class="record-tag-chip">{{ tag }}</span>
-              </div>
-            </div>
-
-            <div class="record-list-cell record-list-cell--actions">
-              <div class="record-row-action-group">
-                <router-link class="record-row-link record-row-link--primary" :to="detailRoute(record)">查看详情</router-link>
-                <router-link class="record-row-link record-row-link--secondary" :to="detailRoute(record, 'timeline')">
-                  查看进展
-                </router-link>
-              </div>
-              <span class="record-cell-note">记录已留痕</span>
+            <div class="toolbar toolbar--wrap">
+              <router-link class="button-primary" :to="detailRoute(record.id)">打开记录</router-link>
+              <router-link v-if="record.taskId" class="button-secondary" :to="workspaceRoute(record.taskId)">打开工作区</router-link>
+              <router-link v-if="record.taskId && record.roomKey" class="button-tertiary" :to="chatRoute(record)">查看消息</router-link>
             </div>
           </article>
         </div>
-      </div>
+        <div v-else class="empty-state is-compact">
+          <strong>当前没有符合筛选条件的记录</strong>
+          <p>{{ emptyHint }}</p>
+        </div>
+      </section>
 
-      <article v-else class="record-empty-state">
-        <h4>暂无对应记录</h4>
-        <p class="muted">{{ emptyHint }}</p>
-        <router-link class="record-empty-link" :to="baseRoute">返回全部记录</router-link>
-      </article>
-    </article>
+      <aside class="panel stack-md history-side">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">记录摘要</p>
+            <h2>申请与合作记录</h2>
+          </div>
+        </div>
+
+        <article class="mini-card stack-sm">
+          <span class="eyebrow">当前筛选</span>
+          <strong>{{ tabs.find((tab) => tab.key === activeTab)?.label || '全部' }}</strong>
+          <p class="muted">{{ page?.summary?.description || defaultLead }}</p>
+        </article>
+
+        <article class="mini-card stack-sm">
+          <span class="eyebrow">一眼概览</span>
+          <div class="mini-chip-row">
+            <span class="mini-chip">全部 {{ page?.summary?.total || records.length }}</span>
+            <span class="mini-chip">进行中 {{ page?.summary?.ongoing || 0 }}</span>
+            <span class="mini-chip">已完成 {{ page?.summary?.completed || 0 }}</span>
+          </div>
+        </article>
+
+        <article class="mini-card stack-sm">
+          <span class="eyebrow">最近更新记录</span>
+          <strong>{{ filteredRecords[0]?.updatedAt || '刚刚更新' }}</strong>
+          <p class="muted">{{ filteredRecords[0]?.title || '最新记录会显示在这里。' }}</p>
+        </article>
+
+          <router-link class="button-link" :to="dashboardRoute">返回工作台</router-link>
+      </aside>
+    </section>
+
+    <ActionErrorDialog :message="errorMessage" title="申请与合作记录暂时不可用" eyebrow="记录归档" />
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import SectionTitle from '../components/SectionTitle.vue';
-import { formatDateLabel, formatGrade, formatMoney } from '../services/recordFormatters.js';
-import { roleRouteMap } from '../utils/roleRoutes';
-import { getOrderRecords } from '../services/api';
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ActionErrorDialog from '../components/ActionErrorDialog.vue'
+import { formatDateLabel, formatDateRangeLabel, formatGrade, formatMoney } from '../services/recordFormatters.js'
+import { getOrderRecords } from '../services/api'
 
-const route = useRoute();
-const router = useRouter();
+const route = useRoute()
+const router = useRouter()
+const audience = computed(() => (route.meta?.audience === 'talent' ? 'talent' : 'enterprise'))
+const page = ref(null)
+const errorMessage = ref('')
+const searchText = ref('')
 
-const audience = computed(() => (route.meta?.audience === 'talent' ? 'talent' : 'enterprise'));
-const page = ref(null);
-const baseRoute = computed(() =>
-  audience.value === 'talent' ? roleRouteMap.talent.records : roleRouteMap.enterprise.records
-);
-const activeTab = computed(() => normalizeTab(route.query.tab));
-const defaultLead = computed(() =>
-  audience.value === 'talent'
-    ? '按接单、执行和验收节奏查看每一单合作，把收入、周期和企业评级保留下来。'
-    : '按发单、执行和结算节奏回看每一单合作，重点看金额、时间和我的评级。'
-);
-const partnerLabel = computed(() => (audience.value === 'talent' ? '合作企业' : '合作人才'));
-const gradeLabel = computed(() => (audience.value === 'talent' ? '企业评级' : '我的评级'));
-const emptyHint = computed(() =>
-  audience.value === 'talent'
-    ? '接单记录会在这里按状态沉淀，方便复盘作品和合作质量。'
-    : '发单记录会在这里按状态沉淀，便于继续跟进和复盘。'
-);
-const tabs = computed(() => listOf(page.value?.tabs));
-const summaryCards = computed(() => [
-  {
-    label: '记录总数',
-    value: String(page.value?.summary?.total || 0),
-    note: '当前账号已沉淀的记录数量。'
-  },
-  {
-    label: '进行中',
-    value: String(page.value?.summary?.ongoing || 0),
-    note: '仍在推进或等待确认的任务。'
-  },
-  {
-    label: '已完成',
-    value: String(page.value?.summary?.completed || 0),
-    note: '已经完成结算或评级闭环的任务。'
-  },
-  {
-    label: '最近更新',
-    value: page.value?.summary?.latestUpdatedAt || '待同步',
-    note: page.value?.summary?.latestTitle || '最新记录会优先排在最上方。'
+const activeTab = computed(() => {
+  const value = String(route.query.tab || 'all')
+  return ['all', 'ongoing', 'completed'].includes(value) ? value : 'all'
+})
+
+const defaultTitle = computed(() => (audience.value === 'talent' ? '申请、面试与收入记录' : '申请、面试与合作记录归档'))
+const defaultLead = computed(() => (audience.value === 'talent'
+  ? '把申请、面试、合作、交付与收入整理成一条可浏览的记录线。'
+  : '把任务、申请、面试、合作、反馈和结算结果整理成一条可浏览的记录线。'))
+const partnerLabel = computed(() => (audience.value === 'talent' ? '企业方' : '人才方'))
+const gradeLabel = computed(() => (audience.value === 'talent' ? '企业评分' : '我的评分'))
+const searchPlaceholder = computed(() => (audience.value === 'talent' ? '搜索申请、面试、企业、标签或摘要' : '搜索申请、面试、合作、标签或摘要'))
+const emptyHint = computed(() => (searchText.value ? '换一个合作名称、对象或标签关键词试试。' : '随着合作推进、验收完成和结算继续，记录会持续沉淀在这里。'))
+const dashboardRoute = computed(() => `/${audience.value}`)
+
+function resolveLifecycleStageLabel(item) {
+  const explicitLabel = [item?.stage, item?.stageLabel, item?.statusLabel]
+    .map((value) => String(value || '').trim())
+    .find(Boolean)
+  if (explicitLabel) {
+    return explicitLabel === '待同步' ? '待处理' : explicitLabel
   }
-]);
-const selectedRecordIds = ref([]);
-const localArchivedRecordIds = ref([]);
-const batchResult = ref('');
+  const statusKey = String(item?.statusKey || item?.statusGroup || item?.status || '').trim().toUpperCase()
+  if (!statusKey) return '待处理'
+  if (['APPLIED', 'PENDING', 'REVIEWING'].includes(statusKey)) return '申请阶段'
+  if (statusKey === 'INTERVIEW_PENDING') return '待确认面试'
+  if (statusKey === 'INTERVIEW_ACCEPTED') return '面试阶段'
+  if (['INTERVIEW_REJECTED', 'AUTO_CLOSED', 'CLOSED'].includes(statusKey)) return '已关闭'
+  if (['CONFIRMED', 'AUTO_CONFIRMED'].includes(statusKey)) return '执行中'
+  return item?.statusLabel || item?.stageLabel || item?.status || '待处理'
+}
+
+const tabs = computed(() => {
+  const items = Array.isArray(page.value?.tabs) ? page.value.tabs : []
+  if (items.length) return items.map((item) => ({ key: item.key || 'all', label: item.label || '全部', count: item.count }))
+  return [
+    { key: 'all', label: '全部', count: records.value.length },
+    { key: 'ongoing', label: '进行中' },
+    { key: 'completed', label: '已完成' },
+  ]
+})
+
+const records = computed(() => {
+  const items = Array.isArray(page.value?.items) ? page.value.items : []
+  return items.map((item, index) => ({
+    id: String(item?.taskId || item?.id || `record-${index}`),
+    taskId: String(item?.taskId || item?.id || ''),
+    roomKey: String(item?.roomKey || item?.room || ''),
+    title: item?.title || '未命名合作',
+    summary: item?.summary || item?.detail || '暂时还没有合作摘要。',
+    status: resolveLifecycleStageLabel(item),
+    amount: item?.amountValue || formatMoney(item?.amount),
+    range: formatDateRangeLabel(item?.startAt || item?.startDate, item?.endAt || item?.endDate),
+    updatedAt: formatDateLabel(item?.updatedAt || item?.updated_at || item?.latestUpdatedAt || item?.time),
+    partner: item?.counterpartName || item?.partnerName || '对方处理中',
+    rating: item?.rating?.value || formatGrade(item?.myGrade),
+    tags: Array.isArray(item?.tags) ? item.tags : (Array.isArray(item?.taskTags) ? item.taskTags : []),
+    searchText: [
+      item?.title,
+      item?.summary,
+      resolveLifecycleStageLabel(item),
+      item?.counterpartName,
+      item?.partnerName,
+      ...(Array.isArray(item?.tags) ? item.tags : []),
+      ...(Array.isArray(item?.taskTags) ? item.taskTags : []),
+    ].join(' ').toLowerCase(),
+  }))
+})
 
 const filteredRecords = computed(() => {
-  const archived = new Set(localArchivedRecordIds.value.map((item) => String(item || '')));
-  return listOf(page.value?.items)
-    .map((item) => ({
-      ...item,
-      id: item.taskId || item.id
-    }))
-    .filter((item) => !archived.has(String(item.id || '')));
-});
-const archivedCount = computed(() => localArchivedRecordIds.value.length);
-const selectedVisibleCount = computed(() => {
-  const selected = new Set(selectedRecordIds.value);
-  return filteredRecords.value.filter((record) => selected.has(record.id)).length;
-});
-const isAllVisibleSelected = computed(() => filteredRecords.value.length > 0 && selectedVisibleCount.value === filteredRecords.value.length);
-const isSelectionIndeterminate = computed(
-  () => selectedVisibleCount.value > 0 && selectedVisibleCount.value < filteredRecords.value.length
-);
+  const query = searchText.value.trim().toLowerCase()
+  if (!query) return records.value
+  return records.value.filter((item) => item.searchText.includes(query))
+})
 
-function normalizeTab(value) {
-  if (value === 'ongoing' || value === 'completed') {
-    return value;
+function detailRoute(recordId) {
+  const query = activeTab.value === 'all' ? {} : { tab: activeTab.value }
+  return `/${audience.value}/records/${encodeURIComponent(recordId)}${Object.keys(query).length ? `?tab=${encodeURIComponent(query.tab)}` : ''}`
+}
+
+function workspaceRoute(taskId) {
+  const query = new URLSearchParams()
+  query.set('taskId', String(taskId))
+  query.set('source', 'contract')
+  query.set('surface', 'contract')
+  query.set('originSource', 'records')
+  query.set('originTaskId', String(taskId))
+  return `/${audience.value}/workspace?${query.toString()}`
+}
+
+function chatRoute(record) {
+  const query = new URLSearchParams()
+  if (record.taskId) query.set('taskId', record.taskId)
+  if (record.roomKey) {
+    query.set('room', record.roomKey)
+    query.set('roomKey', record.roomKey)
   }
-  return 'all';
+  query.set('source', 'messages')
+  query.set('surface', 'messages')
+  query.set('originSource', 'records')
+  if (record.taskId) query.set('originTaskId', record.taskId)
+  return `/${audience.value}/chat?${query.toString()}`
 }
 
 function setTab(tab) {
-  const nextQuery = tab === 'all' ? {} : { ...route.query, tab };
-  router.replace({
-    path: route.path,
-    query: nextQuery
-  });
-}
-
-function detailRoute(record, focus = '') {
-  const query = buildRecordContextQuery({
-    recordId: record?.id || record?.taskId || '',
-    taskId: record?.taskId || record?.id || '',
-    room: record?.roomKey || record?.room || route.query.room || '',
-    source: 'records',
-    tab: activeTab.value,
-    focus
-  });
-  return {
-    path: audience.value === 'talent'
-      ? roleRouteMap.talent.recordDetail(record?.id || record?.taskId || '')
-      : roleRouteMap.enterprise.recordDetail(record?.id || record?.taskId || ''),
-    query
-  };
-}
-
-function buildRecordContextQuery(context) {
-  const query = {};
-
-  if (context.recordId) {
-    query.recordId = String(context.recordId);
-  }
-
-  if (context.taskId) {
-    query.taskId = String(context.taskId);
-  }
-
-  if (context.room) {
-    query.room = String(context.room);
-  }
-
-  if (context.source) {
-    query.source = context.source;
-  }
-
-  if (context.tab) {
-    query.tab = context.tab;
-  }
-
-  if (context.focus) {
-    query.focus = context.focus;
-  }
-
-  return query;
-}
-
-function listOf(value) {
-  return Array.isArray(value) ? value : [];
-}
-
-function ratingValue(record) {
-  if (record?.rating?.value) {
-    return record.rating.value;
-  }
-  return formatGrade(record?.myGrade);
-}
-
-function isRecordSelected(recordId) {
-  return selectedRecordIds.value.includes(recordId);
-}
-
-function toggleRecordSelection(recordId, checked) {
-  const normalizedId = String(recordId || '');
-  if (!normalizedId) {
-    return;
-  }
-
-  const nextSelected = new Set(selectedRecordIds.value.map((item) => String(item || '')));
-  if (checked) {
-    nextSelected.add(normalizedId);
+  const query = { ...route.query }
+  if (!tab || tab === 'all') {
+    delete query.tab
   } else {
-    nextSelected.delete(normalizedId);
+    query.tab = tab
   }
-  selectedRecordIds.value = Array.from(nextSelected);
+  router.replace({ path: route.path, query })
 }
 
-function toggleVisibleSelection(checked) {
-  if (checked) {
-    selectedRecordIds.value = filteredRecords.value.map((record) => record.id).filter(Boolean);
-    return;
+async function loadRecords() {
+  const payload = await getOrderRecords(audience.value, activeTab.value)
+  page.value = payload
+  if (payload?.requestError) {
+    errorMessage.value = payload.requestError
   }
-
-  selectedRecordIds.value = [];
 }
 
-function clearSelection() {
-  selectedRecordIds.value = [];
-}
-
-function archiveSelectedRecords() {
-  if (!selectedVisibleCount.value) {
-    return;
-  }
-
-  const selected = new Set(selectedRecordIds.value.map((item) => String(item || '')));
-  const nextArchived = new Set(localArchivedRecordIds.value.map((item) => String(item || '')));
-  filteredRecords.value.forEach((record) => {
-    if (selected.has(String(record.id || ''))) {
-      nextArchived.add(String(record.id || ''));
-    }
-  });
-  localArchivedRecordIds.value = Array.from(nextArchived);
-  batchResult.value = `已从当前视图本地归档 ${selectedVisibleCount.value} 条记录；该操作当前只影响本地工作区视图。`;
-  clearSelection();
-}
-
-function restoreArchivedRecords() {
-  localArchivedRecordIds.value = [];
-  batchResult.value = '已恢复当前视图里的本地归档记录。';
-}
-
-function exportSelectedRecords() {
-  if (!selectedVisibleCount.value || typeof window === 'undefined') {
-    return;
-  }
-
-  const selected = new Set(selectedRecordIds.value.map((item) => String(item || '')));
-  const rows = filteredRecords.value.filter((record) => selected.has(String(record.id || '')));
-  const csvLines = [
-    ['任务标题', '金额', '开始日期', '完成日期', partnerLabel.value, gradeLabel.value, '阶段', '摘要'].map(toCsvCell).join(','),
-    ...rows.map((record) => [
-      record.title,
-      record.amountValue || formatMoney(record.amount),
-      formatDateLabel(record.startAt || record.startDate),
-      formatDateLabel(record.endAt || record.endDate),
-      record.counterpartName || record.partnerName,
-      ratingValue(record),
-      record.statusGroup || record.stage,
-      record.summary
-    ].map(toCsvCell).join(','))
-  ];
-
-  const blob = new Blob([`\uFEFF${csvLines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-  const downloadUrl = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = `${audience.value === 'talent' ? '接单记录' : '发单记录'}-${activeTab.value}-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(downloadUrl);
-  batchResult.value = `已导出 ${rows.length} 条记录。`;
-}
-
-function toCsvCell(value) {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`;
-}
-
-async function loadPage() {
-  page.value = await getOrderRecords(audience.value, activeTab.value);
-}
-
-watch(filteredRecords, (records) => {
-  const allowed = new Set(records.map((record) => String(record.id || '')));
-  selectedRecordIds.value = selectedRecordIds.value.filter((id) => allowed.has(String(id || '')));
-});
-
-watch(
-  () => [audience.value, activeTab.value],
-  () => {
-    batchResult.value = '';
-    localArchivedRecordIds.value = [];
-    selectedRecordIds.value = [];
-    void loadPage();
-  }
-);
-
-onMounted(() => {
-  void loadPage();
-});
+watch(activeTab, loadRecords)
+onMounted(loadRecords)
 </script>
 
 <style scoped>
-.record-page {
-  --record-bg: #f3f5f7;
-  --record-panel: #ffffff;
-  --record-soft: #f7f9fc;
-  --record-border: #d9e1ea;
-  --record-border-strong: #c7d5e4;
-  --record-text: #132238;
-  --record-muted: #627389;
-  --record-accent: #1562c5;
-  gap: 20px;
-  padding-bottom: 36px;
-  color: var(--record-text);
-}
+.history-page,.stack-xl,.stack-lg,.stack-md,.stack-sm{display:grid}.stack-xl{gap:32px}.stack-lg{gap:24px}.stack-md{gap:18px}.stack-sm{gap:12px}
+.panel{padding:24px;border-radius:28px;border:1px solid rgba(17,24,39,.08);background:rgba(255,255,255,.96);box-shadow:0 24px 60px rgba(15,23,42,.06)}
+.eyebrow{margin:0;font-size:.76rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#108a00}.muted{margin:0;color:#52606d;line-height:1.7}
+.history-hero{background:radial-gradient(circle at top left, rgba(16,138,0,.08), transparent 28%), radial-gradient(circle at 88% 18%, rgba(245,196,66,.12), transparent 24%), #fffef8}
+.history-hero__topline,.hero-actions,.section-header,.toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.toolbar--wrap{flex-wrap:wrap;align-items:center}
+.history-hero__topline h1{margin:6px 0 10px;font-size:2.4rem;line-height:1;color:#111827}
+.signal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.signal-card,.history-card{border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#fff}
+.signal-card{padding:18px 20px}.signal-card span{display:block;margin-bottom:8px;color:#6b7280;font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.signal-card strong{font-size:1.45rem;color:#111827}
+.soft-pill,.status-chip,.mini-chip,.button-primary,.button-secondary,.filter-pill{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border-radius:999px;text-decoration:none}
+.soft-pill,.mini-chip,.button-secondary,.filter-pill{border:1px solid rgba(17,24,39,.12);background:#fff;color:#111827}.status-chip,.filter-pill.is-active{border:1px solid rgba(16,138,0,.24);background:#f3fff0;color:#165a0f}
+.button-primary{min-height:46px;padding:0 20px;border:1px solid #108a00;background:#108a00;color:#fff;font-weight:700}.button-secondary{min-height:46px;padding:0 20px;font-weight:700}
+.button-tertiary{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 4px;border:0;background:transparent;color:#108a00;font-weight:700;text-decoration:none}
+.history-search,.text-input{width:min(320px,100%);border:1px solid rgba(17,24,39,.12);border-radius:18px;padding:14px 16px;background:#fff;color:#111827;font:inherit}
+.history-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.85fr);gap:24px;align-items:start}
+.history-main,.history-side{min-width:0}
+.history-side .mini-card{background:#fbfcfa;border:1px solid rgba(17,24,39,.08);border-radius:20px;padding:16px}
+.history-error-banner{border-left:4px solid #cd8f00;background:linear-gradient(180deg, rgba(255,250,231,.98), rgba(255,255,255,.98))}
+.history-list{display:grid;gap:14px}.history-card{padding:20px}.history-card__topline{display:flex;justify-content:space-between;gap:14px}.history-card strong{color:#111827}.history-card p{margin:0;color:#52606d;line-height:1.65}
+.empty-state.is-compact{padding:16px;border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#f8faf7}
+@media (max-width: 1200px){.history-layout{grid-template-columns:minmax(0,1fr)}.signal-grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width: 720px){.panel{padding:20px}.history-hero__topline,.hero-actions,.section-header,.toolbar{flex-direction:column;align-items:stretch}.history-hero__topline h1{font-size:1.9rem}.history-layout{grid-template-columns:minmax(0,1fr)}}
+</style>
 
-.record-page .muted {
-  color: var(--record-muted);
+<style scoped>
+/* codex visual polish */
+.history-hero {
+  padding: 32px;
+  border-radius: 32px;
+  background: linear-gradient(135deg, rgba(240, 248, 236, 0.92), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.08);
 }
-
-.record-page-header,
-.record-workbench,
-.record-empty-state {
-  border-radius: 26px;
-}
-
-.record-page-header,
-.record-workbench,
-.record-empty-state,
-.record-summary-item,
-.record-batch-bar,
-.record-list-item {
-  background: var(--record-panel);
-  border: 1px solid var(--record-border);
-  box-shadow: 0 18px 40px rgba(15, 35, 63, 0.08);
-}
-
-.record-page-header {
-  padding: 24px 28px;
-}
-
-.record-page-header :deep(.section-title h1) {
-  margin: 0;
-  font-size: clamp(28px, 3.1vw, 38px);
-  line-height: 1.08;
-  letter-spacing: -0.04em;
-}
-
-.record-page-header :deep(.section-title p) {
-  max-width: 62ch;
-  color: var(--record-muted);
-}
-
-.record-summary-bar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.record-summary-item {
-  display: grid;
-  gap: 6px;
-  padding: 16px 18px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff, #f7f9fc);
-}
-
-.record-summary-label,
-.record-summary-note,
-.record-workbench-tip,
-.record-batch-tip,
-.record-cell-label,
-.record-cell-note {
-  color: var(--record-muted);
-}
-
-.record-summary-value {
-  font-size: 24px;
-  line-height: 1.1;
-  letter-spacing: -0.04em;
-}
-
-.record-workbench {
-  padding: 22px 24px 24px;
-}
-
-.record-workbench-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.record-workbench-copy h3,
-.record-empty-state h4 {
-  margin: 0;
-  font-size: 22px;
-  line-height: 1.15;
-  letter-spacing: -0.03em;
-}
-
-.record-workbench-copy p,
-.record-empty-state p {
-  margin: 0;
-}
-
-.record-workbench-meta {
-  display: grid;
-  gap: 6px;
-  justify-items: end;
-  text-align: right;
-}
-
-.record-workbench-count {
-  font-weight: 700;
-}
-
-.record-workbench-sticky {
-  position: sticky;
-  top: 16px;
-  z-index: 3;
-  display: grid;
-  gap: 12px;
-  margin-top: 18px;
-  padding-top: 2px;
-}
-
-.record-tab-row,
-.record-batch-bar {
-  border-radius: 18px;
-}
-
-.record-tab-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px;
-  background: #ffffff;
-  border: 1px solid var(--record-border);
-  box-shadow: 0 12px 26px rgba(15, 35, 63, 0.06);
-}
-
-.record-tab-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 42px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: var(--record-soft);
-  color: var(--record-muted);
-  font-weight: 600;
-}
-
-.record-tab-button.is-active-tab {
-  border-color: #97b8e6;
-  background: #eaf2ff;
-  color: #184f9d;
-}
-
-.record-tab-button-count,
-.soft-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--record-border);
-  background: #f6f8fb;
-  color: #28415e;
-}
-
-.record-batch-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 14px 16px;
-}
-
-.record-batch-select-all,
-.record-row-select {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--record-text);
-  font-weight: 600;
-}
-
-.record-batch-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-}
-
-.record-batch-actions {
-  margin-left: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.record-batch-action,
-.record-row-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1px solid var(--record-border-strong);
-  background: #ffffff;
-  color: var(--record-text);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.record-row-link--primary {
-  background: var(--record-accent);
-  border-color: var(--record-accent);
-  color: #ffffff;
-}
-
-.record-list-shell {
-  margin-top: 18px;
-}
-
-.record-list-head {
-  display: grid;
-  grid-template-columns: 70px minmax(280px, 2.3fr) 140px 170px 150px 120px 1.2fr 180px;
-  gap: 12px;
-  padding: 0 14px 10px;
-  color: var(--record-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.record-list-body {
-  display: grid;
-  gap: 14px;
-}
-
-.record-list-item {
-  display: grid;
-  grid-template-columns: 70px minmax(280px, 2.3fr) 140px 170px 150px 120px 1.2fr 180px;
-  gap: 12px;
+.history-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
   align-items: start;
-  padding: 16px 14px;
+}
+.history-main .history-card {
+  border-radius: 24px;
+}
+.history-side {
+  background: #fcfcf8;
+  box-shadow: none;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
+.history-side .mini-card {
   border-radius: 22px;
-  background: linear-gradient(180deg, #ffffff, #f8fbfe);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #fff;
 }
-
-.record-list-item.is-selected {
-  border-color: #95b8e8;
-  box-shadow: 0 16px 30px rgba(21, 98, 197, 0.1);
+.history-hero .button-secondary {
+  border-color: transparent;
+  background: transparent;
+  min-height: auto;
+  padding-inline: 0;
+  color: #2d5b2f;
 }
-
-.record-list-main-head,
-.record-row-action-group,
-.record-tag-row,
-.record-cell-stack {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.record-row-index,
-.record-status-chip,
-.record-tag-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid var(--record-border);
-  background: var(--record-soft);
-  color: #26405c;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.record-list-title,
-.record-cell-value {
-  margin: 0;
-  color: var(--record-text);
-}
-
-.record-list-summary {
-  margin: 10px 0 0;
-  color: var(--record-muted);
-  line-height: 1.6;
-}
-
-.record-list-cell {
-  display: grid;
-  gap: 8px;
-}
-
-.record-row-action-group {
-  display: grid;
-  gap: 10px;
-}
-
-.record-empty-state {
-  display: grid;
-  gap: 12px;
-  padding: 28px;
-  text-align: center;
-}
-
-.record-empty-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  padding: 0 16px;
-  border-radius: 12px;
-  background: var(--record-accent);
-  color: #ffffff;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-@media (max-width: 1280px) {
-  .record-summary-bar,
-  .record-list-item {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .record-list-head {
-    display: none;
-  }
-}
-
-@media (max-width: 900px) {
-  .record-page-header,
-  .record-workbench {
-    padding-inline: 18px;
-  }
-
-  .record-workbench-header {
-    flex-direction: column;
-  }
-
-  .record-workbench-meta {
-    justify-items: start;
-    text-align: left;
-  }
-
-  .record-batch-actions {
-    margin-left: 0;
-  }
-
-  .record-list-head {
-    display: none;
-  }
-
-  .record-list-item,
-  .record-summary-bar {
+@media (max-width: 1040px) {
+  .history-layout {
     grid-template-columns: 1fr;
   }
 }

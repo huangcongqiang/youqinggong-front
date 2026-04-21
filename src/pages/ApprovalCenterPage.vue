@@ -2,15 +2,15 @@
   <section v-if="page" class="page-stack approval-center-page desktop-center-page">
     <DesktopNotificationSummaryCard
       class="desktop-center-summary"
-      eyebrow="企业端审批中心"
+      eyebrow="审批中心"
       title="先处理当前决策"
-      :description="page.approvalHeadline || page.attentionHeadline || '集中处理当前待批事项。'"
-      total-label="当前审批队列"
+      :description="page.approvalHeadline || page.attentionHeadline || '把待审批事项集中在这里处理。'"
+      total-label="当前队列"
       :total-value="totalApprovalValue"
       total-note="先处理当前决策。"
       :stats="summaryStats"
       :highlights="summaryHighlights"
-      highlight-title="要点"
+      highlight-title="重点"
       :primary-action="{ label: selectedPrimaryLabel, to: selectedPrimaryRoute }"
       :secondary-action="{ label: secondarySummaryLabel, to: secondarySummaryRoute }"
       @primary-action="goTo(selectedPrimaryRoute)"
@@ -20,14 +20,14 @@
     <LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />
 
     <article v-if="approvalCenterIssue" class="result-card stack-sm">
-      <strong>审批数据暂时不可用</strong>
+      <strong>当前审批数据暂时不可用</strong>
       <p class="muted">{{ approvalCenterIssue }}</p>
     </article>
 
     <section class="approval-center-workbench desktop-center-workbench">
       <aside class="glass-panel approval-center-sidebar desktop-center-sidebar stack-md">
         <div class="stack-xs desktop-center-sidebar__head">
-          <span class="eyebrow">审批分组</span>
+          <span class="eyebrow">审批队列</span>
           <h3>按分组处理</h3>
         </div>
 
@@ -59,8 +59,8 @@
         :empty-description="emptyListDescription"
         :show-refresh="true"
         refresh-label="刷新队列"
-        footer-note="先处理当前项。"
-        :footer-actions="footerActions"
+        footer-note="先处理当前事项。"
+        :footer-actions="footer动作"
         @refresh="loadPage"
         @select="handleSelect"
         @action="handleAction"
@@ -80,21 +80,21 @@
             <span class="soft-pill">{{ selectedItem.status }}</span>
           </div>
 
-          <section v-if="selectedDecisionActions.length" class="approval-center-context__section desktop-center-context__section stack-sm">
+          <section v-if="selectedDecision动作.length" class="approval-center-context__section desktop-center-context__section stack-sm">
             <div class="stack-sm">
               <div class="stack-xs">
                 <span class="eyebrow">动作</span>
               </div>
               <div class="approval-center-context__actions desktop-center-context__actions">
                 <button
-                  v-for="action in selectedDecisionActions"
+                  v-for="action in selectedDecision动作"
                   :key="decisionActionKey(action)"
                   type="button"
                   :class="action.tone === 'primary' ? 'button-primary' : 'button-secondary'"
                   :disabled="actionPendingKey === decisionActionKey(action)"
                   @click="handleDecisionAction(action)"
                 >
-                  {{ actionPendingKey === decisionActionKey(action) ? '处理中…' : action.label }}
+                  {{ actionPendingKey === decisionActionKey(action) ? '提交中…' : action.label }}
                 </button>
               </div>
             </div>
@@ -106,7 +106,7 @@
             </div>
             <div class="approval-center-context__actions desktop-center-context__actions">
               <button
-                v-for="action in selectedContextActions"
+                v-for="action in selectedContext动作"
                 :key="action.key"
                 type="button"
                 :class="action.tone === 'primary' ? 'button-primary' : 'button-secondary'"
@@ -119,7 +119,7 @@
 
           <section class="approval-center-context__section desktop-center-context__section stack-sm">
             <div class="stack-xs">
-              <span class="eyebrow">要点</span>
+              <span class="eyebrow">重点</span>
             </div>
             <ul class="approval-center-context__list desktop-center-context__list">
               <li v-for="item in selectedItem.highlights.slice(0, 2)" :key="`${selectedItem.id}-${item.label}`">
@@ -131,7 +131,7 @@
 
           <section class="approval-center-context__section desktop-center-context__section stack-sm">
             <div class="stack-xs">
-              <span class="eyebrow">留痕</span>
+              <span class="eyebrow">相关线索</span>
             </div>
             <ul class="approval-center-context__list desktop-center-context__list">
               <li v-for="item in selectedItem.related.slice(0, 2)" :key="`${selectedItem.id}-${item.label}-${item.value}`">
@@ -146,7 +146,7 @@
             <p class="muted">{{ actionFeedback.message }}</p>
           </article>
           <article v-if="reviewTrail.length" class="result-card stack-sm">
-            <strong>审核动作留痕</strong>
+            <strong>处理记录</strong>
             <ul class="stack-xs approval-center-context__trail">
               <li v-for="item in reviewTrail.slice(0, 5)" :key="`${item.at}-${item.action}-${item.status}`">
                 <strong>{{ item.status }}</strong>
@@ -157,17 +157,17 @@
         </div>
 
         <div v-else class="approval-center-context__empty desktop-center-context__empty stack-sm">
-          <strong>{{ selectedItemMissing ? '当前事项已处理或不可用' : '当前没有待审批事项' }}</strong>
+          <strong>{{ selectedItemMissing ? '这条审批已经处理完毕或当前不可用' : '当前还没有审批事项' }}</strong>
           <p class="muted">
             {{
               selectedItemMissing
-                ? '请重新选择事项，或切换分组后继续处理。'
-                : '可以先去通知中心看普通更新。'
+                ? '重新选择事项，或切换分组继续处理。'
+                : '也可以先回通知中心查看通用更新。'
             }}
           </p>
           <div v-if="selectedItemMissing" class="approval-center-context__actions desktop-center-context__actions">
             <button
-              v-for="action in invalidRecoveryActions"
+              v-for="action in invalidRecovery动作"
               :key="action.key"
               type="button"
               :class="action.tone === 'primary' ? 'button-primary' : 'button-secondary'"
@@ -190,7 +190,6 @@ import DesktopNotificationList from '../components/notifications/DesktopNotifica
 import DesktopNotificationSummaryCard from '../components/notifications/DesktopNotificationSummaryCard.vue';
 import { getApprovalCenterData, submitEnterpriseApprovalAction } from '../services/api';
 import { startBusinessLiveSync } from '../services/businessEventStream';
-import { buildCurrentObjectContextActions } from '../utils/attentionNavigation';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
@@ -215,7 +214,7 @@ function handleLiveSyncStatus(snapshot) {
 }
 
 function handleLiveSyncError() {
-  liveSyncError.value = '最近一次实时同步出现波动，页面会自动重连或切到轮询。';
+  liveSyncError.value = '最新同步刚刚中断，页面会自动重连，必要时再回退到轮询。';
 }
 
 const approvalCenterIssue = computed(() => {
@@ -225,36 +224,38 @@ const approvalCenterIssue = computed(() => {
   }
 
   if (rawIssue.includes('Unknown path') && rawIssue.includes('/api/enterprise/approvals')) {
-    return '审批接口当前未部署或暂时不可达，请稍后再试。';
+    return '当前审批接口暂时不可用，请稍后再试。';
   }
 
   if (rawIssue.includes('/api/enterprise/approvals')) {
-    return '审批数据接口暂时不可用，请稍后再试。';
+    return '当前审批数据暂时不可用，请稍后再试。';
   }
 
-  return '审批数据暂时未同步到最新版本，请稍后刷新。';
+  return '审批数据还没同步到最新版本，稍后刷新再试。';
 });
 
 const approvalGroupMeta = {
-  matching: { label: '待处理申请', note: '先确认合作申请和候选人才。' },
-  confirmations: { label: '待确认', note: '先确认版本和工期。' },
-  changes: { label: '待修改', note: '先收口修改意见。' },
-  reviews: { label: '待验收 / 评级', note: '先处理验收、评级和结算前动作。' },
-  cancellations: { label: '待取消', note: '先确认取消事项。' }
+  matching: { label: '招聘', note: '先处理候选人筛选和入围决定。' },
+  confirmations: { label: '待确认', note: '先确认范围、版本和时间安排。' },
+  changes: { label: '待修改', note: '先处理对方提出的修改。' },
+  reviews: { label: '待验收', note: '先处理验收、评级和结算衔接。' },
+  cancellations: { label: '取消事项', note: '先处理取消相关决定。' }
 };
 
 function listOf(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function textOf(value, fallback = '') {
-  if (typeof value === 'string' && value.trim()) {
-    return value.trim();
+function textOf(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
   }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return String(value);
-  }
-  return fallback;
+  return '';
 }
 
 function numberOf(value) {
@@ -354,7 +355,7 @@ function setActiveGroup(groupKey) {
 
 function notificationRouteSource(groupKey) {
   if (groupKey === 'reviews') {
-    return 'records';
+    return 'acceptance';
   }
   if (groupKey === 'matching') {
     return 'matching';
@@ -366,13 +367,51 @@ function routeForSource(source, preferredRoute) {
   if (preferredRoute) {
     return withSource(preferredRoute);
   }
+  if (source === 'acceptance') {
+    return withSource(roleRouteMap.enterprise.acceptance);
+  }
   if (source === 'records') {
     return withSource(roleRouteMap.enterprise.records);
   }
   if (source === 'matching') {
-    return withSource(roleRouteMap.enterprise.publish);
+    return withSource(roleRouteMap.enterprise.market);
   }
   return withSource(roleRouteMap.enterprise.workspace);
+}
+
+function approvalCtaLabelForRoute(target, fallback = '打开审批') {
+  const path = typeof target === 'string' ? target : String(target?.path || '');
+  if (!path) {
+    return fallback;
+  }
+  if (path.includes('/settlement')) {
+    return '打开结算';
+  }
+  if (/\/records\/[^/]+$/.test(path)) {
+    return '打开记录';
+  }
+  if (path.includes('/acceptance')) {
+    return '打开验收';
+  }
+  if (path.includes('/records')) {
+    return '打开历史';
+  }
+  if (path.includes('/approvals')) {
+    return '返回审批中心';
+  }
+  if (path.includes('/notifications')) {
+    return '返回通知中心';
+  }
+  if (path.includes('/messages') || path.includes('/chat') || path.includes('/room')) {
+    return '打开消息';
+  }
+  if (path.includes('/workspace')) {
+    return '打开协作';
+  }
+  if (path.includes('/talents') || path.includes('/market')) {
+    return '查看人才';
+  }
+  return fallback;
 }
 
 function attachRouteContext(target, context = {}) {
@@ -397,7 +436,7 @@ function normalizeEntries(entries, fallback) {
       }
       return {
         label: textOf(entry?.label, `信息 ${index + 1}`),
-        value: textOf(entry?.value, textOf(entry?.summary, '信息暂未同步'))
+        value: textOf(entry?.value, textOf(entry?.summary, '信息还没同步过来'))
       };
     })
     .filter((entry) => entry.value);
@@ -436,7 +475,7 @@ function normalizeApprovalItem(item, index) {
     { label: '下一步', value: group.note }
   ]);
   const related = normalizeEntries(item?.related, [
-    { label: '备注', value: textOf(item?.note, '进入对应页面处理。') }
+    { label: '说明', value: textOf(item?.note, '打开对应页面继续处理。') }
   ]);
 
   return {
@@ -447,7 +486,7 @@ function normalizeApprovalItem(item, index) {
     groupKey,
     groupLabel: group.label,
     count,
-    countLabel: textOf(item?.badge, `${count} 项`),
+    countLabel: textOf(item?.badge, `${count} 条事项`),
     status: textOf(item?.status, group.label),
     note: textOf(item?.note, group.note),
     updatedAt: textOf(item?.updatedAt, '实时同步'),
@@ -460,17 +499,28 @@ function normalizeApprovalItem(item, index) {
     recordId,
     room,
     route,
-    primaryActionLabel: groupKey === 'matching' ? '去选人' : groupKey === 'reviews' ? '去处理验收' : '去处理',
+    primaryActionLabel: approvalCtaLabelForRoute(
+      route,
+      groupKey === 'matching' ? '查看人才' : groupKey === 'reviews' ? '打开验收' : '打开审批'
+    ),
     contextDescription: textOf(item?.note, group.note),
     active: false,
     highlights,
     related,
     decisionActions,
     actions: [
-      { key: 'open', label: groupKey === 'matching' ? '去选人' : groupKey === 'reviews' ? '去处理验收' : '去处理', tone: 'primary', to: route },
+      {
+        key: 'open',
+        label: approvalCtaLabelForRoute(
+          route,
+          groupKey === 'matching' ? '查看人才' : groupKey === 'reviews' ? '打开验收' : '打开审批'
+        ),
+        tone: 'primary',
+        to: route
+      },
       {
         key: 'notifications',
-        label: '查看全部通知',
+        label: '返回通知中心',
         tone: 'secondary',
         to: attachRouteContext(withSource(roleRouteMap.enterprise.notifications), {
           group: groupKey,
@@ -565,20 +615,20 @@ function buildCenterSelectionRoute(item) {
   return { path: route.path, query };
 }
 
-const invalidRecoveryActions = computed(() => {
+const invalidRecovery动作 = computed(() => {
   const actions = [];
 
   if (currentGroupFirstItem.value) {
     actions.push({
       key: 'recover-group',
-      label: '查看当前分组首项',
+      label: '打开这个分组里的第一条事项',
       tone: 'primary',
       to: buildCenterSelectionRoute(currentGroupFirstItem.value)
     });
   } else {
     actions.push({
       key: 'clear-anchor',
-      label: '清除当前定位',
+      label: '清除当前焦点',
       tone: 'primary',
       to: clearedSelectionRoute.value
     });
@@ -587,14 +637,14 @@ const invalidRecoveryActions = computed(() => {
   if (currentGroupFirstItem.value) {
     actions.push({
       key: 'clear-anchor',
-      label: '清除当前定位',
+      label: '清除当前焦点',
       tone: 'secondary',
       to: clearedSelectionRoute.value
     });
   } else {
     actions.push({
       key: 'notifications',
-      label: '查看全部通知',
+      label: '返回通知中心',
       tone: 'secondary',
       to: notificationsRoute.value
     });
@@ -627,7 +677,7 @@ const selectedPrimaryRoute = computed(() => {
   }
 
   if (selectedItemMissing.value) {
-    return invalidRecoveryActions.value[0]?.to || clearedSelectionRoute.value;
+    return invalidRecovery动作.value[0]?.to || clearedSelectionRoute.value;
   }
 
   return notificationsRoute.value;
@@ -637,66 +687,69 @@ const selectedPrimaryLabel = computed(() => {
     return selectedItem.value.primaryActionLabel;
   }
 
-  return selectedItemMissing.value ? invalidRecoveryActions.value[0]?.label || '清除当前定位' : '去处理';
+  return selectedItemMissing.value
+    ? invalidRecovery动作.value[0]?.label || '清除当前焦点'
+    : approvalCtaLabelForRoute(selectedPrimaryRoute.value, '打开审批');
 });
-const selectedContextActions = computed(() => {
+const selectedContext动作 = computed(() => {
   if (selectedItemMissing.value) {
-    return invalidRecoveryActions.value;
+    return invalidRecovery动作.value;
   }
 
-  return buildCurrentObjectContextActions({
-    item: selectedItem.value,
-    audience: 'enterprise',
-    primaryAction: {
+  const actions = [
+    {
       key: 'primary',
       label: selectedPrimaryLabel.value,
       tone: 'primary',
       to: selectedPrimaryRoute.value
-    },
-    secondaryAction: {
-      key: 'notifications',
-      label: '去通知中心',
+    }
+  ];
+  const secondaryRoute = selectedItem.value?.secondaryRoute || notificationsRoute.value;
+  const secondaryLabel = selectedItem.value?.secondaryActionLabel || '返回通知中心';
+  if (secondaryRoute) {
+    actions.push({
+      key: 'secondary',
+      label: secondaryLabel,
       tone: 'secondary',
-      to: notificationsRoute.value
-    },
-    withSource,
-    attachRouteContext
-  });
+      to: secondaryRoute
+    });
+  }
+  return actions;
 });
-const selectedDecisionActions = computed(() => listOf(selectedItem.value?.decisionActions));
+const selectedDecision动作 = computed(() => listOf(selectedItem.value?.decisionActions));
 const secondarySummaryRoute = computed(() => {
   if (selectedItemMissing.value) {
-    return invalidRecoveryActions.value[1]?.to || null;
+    return invalidRecovery动作.value[1]?.to || null;
   }
 
   return notificationsRoute.value;
 });
 const secondarySummaryLabel = computed(() => {
   if (selectedItemMissing.value) {
-    return invalidRecoveryActions.value[1]?.label || '';
+    return invalidRecovery动作.value[1]?.label || '';
   }
 
-  return '查看全部通知';
+  return '返回通知中心';
 });
-const totalApprovalValue = computed(() => `${approvalItems.value.reduce((sum, item) => sum + numberOf(item.count), 0)} 项`);
+const totalApprovalValue = computed(() => `${approvalItems.value.reduce((sum, item) => sum + numberOf(item.count), 0)} 条事项`);
 const summaryStats = computed(() => [
   {
-    label: '待处理申请',
+    label: '招聘',
     value: String(groupItems.value.find((item) => item.key === 'matching')?.count || 0),
-    note: '先确认合作申请和候选人才。'
+    note: '先处理候选人筛选和入围决定。'
   },
   {
     label: '待确认',
     value: String(groupItems.value.find((item) => item.key === 'confirmations')?.count || 0),
-    note: '先确认版本和工期。'
+    note: '先确认范围、版本和时间安排。'
   }
 ]);
 const summaryHighlights = computed(() => {
   if (selectedItemMissing.value) {
     return [
       {
-        label: '当前事项',
-        value: '当前锚点已失效，请重新选择。'
+        label: '当前审批',
+        value: '当前锚点已经失效，请重新选择事项。'
       }
     ];
   }
@@ -713,19 +766,19 @@ const summaryHighlights = computed(() => {
 const listTitle = computed(() => `${approvalGroupMeta[activeGroup.value]?.label || '审批'}队列`);
 const listDescription = computed(() => {
   if (selectedItemMissing.value) {
-    return '当前锚点已失效，请重新选择。';
+    return '当前锚点已经失效，请重新选择事项。';
   }
 
-  return approvalGroupMeta[activeGroup.value]?.note || '只看当前待批项。';
+  return approvalGroupMeta[activeGroup.value]?.note || '这里只展示当前审批分组。';
 });
-const emptyListTitle = computed(() => (approvalCenterIssue.value ? '审批数据暂不可用' : '当前没有待审批事项'));
+const emptyListTitle = computed(() => (approvalCenterIssue.value ? '当前审批数据暂时不可用' : '当前还没有审批事项'));
 const emptyListDescription = computed(() =>
-  approvalCenterIssue.value || '待处理申请、待确认、待修改、待验收和待取消都会收口到这里。'
+  approvalCenterIssue.value || '招聘、确认、修改、验收和取消相关事项都会汇总到这里。'
 );
-const footerActions = computed(() =>
+const footer动作 = computed(() =>
   selectedItemMissing.value
-    ? invalidRecoveryActions.value
-    : [{ key: 'notifications', label: '查看全部通知', tone: 'secondary', to: notificationsRoute.value }]
+    ? invalidRecovery动作.value
+    : [{ key: 'notifications', label: '返回通知中心', tone: 'secondary', to: notificationsRoute.value }]
 );
 
 function preferredQueryContext() {
@@ -876,8 +929,8 @@ function goTo(target) {
   );
   if (needsTaskContext && !resolvedTaskId) {
     actionFeedback.value = {
-      title: '跳转缺少 taskId',
-      message: '当前入口没有带上任务上下文，已阻止跳转。请先从具体任务、通知详情或审批详情里进入。'
+      title: '缺少任务上下文',
+      message: '这条入口没有带上合同上下文，所以暂时无法跳转。请从合同、通知详情或审批详情重新进入。'
     };
     return;
   }
@@ -897,7 +950,7 @@ function handleAction({ action }) {
   }
 }
 
-function isMutationFailed(result) {
+function isMutation失败(result) {
   return Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED');
 }
 
@@ -915,10 +968,10 @@ async function handleDecisionAction(action) {
   });
   actionPendingKey.value = '';
 
-  if (isMutationFailed(result)) {
+  if (isMutation失败(result)) {
     actionFeedback.value = {
       title: '审批动作提交失败',
-      message: result.requestIssue || approvalCenterIssue.value || '审批动作暂时无法提交，已保留当前队列。'
+      message: result.requestIssue || approvalCenterIssue.value || '当前审批动作暂时无法提交，队列状态还没有变化。'
     };
     reviewTrail.value = [
       {
@@ -939,12 +992,12 @@ async function handleDecisionAction(action) {
     syncSelectionAfterAction();
   }
   actionFeedback.value = {
-    title: result?.result?.actionBlocked ? '当前审批暂未推进' : '审批动作已提交',
+    title: result?.result?.actionBlocked ? '这条审批还没有推进' : '审批动作已提交',
     message: textOf(
       result?.result?.actionMessage,
       result?.result?.nextStep,
       result?.result?.message,
-      '审批结果已同步到当前队列。'
+      '审批结果已经同步到当前队列。'
     )
   };
   reviewTrail.value = [

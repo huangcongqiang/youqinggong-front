@@ -1,7 +1,8 @@
 const APPROVAL_GROUP_META = {
+  matching: { label: '待处理申请', note: '先确认合作申请和候选人才。' },
   confirmations: { label: '待确认', note: '先确认版本和工期。' },
   changes: { label: '待修改', note: '先收口修改意见。' },
-  reviews: { label: '待验收 / 评级', note: '先处理验收、评级和结算前动作。' },
+  reviews: { label: '待审核 / 评级', note: '先处理审核、评级和反馈确认。' },
   cancellations: { label: '待取消', note: '先确认取消事项。' }
 };
 
@@ -34,6 +35,7 @@ function isApprovalGroup(groupKey) {
 
 function approvalTypeOf(groupKey) {
   return switchGroup(groupKey, {
+    matching: 'TASK_COLLABORATION_REQUEST',
     confirmations: 'TASK_ANALYSIS_CONFIRM',
     changes: 'TASK_CONFIRMATION_CHANGE_REQUEST',
     reviews: 'TASK_REVIEW',

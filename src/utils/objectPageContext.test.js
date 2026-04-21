@@ -6,6 +6,9 @@ import {
   readObjectPageContext,
   resolveImmediateOriginContext
 } from './objectPageContext.js';
+import { setUiLocale } from './uiLocale.js';
+
+setUiLocale('zh');
 
 const context = readObjectPageContext(
   {

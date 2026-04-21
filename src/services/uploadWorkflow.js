@@ -32,6 +32,27 @@ async function requestJson(fetchImpl, url, options, fallbackMessage) {
   }
 }
 
+function normalizeUploadErrorMessage(error, fallbackMessage) {
+  const rawMessage = requestErrorMessage(error, fallbackMessage);
+  if (
+    error?.status === 413
+    || /413\s+Request\s+Entity\s+Too\s+Large/i.test(rawMessage)
+    || /Request\s+Entity\s+Too\s+Large/i.test(rawMessage)
+  ) {
+    return '上传文件过大，请压缩后再试（单个文件建议不超过 200MB）。';
+  }
+  return rawMessage;
+}
+
+function rethrowUploadError(error, fallbackMessage) {
+  const message = normalizeUploadErrorMessage(error, fallbackMessage);
+  const wrappedError = new Error(message);
+  wrappedError.status = error?.status || 0;
+  wrappedError.payload = error?.payload || null;
+  wrappedError.requestError = message;
+  throw wrappedError;
+}
+
 function normalizeRegisteredAttachment(file, presign, registered, source) {
   const downloadUrl = String(registered?.downloadUrl || registered?.url || presign?.downloadUrl || '').trim();
   return {
@@ -79,18 +100,22 @@ export async function uploadTaskAttachmentRuntime(runtime, payload) {
     '当前暂时无法创建上传会话，请稍后再试。'
   );
 
-  await requestJson(
-    fetchImpl,
-    resolveRequestUrl(apiBase, String(presign?.uploadUrl || '')),
-    {
-      method: String(presign?.method || 'PUT').toUpperCase(),
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream'
+  try {
+    await requestJson(
+      fetchImpl,
+      resolveRequestUrl(apiBase, String(presign?.uploadUrl || '')),
+      {
+        method: String(presign?.method || 'PUT').toUpperCase(),
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
       },
-      body: file
-    },
-    '当前暂时无法上传附件，请稍后再试。'
-  );
+      '当前暂时无法上传附件，请稍后再试。'
+    );
+  } catch (error) {
+    rethrowUploadError(error, '当前暂时无法上传附件，请稍后再试。');
+  }
 
   const registered = await requestJson(
     fetchImpl,
@@ -143,18 +168,22 @@ export async function uploadStandaloneAttachmentRuntime(runtime, payload) {
     '当前暂时无法创建上传会话，请稍后再试。'
   );
 
-  await requestJson(
-    fetchImpl,
-    resolveRequestUrl(apiBase, String(presign?.uploadUrl || '')),
-    {
-      method: String(presign?.method || 'PUT').toUpperCase(),
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream'
+  try {
+    await requestJson(
+      fetchImpl,
+      resolveRequestUrl(apiBase, String(presign?.uploadUrl || '')),
+      {
+        method: String(presign?.method || 'PUT').toUpperCase(),
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream'
+        },
+        body: file
       },
-      body: file
-    },
-    '当前暂时无法上传附件，请稍后再试。'
-  );
+      '当前暂时无法上传附件，请稍后再试。'
+    );
+  } catch (error) {
+    rethrowUploadError(error, '当前暂时无法上传附件，请稍后再试。');
+  }
 
   return {
     name: String(file?.name || '未命名附件'),

@@ -14,7 +14,9 @@ import {
 } from './authSession';
 import { attachRequestError, buildAuthHeaders, readResponsePayload, unwrapEnvelopePayload } from './httpClient';
 import { resolveApiBase } from './apiBase';
-import { uploadTaskAttachmentRuntime } from './uploadWorkflow';
+import { uploadStandaloneAttachmentRuntime, uploadTaskAttachmentRuntime } from './uploadWorkflow';
+import { getIntlLocale, translateText } from '../utils/uiLocale.js';
+import { formatTalentAvailability } from '../utils/talentAvailability.js';
 
 export {
   clearStoredAuthSession,
@@ -55,6 +57,143 @@ async function writeJson(path, fallback, body) {
   } catch (error) {
     return attachRequestError(fallback, error);
   }
+}
+
+async function deleteJson(path, fallback) {
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method: 'DELETE',
+      headers: buildAuthHeaders(getStoredAuthToken, {})
+    });
+    const payload = await readResponsePayload(response);
+    return unwrapEnvelopePayload(response, payload);
+  } catch (error) {
+    return attachRequestError(fallback, error);
+  }
+}
+
+function normalizeRecruitingApplicant(item, index = 0) {
+  const taskId = stringOf(item?.taskId, item?.id, '');
+  const talentUserId = stringOf(item?.talentUserId, item?.platformUserId, item?.userId, '');
+  const stage = stringOf(item?.stage, item?.status, item?.assignmentStatus, 'APPLIED').toUpperCase();
+  const interview = item?.interview || item?.currentInterview || {};
+  const roomKey = stringOf(item?.roomKey, item?.room, interview?.roomKey, '');
+
+  return {
+    ...item,
+    id: stringOf(item?.id, item?.applicationId, talentUserId || `app-${index + 1}`),
+    taskId,
+    talentUserId,
+    name: stringOf(item?.name, item?.talentName, '申请人'),
+    role: stringOf(item?.role, item?.headline, '职位待补充'),
+    applyAt: stringOf(item?.applyAt, item?.submittedAt, item?.createdAt, ''),
+    rate: stringOf(item?.rate, item?.proposedRate, item?.budget, '待确认'),
+    summary: stringOf(item?.summary, item?.intro, item?.coverLetter, '先查看申请摘要，再决定约面试还是继续沟通。'),
+    status: stage,
+    statusLabel: stringOf(item?.statusLabel, item?.stageLabel, stage),
+    tags: Array.isArray(item?.tags) ? item.tags : [],
+    signals: Array.isArray(item?.signals) ? item.signals : Array.isArray(item?.trustSignals) ? item.trustSignals : [],
+    portfolio: Array.isArray(item?.portfolio) ? item.portfolio : [],
+    interview: {
+      time: stringOf(interview?.time, item?.interviewAt, ''),
+      meetingCode: stringOf(interview?.meetingCode, item?.meetingCode, ''),
+      note: stringOf(interview?.note, item?.interviewNote, ''),
+      state: stringOf(interview?.state, item?.interviewState, ''),
+    },
+    currentInvite: item?.currentInvite || null,
+    autoClosedReason: stringOf(item?.autoClosedReason, ''),
+    canReapply: item?.canReapply !== false,
+    detailRoute: item?.slug ? roleRouteMap.enterprise.talentDetail(item.slug) : '',
+    messageRoute: roomKey
+      ? roleRouteMap.enterprise.messageRoom(roomKey, {
+          taskId,
+          room: roomKey,
+          roomKey,
+          source: 'recruiting',
+          surface: 'recruiting',
+        })
+      : roleRouteMap.enterprise.messages,
+  };
+}
+
+export function normalizeRecruitingWorkspacePayload(payload) {
+  const rawApplications = Array.isArray(payload?.applications)
+    ? payload.applications
+    : Array.isArray(payload?.items)
+      ? payload.items
+      : [];
+  const applications = rawApplications.map(normalizeRecruitingApplicant).filter((item) => item.id);
+  const task = payload?.task || {};
+  const pending = applications.filter((item) => ['APPLIED', 'REQUESTED', 'PENDING', 'REVIEWING', 'UNDER_REVIEW'].includes(item.status)).length;
+  const interviewPending = applications.filter((item) => item.status === 'INTERVIEW_PENDING').length;
+  const accepted = applications.filter((item) => item.status === 'INTERVIEW_ACCEPTED').length;
+  const confirmed = applications.filter((item) => ['CONFIRMED', 'AUTO_CONFIRMED'].includes(item.status)).length;
+  const autoClosed = applications.filter((item) => ['AUTO_CLOSED', 'CLOSED', 'INTERVIEW_REJECTED'].includes(item.status)).length;
+
+  return {
+    ...payload,
+    task: {
+      id: stringOf(task?.id, task?.taskId, payload?.taskId, ''),
+      taskId: stringOf(task?.taskId, payload?.taskId, ''),
+      title: stringOf(task?.title, payload?.taskTitle, '招聘申请处理'),
+      budget: stringOf(task?.budget, task?.budgetRange, '待确认'),
+      period: stringOf(task?.period, task?.timeline, '待确认'),
+      summary: stringOf(task?.summary, task?.lead, '先查看申请，再决定约面试、继续沟通或确认合作。'),
+      statusNote: stringOf(task?.statusNote, '这是一条独立的申请处理页，不是人才市场搜索页。'),
+    },
+    applications,
+    counts: {
+      total: Number(payload?.counts?.total ?? applications.length) || applications.length,
+      pending: Number(payload?.counts?.pending ?? pending) || pending,
+      interviewPending: Number(payload?.counts?.interviewPending ?? interviewPending) || interviewPending,
+      accepted: Number(payload?.counts?.accepted ?? accepted) || accepted,
+      confirmed: Number(payload?.counts?.confirmed ?? confirmed) || confirmed,
+      autoClosed: Number(payload?.counts?.autoClosed ?? autoClosed) || autoClosed,
+    },
+    summary: payload?.summary || {
+      title: '招聘申请处理',
+      description: '任务 -> 申请人 -> 动作。先处理申请，再决定约面试、继续沟通或确认合作。',
+    },
+  };
+}
+
+export async function getRecruitingWorkspaceData(taskId = '') {
+  const suffix = taskId ? `?taskId=${encodeURIComponent(String(taskId))}` : '';
+  return readJson(`/enterprise/recruiting${suffix}`, {
+    success: false,
+    requestError: '招聘申请处理页暂时不可用。',
+    task: null,
+    applications: [],
+    counts: { total: 0, pending: 0, interviewPending: 0, accepted: 0, confirmed: 0, autoClosed: 0 },
+  });
+}
+
+export async function sendRecruitingInterviewInvite(payload) {
+  const taskId = stringOf(payload?.taskId, '').trim();
+  return writeJson(`/tasks/${encodeURIComponent(taskId)}/recruiting/interview/invite`, {
+    success: false,
+    requestError: '发送面试邀约暂时不可用。',
+  }, payload);
+}
+
+export async function respondRecruitingInterviewInvite(payload) {
+  const taskId = stringOf(payload?.taskId, '').trim();
+  return writeJson(`/tasks/${encodeURIComponent(taskId)}/recruiting/interview/decision`, {
+    success: false,
+    requestError: '处理面试邀约暂时不可用。',
+  }, payload);
+}
+
+export async function recordRecruitingInterviewOutcome(payload) {
+  const taskId = stringOf(payload?.taskId, '').trim();
+  return writeJson(`/tasks/${encodeURIComponent(taskId)}/recruiting/outcome`, {
+    success: false,
+    requestError: '记录面试结果暂时不可用。',
+  }, payload);
+}
+
+export async function confirmRecruitingCooperation(payload) {
+  return recordRecruitingInterviewOutcome({ ...payload, outcome: 'PASS_CONFIRM' });
 }
 
 export async function createWithdrawalRequest(payload) {
@@ -101,6 +240,60 @@ function normalizeAiPublishPresets(payload) {
 }
 
 function normalizeAiDecomposeResponse(payload) {
+  function parseStructuredItem(item, index = 0) {
+    const fallbackId = `module-${index + 1}`;
+    let source = item;
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      try {
+        source = JSON.parse(trimmed);
+      } catch {
+        source = { title: trimmed };
+      }
+    }
+    if (!source || typeof source !== 'object') {
+      return {
+        id: fallbackId,
+        title: `建议 ${index + 1}`,
+        duration: '',
+        output: String(item || '').trim(),
+        summary: ''
+      };
+    }
+    const title = stringOf(source?.title, source?.name, source?.module, source?.step, `建议 ${index + 1}`);
+    const duration = stringOf(source?.duration, source?.timeline, source?.period, source?.eta, '');
+    const output = stringOf(source?.output, source?.deliverable, source?.result, source?.goal, source?.content, '');
+    const summary = stringOf(source?.summary, source?.note, source?.description, '');
+    return {
+      ...source,
+      id: stringOf(source?.id, fallbackId),
+      title,
+      duration,
+      output,
+      summary
+    };
+  }
+
+  const normalizedModules = Array.isArray(payload?.modules)
+    ? payload.modules
+        .map((item, index) => parseStructuredItem(item, index))
+        .filter((item) => item.title || item.output || item.summary)
+    : [];
+
+  const normalizedRecommendations = Array.isArray(payload?.recommendations)
+    ? payload.recommendations
+        .map((item) => {
+          if (typeof item === 'string') {
+            return item.trim();
+          }
+          if (item && typeof item === 'object') {
+            return stringOf(item?.title, item?.label, item?.name, item?.summary, item?.content, '');
+          }
+          return '';
+        })
+        .filter(Boolean)
+    : [];
+
   const matchingPreview = Array.isArray(payload?.matchingPreview)
     ? payload.matchingPreview.map((item, index) => {
         const fallbackId = `preview-${index + 1}`;
@@ -124,6 +317,8 @@ function normalizeAiDecomposeResponse(payload) {
   return {
     ...payload,
     originalBrief: stringOf(payload?.originalBrief, payload?.brief, payload?.title, ''),
+    modules: normalizedModules,
+    recommendations: normalizedRecommendations,
     matchingPreview
   };
 }
@@ -245,7 +440,7 @@ function buildNotificationGroupsFromItems(items) {
     { key: 'confirmations', label: '待确认', note: '优先确认任务、版本和执行边界。', count: counts.confirmations },
     { key: 'changes', label: '待修改', note: '集中处理范围、工期和补充说明。', count: counts.changes },
     { key: 'matching', label: '发布与选人', note: '先完成候选人查看与当前轮选择。', count: counts.matching },
-    { key: 'reviews', label: '待验收 / 评级', note: '优先处理验收、评级和结算前动作。', count: counts.reviews },
+    { key: 'reviews', label: '待审核 / 评级', note: '优先处理审核、评级和反馈确认。', count: counts.reviews },
     { key: 'cancellations', label: '待取消', note: '需要双方确认的取消事项。', count: counts.cancellations },
     { key: 'followup', label: '待回看', note: '回到聊天、记录或任务池继续处理。', count: counts.followup }
   ];
@@ -403,7 +598,7 @@ function buildEmptyTalentDetail(slug = '') {
     services: [],
     portfolio: [],
     reviews: [],
-    availability: [],
+    availability: '',
     process: []
   };
 }
@@ -449,8 +644,62 @@ function normalizeTalentDetailPayload(payload, slug = '') {
     services: Array.isArray(payload?.services) ? payload.services : normalized.services,
     portfolio: Array.isArray(payload?.portfolio) ? payload.portfolio : [],
     reviews: Array.isArray(payload?.reviews) ? payload.reviews : [],
-    availability: Array.isArray(payload?.availability) ? payload.availability : [],
+    availability: formatTalentAvailability(payload?.availability),
     process: Array.isArray(payload?.process) ? payload.process : []
+  };
+}
+
+function buildEmptySavedTalentLists() {
+  return {
+    summary: {
+      title: 'Saved talent lists',
+      description: '把值得继续沟通的人才沉淀到 list 里，方便回到 shortlist 决策。',
+      totalLists: 0,
+      totalSavedTalents: 0,
+      activeListId: ''
+    },
+    lists: [],
+    gaps: [
+      'share-list-not-implemented',
+      'bulk-management-not-implemented',
+      'saved-search-not-implemented'
+    ]
+  };
+}
+
+function normalizeSavedTalentItem(item) {
+  return {
+    ...(item && typeof item === 'object' ? item : {}),
+    savedItemId: stringOf(item?.savedItemId, ''),
+    slug: stringOf(item?.slug, ''),
+    platformUserId: stringOf(item?.platformUserId, item?.talentUserId, ''),
+    talentUserId: stringOf(item?.talentUserId, item?.platformUserId, ''),
+    name: stringOf(item?.name, '未命名人才'),
+    role: stringOf(item?.role, '专业方向未公开'),
+    summary: stringOf(item?.summary, '当前还没有更多摘要信息。'),
+    tags: Array.isArray(item?.tags) ? item.tags : [],
+    services: Array.isArray(item?.services) ? item.services : [],
+    savedAt: stringOf(item?.savedAt, '')
+  };
+}
+
+function normalizeSavedTalentList(item) {
+  return {
+    ...(item && typeof item === 'object' ? item : {}),
+    listId: stringOf(item?.listId, ''),
+    name: stringOf(item?.name, '未命名 list'),
+    itemCount: Number(item?.itemCount || 0),
+    updatedAt: stringOf(item?.updatedAt, ''),
+    items: Array.isArray(item?.items) ? item.items.map(normalizeSavedTalentItem) : []
+  };
+}
+
+function normalizeSavedTalentListsPayload(payload) {
+  return {
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    summary: payload?.summary || buildEmptySavedTalentLists().summary,
+    lists: Array.isArray(payload?.lists) ? payload.lists.map(normalizeSavedTalentList) : [],
+    gaps: Array.isArray(payload?.gaps) ? payload.gaps : buildEmptySavedTalentLists().gaps
   };
 }
 
@@ -493,7 +742,7 @@ function approvalCenterIssueMessage(requestError = '') {
 
 function buildTalentCalendarFallback(userId = '2') {
   const today = new Date();
-  const formatter = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' });
+  const formatter = new Intl.DateTimeFormat(getIntlLocale(), getIntlLocale() === 'zh-CN' ? { month: '2-digit', day: '2-digit' } : { month: 'short', day: 'numeric' });
   const items = Array.from({ length: 7 }, (_, index) => {
     const next = new Date(today);
     next.setDate(today.getDate() + index);
@@ -501,7 +750,7 @@ function buildTalentCalendarFallback(userId = '2') {
       date: next.toISOString().slice(0, 10),
       day: formatter.format(next),
       state: 'closed',
-      note: '当前还没有同步真实档期'
+      note: translateText('当前还没有同步真实档期')
     };
   });
   return {
@@ -511,7 +760,7 @@ function buildTalentCalendarFallback(userId = '2') {
       openDays: '0',
       busyDays: '0',
       closedDays: String(items.length),
-      headline: '当前还没有同步真实档期'
+      headline: translateText('当前还没有同步真实档期')
     },
     items
   };
@@ -666,15 +915,26 @@ function normalizeWorkspaceData(rawData, taskId = '') {
   return normalizeWorkspacePayload(rawData, fallback, taskId);
 }
 
-export function registerAuth(payload) {
-  return writeJson(
+export async function registerAuth(payload) {
+  const result = await writeJson(
     '/auth/register',
     {
       success: false,
       message: '当前注册接口暂不可用，请稍后再试。'
     },
-    payload
+    {
+      ...payload,
+      skills: Array.isArray(payload?.skills) ? payload.skills : [],
+      customSkills: Array.isArray(payload?.customSkills) ? payload.customSkills : []
+    }
   );
+  if (result?.requestError) {
+    return {
+      ...result,
+      message: result.requestError
+    };
+  }
+  return result;
 }
 
 export function loginAuth(payload) {
@@ -747,6 +1007,129 @@ export function getTalentData() {
   return readJson('/talent', buildTalentFallback());
 }
 
+export function getFreelancerEarningsData() {
+  const fallback = {
+    title: '收入账本',
+    walletSummary: {
+      title: '收入',
+      totalEarned: '￥0',
+      totalEarnedValue: '0.00',
+      pendingIncome: '￥0',
+      pendingIncomeValue: '0.00',
+      availableToWithdraw: '￥0',
+      availableToWithdrawValue: '0.00',
+      frozenAmount: '￥0',
+      frozenAmountValue: '0.00',
+      withdrawnAmount: '￥0',
+      withdrawnAmountValue: '0.00',
+      claimableCount: 0,
+      claimableRecords: [],
+      recentIncome: [],
+      withdrawHint: '当前没有可提现余额，请等待企业确认结算。'
+    },
+    ledger: [],
+    claimableRecords: [],
+    requestIssue: ''
+  };
+
+  return readJson('/freelancer/earnings', fallback).then((payload) => ({
+    ...fallback,
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    ledger: Array.isArray(payload?.ledger) ? payload.ledger : Array.isArray(payload?.walletSummary?.recentIncome) ? payload.walletSummary.recentIncome : [],
+    claimableRecords: Array.isArray(payload?.claimableRecords) ? payload.claimableRecords : Array.isArray(payload?.walletSummary?.claimableRecords) ? payload.walletSummary.claimableRecords : []
+  }));
+}
+
+export function getFreelancerWithdrawalsData() {
+  const fallback = {
+    title: '提现记录',
+    walletSummary: {
+      title: '收入',
+      totalEarned: '￥0',
+      totalEarnedValue: '0.00',
+      pendingIncome: '￥0',
+      pendingIncomeValue: '0.00',
+      availableToWithdraw: '￥0',
+      availableToWithdrawValue: '0.00',
+      frozenAmount: '￥0',
+      frozenAmountValue: '0.00',
+      withdrawnAmount: '￥0',
+      withdrawnAmountValue: '0.00',
+      claimableCount: 0,
+      claimableRecords: [],
+      recentIncome: [],
+      withdrawHint: '当前没有可提现余额，请等待企业确认结算。'
+    },
+    withdrawals: [],
+    requestIssue: ''
+  };
+
+  return readJson('/freelancer/withdrawals', fallback).then((payload) => ({
+    ...fallback,
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    withdrawals: Array.isArray(payload?.withdrawals) ? payload.withdrawals : []
+  }));
+}
+
+export function getFreelancerPayoutProfileData() {
+  const fallback = {
+    title: '收款方式',
+    payoutStatus: 'UNSET',
+    payoutMethods: [],
+    latestPayoutMethod: null,
+    requestIssue: ''
+  };
+
+  return readJson('/freelancer/payout-profile', fallback).then((payload) => ({
+    ...fallback,
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    payoutMethods: Array.isArray(payload?.payoutMethods) ? payload.payoutMethods : []
+  }));
+}
+
+export function getFreelancerTaxProfileData() {
+  const fallback = {
+    title: '税务资料',
+    taxStatus: 'UNSET',
+    taxSummary: {
+      userStatus: '',
+      availableToWithdraw: '￥0',
+      frozenAmount: '￥0'
+    },
+    requestIssue: ''
+  };
+
+  return readJson('/freelancer/tax-profile', fallback).then((payload) => ({
+    ...fallback,
+    ...(payload && typeof payload === 'object' ? payload : {})
+  }));
+}
+
+export function getFreelancerCollaborationInboxData() {
+  const fallback = {
+    title: '提案 / 邀请 / Offer',
+    summary: {
+      proposals: 0,
+      invitations: 0,
+      offers: 0,
+      total: 0,
+      note: '当前还没有可以处理的提案或邀约。'
+    },
+    proposalItems: [],
+    invitationItems: [],
+    offerItems: [],
+    requestIssue: ''
+  };
+
+  return readJson('/freelancer/collaboration-inbox', fallback).then((payload) => ({
+    ...fallback,
+    ...(payload && typeof payload === 'object' ? payload : {}),
+    proposalItems: Array.isArray(payload?.proposalItems) ? payload.proposalItems : [],
+    invitationItems: Array.isArray(payload?.invitationItems) ? payload.invitationItems : [],
+    offerItems: Array.isArray(payload?.offerItems) ? payload.offerItems : []
+  }));
+}
+
 export function getTalentCalendar(userId) {
   return readJson(`/talent/calendar/${userId}`, buildTalentCalendarFallback(userId));
 }
@@ -772,7 +1155,7 @@ export function getTaskMarketplaceData() {
   return readJson('/tasks/marketplace', buildTaskMarketplaceFallback());
 }
 
-export function requestTaskCollaboration(taskId) {
+export function requestTaskCollaboration(taskId, payload = {}) {
   return writeJson(
     `/tasks/${taskId}/collaboration/request`,
     () => ({
@@ -782,7 +1165,7 @@ export function requestTaskCollaboration(taskId) {
       nextRoute: '',
       nextStep: '当前暂时无法提交合作申请，请稍后重试。'
     }),
-    {}
+    payload
   );
 }
 
@@ -796,6 +1179,54 @@ export function getTalentDetail(slug) {
   return readJson(`/talents/${slug}`, buildEmptyTalentDetail(slug)).then((payload) =>
     normalizeTalentDetailPayload(payload, slug)
   );
+}
+
+export function getSavedTalentLists() {
+  return readJson('/client/saved-talent-lists', buildEmptySavedTalentLists()).then((payload) =>
+    normalizeSavedTalentListsPayload(payload)
+  );
+}
+
+export function createSavedTalentList(name) {
+  return writeJson(
+    '/client/saved-talent-lists',
+    () => ({
+      summary: buildEmptySavedTalentLists().summary,
+      list: null,
+      requestError: '当前暂时无法创建人才 list，请稍后再试。'
+    }),
+    { name }
+  ).then((payload) => ({
+    ...payload,
+    list: payload?.list ? normalizeSavedTalentList(payload.list) : null
+  }));
+}
+
+export function saveTalentToList(listId, talentUserId) {
+  return writeJson(
+    `/client/saved-talent-lists/${encodeURIComponent(String(listId || ''))}/items`,
+    () => ({
+      list: null,
+      requestError: '当前暂时无法保存人才，请稍后再试。'
+    }),
+    { talentUserId: String(talentUserId || '') }
+  ).then((payload) => ({
+    ...payload,
+    list: payload?.list ? normalizeSavedTalentList(payload.list) : null
+  }));
+}
+
+export function removeTalentFromList(listId, talentUserId) {
+  return deleteJson(
+    `/client/saved-talent-lists/${encodeURIComponent(String(listId || ''))}/items/${encodeURIComponent(String(talentUserId || ''))}`,
+    {
+      list: null,
+      requestError: '当前暂时无法移出人才，请稍后再试。'
+    }
+  ).then((payload) => ({
+    ...payload,
+    list: payload?.list ? normalizeSavedTalentList(payload.list) : null
+  }));
 }
 
 export async function getCollaborationCandidates(talentUserId) {
@@ -997,7 +1428,9 @@ export function submitBusinessOnboarding(payload) {
       materialStatus: payload.deferMaterials ? 'WAITING_UPLOAD' : 'PENDING_UPLOAD',
       deferMaterials: Boolean(payload.deferMaterials),
       collaborationPreferences: Array.isArray(payload.collaborationPreferences) ? payload.collaborationPreferences : [],
-      materialNames: Array.isArray(payload.materialFiles) ? payload.materialFiles.map((file) => file.name).filter(Boolean) : [],
+      materialNames: Array.isArray(payload.materials)
+        ? payload.materials.map((item) => (typeof item === 'string' ? item : item?.name || item?.label || '')).filter(Boolean)
+        : [],
       materialFiles: Array.isArray(payload.materialFiles) ? payload.materialFiles : [],
       nextStep: '当前暂时无法提交企业入驻，请稍后再试。',
       nextRoute: ''
@@ -1013,8 +1446,11 @@ export function submitTalentOnboarding(payload) {
       displayName: payload.displayName,
       headline: payload.headline,
       skills: Array.isArray(payload.skills) ? payload.skills : [],
+      customSkills: Array.isArray(payload.customSkills) ? payload.customSkills : [],
       materials: Array.isArray(payload.materials) ? payload.materials : [],
-      materialNames: Array.isArray(payload.materialFiles) ? payload.materialFiles.map((file) => file.name).filter(Boolean) : [],
+      materialNames: Array.isArray(payload.materials)
+        ? payload.materials.map((item) => (typeof item === 'string' ? item : item?.name || item?.label || '')).filter(Boolean)
+        : [],
       materialFiles: Array.isArray(payload.materialFiles) ? payload.materialFiles : [],
       portfolioUrls: Array.isArray(payload.portfolioUrls) ? payload.portfolioUrls : [],
       applyVirtualCompany: Boolean(payload.applyVirtualCompany),
@@ -1037,6 +1473,24 @@ export function publishTask(payload) {
       brief: payload.brief,
       source: payload.source,
       budget: payload.budget || '未填写预算',
+      category: payload.category || '',
+      skills: Array.isArray(payload.skills) ? payload.skills : [],
+      customSkills: Array.isArray(payload.customSkills) ? payload.customSkills : [],
+      scope: payload.scope || '',
+      timeline: payload.timeline || '',
+      talentLevel: payload.talentLevel || '',
+      collaborationMode: payload.collaborationMode || '',
+      budgetMode: payload.budgetMode || '',
+      budgetMin: payload.budgetMin ?? null,
+      budgetMax: payload.budgetMax ?? null,
+      locationPreference: payload.locationPreference || '',
+      languagePreference: payload.languagePreference || '',
+      screeningQuestions: Array.isArray(payload.screeningQuestions) ? payload.screeningQuestions : [],
+      collaborationPreferences: Array.isArray(payload.collaborationPreferences) ? payload.collaborationPreferences : [],
+      additionalNotes: payload.additionalNotes || '',
+      contractToHire: Boolean(payload.contractToHire),
+      priorityReview: Boolean(payload.priorityReview),
+      aiSummary: payload.aiSummary || '',
       status: 'FAILED',
       nextStep: '当前服务不可用，暂时无法生成真实任务，请稍后重试。',
       analysisProvider: '',
@@ -1048,12 +1502,7 @@ export function publishTask(payload) {
       },
       matchingPreview: []
     }),
-    {
-      title: payload.title,
-      brief: payload.brief,
-      source: payload.source,
-      budget: payload.budget
-    }
+    payload
   );
 }
 
@@ -1108,13 +1557,13 @@ export function getTaskRoom(roomKey) {
 }
 
 export function initiateTaskRoom(payload) {
-  if (!payload?.taskId) {
+  if (!payload?.taskId && !payload?.counterpartPlatformUserId) {
     return Promise.resolve({
-      ...buildMutationFailure('请先选择任务，再进入聊天。', {
+      ...buildMutationFailure('请先选择任务或明确沟通对象，再进入聊天。', {
         roomKey: '',
         room: null
       }),
-      message: '请先选择任务，再进入聊天。'
+      message: '请先选择任务或明确沟通对象，再进入聊天。'
     });
   }
   return writeJson(
@@ -1169,7 +1618,7 @@ export function getTencentImRuntimeConfig(audience, roomKey) {
   };
   const taskRoom = buildEmptyTaskRoomFallback(normalizedRoomKey).taskRoom;
   const fallback = {
-    provider: 'Tencent IM',
+    provider: 'Realtime messaging',
     enabled: false,
     status: 'UNAVAILABLE',
     audience: normalizedAudience,
@@ -1190,8 +1639,8 @@ export function getTencentImRuntimeConfig(audience, roomKey) {
     members: [],
     taskRoom,
     notes: [
-      '腾讯 IM 未接入真实配置，当前环境不会再回退到 mock 通道。',
-      '如需继续联调，请先补齐真实 IM 配置。'
+      'Realtime messaging is not configured in this environment.',
+      'Use synced history until the live messaging configuration is ready.'
     ]
   };
 
@@ -1217,6 +1666,52 @@ export function getOrderRecordDetail(audience, taskId) {
   return readJson(`/${normalizedAudience}/orders/${normalizedTaskId}`, fallback);
 }
 
+export function requestClientReportExport(payload) {
+  return writeJson(
+    '/client/reports/export',
+    () => ({
+      export: null,
+      requestError: '当前暂时无法创建导出任务，请稍后再试。'
+    }),
+    payload
+  );
+}
+
+export function getClientReportExport(exportId) {
+  return readJson(
+    `/client/reports/exports/${encodeURIComponent(String(exportId || ''))}`,
+    {
+      export: null,
+      requestError: '当前暂时无法读取导出任务，请稍后再试。'
+    }
+  );
+}
+
+export async function downloadClientReportExport(exportId, fallbackFileName = 'client-report.csv') {
+  try {
+    const response = await fetch(`${API_BASE}/client/reports/exports/${encodeURIComponent(String(exportId || ''))}/download`, {
+      headers: buildAuthHeaders(getStoredAuthToken, {})
+    });
+    if (!response.ok) {
+      const payload = await readResponsePayload(response);
+      throw new Error(payload?.msg || '当前暂时无法下载导出文件。');
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('content-disposition') || '';
+    const matchedFileName = disposition.match(/filename=\"([^\"]+)\"/i)?.[1];
+    return {
+      blob,
+      fileName: matchedFileName || fallbackFileName
+    };
+  } catch (error) {
+    return {
+      blob: null,
+      fileName: fallbackFileName,
+      requestError: error instanceof Error ? error.message : '当前暂时无法下载导出文件。'
+    };
+  }
+}
+
 export function uploadTaskAttachmentAsset(taskId, file, options = {}) {
   return uploadTaskAttachmentRuntime(
     {
@@ -1229,6 +1724,20 @@ export function uploadTaskAttachmentAsset(taskId, file, options = {}) {
       scene: options.scene || 'TASK_PROGRESS',
       source: options.source || options.scene || 'TASK_PROGRESS',
       fileType: options.fileType || ''
+    }
+  );
+}
+
+export function uploadStandaloneAttachmentAsset(file, options = {}) {
+  return uploadStandaloneAttachmentRuntime(
+    {
+      apiBase: API_BASE,
+      getToken: getStoredAuthToken
+    },
+    {
+      file,
+      scene: options.scene || 'ONBOARDING_MATERIAL',
+      source: options.source || options.scene || 'ONBOARDING_MATERIAL'
     }
   );
 }

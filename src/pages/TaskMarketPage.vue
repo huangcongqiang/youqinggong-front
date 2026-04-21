@@ -1,870 +1,767 @@
 <template>
-  <section class="page-stack task-market-workbench-page office-list-page task-market-workbench-shell" v-if="page">
-    <article v-if="page.requestError" class="result-card stack-sm">
-      <strong>任务广场数据暂时不可用</strong>
-      <p class="muted">{{ page.requestError }}</p>
-    </article>
+  <section class="task-market-page">
+    <ActionErrorDialog :message="errorMessage || loadError" title="任务广场暂时不可用" eyebrow="找任务" />
 
-    <article v-if="taskMarketRestrictionMessage" class="result-card stack-sm">
-      <strong>当前账号还不能申请任务</strong>
-      <p class="muted">{{ taskMarketRestrictionMessage }}</p>
-    </article>
-
-    <header class="stack-md task-market-page-header task-market-sticky-header">
-      <div class="task-market-page-intro">
-        <SectionTitle
-          eyebrow="任务池"
-          title="先筛，再看详情"
-          description="按标签、工期、预算和评级筛任务。"
-          tag="h1"
-        />
+    <header class="task-market-header workspace-shell-card">
+      <div class="task-market-header__copy stack-sm">
+        <span class="eyebrow">找任务</span>
+        <div class="stack-xs">
+          <h1>寻找任务</h1>
+          <p class="task-market-lead">
+            在这里搜索、筛选并比较任务，准备好后再打开详情或继续申请。
+          </p>
+        </div>
+        <div class="task-market-header__pills">
+          <span class="info-pill">{{ filteredItems.length }} 条结果</span>
+          <span v-if="activeFilterCount" class="info-pill">{{ activeFilterCount }} 个筛选</span>
+          <span v-if="keyword" class="info-pill">关键词：{{ keyword }}</span>
+          <span v-if="sortLabel" class="info-pill">排序：{{ sortLabel }}</span>
+        </div>
       </div>
 
-      <div class="task-market-decision-strip">
-        <article class="mini-card stack-sm task-market-conclusion-card">
-          <h3>{{ filteredItems.length }} 个结果</h3>
-          <div class="tag-row task-market-conclusion-tags">
-            <span class="soft-pill">右侧固定看详情</span>
-            <span v-if="activeFilterCount" class="soft-pill">已筛 {{ activeFilterCount }} 项</span>
-          </div>
-        </article>
-
-        <MetricCard
-          :label="marketTotalMetric.label"
-          :value="marketTotalMetric.value"
-          :note="marketTotalMetric.note"
-        />
+      <div class="task-market-header__search-card">
+        <label class="search-field">
+          <span class="eyebrow">搜索任务</span>
+          <input
+            v-model.trim="keyword"
+            type="search"
+            class="search-input"
+            placeholder="按企业、技能或任务描述搜索"
+          />
+        </label>
       </div>
-
-      <section class="task-market-filter-dock">
-        <article class="mini-card stack-md task-market-filter-card task-market-filter-rail task-market-filter-panel">
-          <div class="panel-header task-market-filter-header">
-            <span class="eyebrow">筛选任务</span>
-            <button class="button-secondary" type="button" @click="resetFilters">重置</button>
-          </div>
-
-          <div class="task-market-filter-grid task-market-filter-group-grid">
-            <div v-for="group in filterGroups" :key="group.key" class="stack-sm task-market-filter-group task-market-filter-cluster">
-              <span class="eyebrow">{{ group.label }}</span>
-              <div class="task-market-filter-row task-market-filter-chip-row">
-                <button
-                  v-for="option in group.options"
-                  :key="`${group.key}-${option}`"
-                  type="button"
-                  class="soft-pill task-market-filter-chip"
-                  :class="{ 'is-active': selectedFilters[group.key] === option }"
-                  @click="updateFilter(group.key, option)"
-                >
-                  {{ option }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
-
     </header>
 
-    <section class="task-market-workbench-layout task-market-board">
-      <section class="stack-md task-market-list-rail task-market-row-column">
-        <article
-          v-if="filteredItems.length === 0"
-          class="glass-panel stack-md task-market-empty-state task-market-empty-row task-market-empty-panel"
-        >
-          <div>
-            <span class="eyebrow">暂无匹配任务</span>
-            <h3>换一个筛选条件，或者稍后再刷新任务池</h3>
-          </div>
-          <p class="muted">
-            当前筛出来的任务为空。你可以先放宽筛选条件，等新的任务同步进来后再继续处理。
-          </p>
-          <div class="toolbar task-market-empty-actions">
-            <button class="button-secondary" type="button" @click="resetFilters">清空筛选</button>
-            <router-link class="button-primary" to="/talent">返回人才工作台</router-link>
-          </div>
-        </article>
+    <div v-if="loading" class="workspace-shell-card state-banner state-banner--loading">
+      <div>
+        <strong>正在加载任务</strong>
+        <p>我们正在同步最新的任务结果和申请状态。</p>
+      </div>
+    </div>
 
-        <article
-          v-for="task in filteredItems"
-          :key="task.id"
-          class="glass-panel task-market-task-row task-market-task-row--table"
-          :class="{ 'is-active': activeTaskKey === task.id }"
-          tabindex="0"
-          role="button"
-          :aria-pressed="activeTaskKey === task.id"
-          @click="openTaskDetail(task)"
-          @keyup.enter="openTaskDetail(task)"
-          @keyup.space.prevent="openTaskDetail(task)"
-        >
-          <div class="task-market-task-row-main task-market-task-row-body">
-            <div class="panel-header task-market-task-row-header">
-              <div class="stack-xs task-market-task-title-block">
-                <span class="eyebrow">{{ task.company }}</span>
-                <h3>{{ task.title }}</h3>
-              </div>
-              <div class="toolbar task-market-task-statusbar">
-                <span class="soft-pill">{{ task.status }}</span>
-                <span class="soft-pill is-info">评级 {{ task.companyRating || 'A级' }}</span>
-              </div>
+    <div v-else-if="loadError" class="workspace-shell-card state-banner state-banner--error">
+      <div>
+        <strong>任务流加载失败</strong>
+        <p>{{ loadError }}</p>
+      </div>
+      <button type="button" class="button-secondary" @click="loadMarketplace">重试</button>
+    </div>
+
+    <section class="task-market-layout">
+      <aside class="task-market-sidebar workspace-shell-card">
+        <div class="section-head stack-xs">
+          <span class="eyebrow">筛选</span>
+          <h2>缩小范围</h2>
+          <p>先用筛选条件缩小结果，再打开任务详情。</p>
+        </div>
+
+        <div v-if="filterGroups.length" class="filter-stack">
+          <article v-for="group in filterGroups" :key="group.label" class="filter-group">
+            <div class="filter-group__head">
+              <strong>{{ group.label }}</strong>
+              <span>{{ group.items.length }} 项</span>
             </div>
-
-            <div class="task-market-task-judgment-grid">
-              <article v-for="item in taskJudgmentItems(task)" :key="`${task.id}-${item.label}`" class="task-market-task-judgment">
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </article>
+            <div class="chip-grid">
+              <button
+                v-for="option in group.items"
+                :key="option"
+                type="button"
+                class="filter-chip"
+                :class="{ 'is-active': isSelectedFilter(group.label, option) }"
+                @click="toggleFilter(group.label, option)"
+              >
+                {{ option }}
+              </button>
             </div>
-          </div>
+          </article>
+        </div>
 
-          <div class="task-market-task-row-side task-market-task-row-aside">
-            <div class="toolbar task-market-task-actions task-market-task-action-row">
-              <button class="button-primary" type="button" @click.stop="openTaskDetail(task)">详情</button>
-            </div>
-          </div>
-        </article>
-      </section>
+        <div v-else class="empty-panel empty-panel--compact">
+          <strong>筛选项还在整理中</strong>
+          <p>任务类型、预算、周期和信任信号会在这里继续补齐。</p>
+        </div>
 
-      <aside class="task-market-detail-rail task-market-detail-column">
-        <article v-if="activeTaskDetail" class="stack-md task-market-detail-panel task-market-detail-surface task-market-detail-sticky">
-          <div class="panel-header task-market-detail-header">
-            <div>
-              <span class="eyebrow">{{ activeTaskDetail.company || '任务详情' }}</span>
-              <h3>{{ activeTaskDetail.title }}</h3>
-            </div>
-            <div class="toolbar task-market-detail-toolbar">
-              <button class="button-secondary" type="button" @click="closeTaskDetail">收起</button>
-            </div>
-          </div>
-
-          <div class="tag-row task-market-detail-tags task-market-detail-badges">
-            <span class="soft-pill">{{ activeTaskDetail.status || '待处理' }}</span>
-            <span class="soft-pill">预算 {{ activeTaskDetail.budget || '未填写预算' }}</span>
-            <span class="soft-pill">周期 {{ activeTaskDetail.period || '待确认' }}</span>
-            <span class="soft-pill is-info">{{ activeTaskDetail.companyRating || 'A级' }}</span>
-          </div>
-
-          <div class="dashboard-detail-dual task-market-detail-dual task-market-detail-grid">
-            <div class="mini-card stack-sm task-market-detail-card">
-              <h4>{{ activeTaskDetail.matchLabel || '对你适配' }}</h4>
-              <strong class="task-market-detail-highlight">{{ activeTaskDetail.match || '待评估' }}</strong>
-              <p class="muted">{{ activeTaskDetail.matchNote || '系统会结合你的公开技能、评分和任务标签做当前判断。' }}</p>
-            </div>
-            <div class="mini-card stack-sm task-market-detail-card">
-              <h4>当前动作</h4>
-              <strong class="task-market-detail-highlight">{{ activeTaskAction.label || '先看详情' }}</strong>
-              <p class="muted">{{ activeTaskAction.note || '当前还没有可执行动作。' }}</p>
-            </div>
-          </div>
-
-          <div class="dashboard-detail-section task-market-detail-section task-market-detail-block">
-            <h4>一句话说明</h4>
-            <p class="muted">{{ activeTaskDetail.brief || activeTaskDetail.summary || '任务摘要暂未同步' }}</p>
-          </div>
-
-          <div class="dashboard-detail-dual task-market-detail-dual task-market-detail-grid">
-            <div class="mini-card stack-sm task-market-detail-card">
-              <h4>风险提示</h4>
-              <p class="muted">{{ activeTaskDetail.risk || '当前风险暂未同步' }}</p>
-            </div>
-            <div class="mini-card stack-sm task-market-detail-card">
-              <h4>前提假设</h4>
-              <p class="muted">{{ activeTaskDetail.assumption || '平台判断依据暂未同步' }}</p>
-            </div>
-          </div>
-
-          <div v-if="activeTaskDetail.tags?.length" class="dashboard-detail-section task-market-detail-section task-market-detail-block">
-            <h4>匹配标签</h4>
-            <div class="tag-row task-market-detail-tag-row">
-              <span v-for="tag in activeTaskDetail.tags || []" :key="tag" class="soft-pill">{{ tag }}</span>
-            </div>
-          </div>
-
-          <div v-if="activeTaskDetail.deliverables?.length" class="dashboard-detail-section task-market-detail-section task-market-detail-block">
-            <h4>核心交付件</h4>
-            <ul class="dashboard-detail-list task-market-detail-list">
-              <li v-for="item in activeTaskDetail.deliverables" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-
-          <div v-if="activeTaskDetail.modules?.length" class="dashboard-detail-section task-market-detail-section task-market-detail-block">
-            <h4>AI 拆解模块</h4>
-            <ul class="dashboard-detail-list task-market-detail-list">
-              <li v-for="module in activeTaskDetail.modules" :key="module.name || module">{{ module.name || module }}</li>
-            </ul>
-          </div>
-
-          <div v-if="activeTaskDetail.recommendations?.length" class="dashboard-detail-section task-market-detail-section task-market-detail-block">
-            <h4>执行建议</h4>
-            <ul class="dashboard-detail-list task-market-detail-list">
-              <li v-for="item in activeTaskDetail.recommendations" :key="item">{{ item }}</li>
-            </ul>
-          </div>
-
-          <div class="toolbar task-market-detail-actions task-market-detail-footer">
-            <button
-              class="button-primary"
-              type="button"
-              :disabled="detailActionPending || activeTaskAction.disabled || taskMarketTradingBlocked"
-              @click="handlePrimaryTaskAction"
-            >
-              {{ detailActionPending ? '处理中...' : (activeTaskAction.label || '申请合作') }}
-            </button>
-            <router-link class="button-secondary" to="/talent">返回人才工作台</router-link>
-          </div>
-
-          <p v-if="taskMarketRestrictionMessage" class="soft-pill is-warning task-market-detail-feedback">{{ taskMarketRestrictionMessage }}</p>
-          <p v-if="detailActionError" class="soft-pill is-danger task-market-detail-feedback">{{ detailActionError }}</p>
-          <p v-else-if="detailActionSuccess" class="soft-pill is-info task-market-detail-feedback">{{ detailActionSuccess }}</p>
-        </article>
-
-        <article v-else class="mini-card stack-md task-market-detail-placeholder task-market-detail-empty">
-          <div>
-            <span class="eyebrow">右侧详情区</span>
-            <h3>从左侧挑一条任务，右侧固定看决策信息</h3>
-          </div>
-          <p class="muted">
-            这里不再重复任务摘要，只承接风险、前提、交付件和执行建议。
-          </p>
-        </article>
+        <div class="toolbar task-market-sidebar__footer">
+          <button type="button" class="button-secondary" @click="resetSearch">清空筛选</button>
+        </div>
       </aside>
+
+      <main class="task-market-results workspace-shell-card">
+        <div class="section-head section-head--split">
+          <div>
+            <span class="eyebrow">结果</span>
+            <h2>{{ keyword ? '搜索结果' : '浏览匹配任务' }}</h2>
+          </div>
+          <div class="section-head__meta">{{ filteredItems.length }} 条结果</div>
+        </div>
+
+        <div v-if="filteredItems.length" class="job-list">
+          <article
+            v-for="item in filteredItems"
+            :key="item.id"
+            class="job-card"
+            :class="{ 'is-active': isSelectedJob(item) }"
+          >
+            <button type="button" class="job-card__select" @click="selectJob(item)">
+              <div class="job-card__topline">
+                <div>
+                  <strong>{{ item.title }}</strong>
+                  <p>{{ item.company }}</p>
+                </div>
+                <span class="match-chip">{{ item.match }}</span>
+              </div>
+
+              <p class="job-card__summary">{{ item.summary }}</p>
+
+              <div class="job-card__signals">
+                <span>{{ item.budget }}</span>
+                <span>{{ item.period }}</span>
+                <span>{{ item.jobType || '任务类型' }}</span>
+                <span v-if="item.location">{{ item.location }}</span>
+              </div>
+
+              <div v-if="item.signals.length" class="result-trust">
+                <span
+                  v-for="signal in item.signals.slice(0, 2)"
+                  :key="`${item.id}-${signal.title}`"
+                  class="result-trust__item"
+                >
+                  {{ signal.title }} · {{ signal.note }}
+                </span>
+              </div>
+
+              <div v-if="item.tags.length" class="chip-grid chip-grid--wrap">
+                <span v-for="tag in item.tags" :key="tag" class="info-pill">{{ tag }}</span>
+              </div>
+            </button>
+
+            <div class="job-card__cta">
+              <div class="job-card__cta-copy">
+                <span>当前状态</span>
+                <strong>{{ jobCardState(item).stateLabel }}</strong>
+                <small>{{ jobCardState(item).nextStep }}</small>
+              </div>
+              <div class="toolbar">
+                <router-link class="button-secondary" :to="jobCardAction(item).to">{{ jobCardAction(item).label }}</router-link>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div v-else class="empty-panel empty-panel--results">
+          <strong>当前没有符合这些筛选的任务</strong>
+          <p>换一个关键词，或者清空筛选后继续浏览任务。</p>
+          <button type="button" class="button-secondary" @click="resetSearch">清空筛选</button>
+        </div>
+      </main>
     </section>
   </section>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import MetricCard from '../components/MetricCard.vue';
-import SectionTitle from '../components/SectionTitle.vue';
-import { getTaskMarketplaceData, initiateTaskRoom, requestTaskCollaboration } from '../services/api';
-import { useAuthState } from '../stores/auth';
-import { tradingRestrictionMessage } from '../utils/tradingAccess';
-import { roleRouteMap } from '../utils/roleRoutes';
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ActionErrorDialog from '../components/ActionErrorDialog.vue'
+import { getTaskMarketplaceData } from '../services/api'
+import { roleRouteMap } from '../utils/roleRoutes'
+import {
+  buildBrowseQuery,
+  buildTaskApplyLocation,
+  buildTaskBrowseLocation,
+  buildTaskDetailLocation,
+  createEmptyMarketplace,
+  deriveProposalState,
+  filterMarketplaceItems,
+  normalizeJobItem,
+  normalizeMarketplace,
+  parseSelectedFilters,
+  readStoredProposalDraft,
+  buildFilterQuery,
+} from './taskMarketSurfaceState.js'
 
-const page = ref(null);
-const activeTaskDetail = ref(null);
-const activeTaskKey = ref(null);
-const detailActionPending = ref(false);
-const detailActionError = ref('');
-const detailActionSuccess = ref('');
-const taskActionStateOverrides = reactive({});
-const selectedFilters = reactive({
-  tag: '全部',
-  period: '全部',
-  budget: '全部',
-  companyRating: '全部'
-});
-let marketplaceRefreshTimer = null;
-const router = useRouter();
-const authState = useAuthState();
+const route = useRoute()
+const router = useRouter()
 
-function openTaskDetail(task) {
-  activeTaskKey.value = task?.id ?? null;
-  activeTaskDetail.value = task?.taskDetail || task || null;
-  clearDetailActionFeedback();
-}
-
-function closeTaskDetail() {
-  activeTaskDetail.value = null;
-  activeTaskKey.value = null;
-  clearDetailActionFeedback();
-}
-
-function taskJudgmentItems(task = {}) {
-  return [
-    { label: '预算', value: task.budget || '未填写预算' },
-    { label: '工期', value: task.period || '待确认工期' },
-    { label: task.matchLabel || '对你适配', value: task.match || '待计算' }
-  ];
-}
-
-function deriveTalentTaskActionState(task = {}, overrideState = '') {
-  if (overrideState === 'waiting') {
-    return {
-      type: 'waiting',
-      label: '等待企业确认',
-      note: '申请已提交，正在等待企业确认。',
-      disabled: true
-    };
-  }
-
-  if (overrideState === 'enter_chat') {
-    return {
-      type: 'enter_chat',
-      label: '进入沟通',
-      note: '企业已确认，可以直接进入聊天。',
-      disabled: false
-    };
-  }
-
-  const roomKey = String(task?.roomKey || task?.taskRoom?.roomKey || '').trim();
-  const applicationStatus = String(task?.applicationStatus || task?.action?.status || task?.status || '').trim().toUpperCase();
-  const actionType = String(task?.action?.type || '').trim();
-  const actionLabel = String(task?.action?.label || '').trim();
-  const statusText = String(task?.status || '').trim();
-
-  if (
-    roomKey ||
-    actionType === 'enter_chat' ||
-    applicationStatus === 'SELECTED' ||
-    actionLabel.includes('进入沟通') ||
-    statusText.includes('已确认')
-  ) {
-    return {
-      type: 'enter_chat',
-      label: '进入沟通',
-      note: '企业已确认，可以直接进入聊天。',
-      disabled: false
-    };
-  }
-
-  if (
-    applicationStatus === 'PENDING' ||
-    applicationStatus === 'WAITING' ||
-    actionType === 'waiting' ||
-    actionLabel.includes('等待企业确认') ||
-    statusText.includes('等待企业确认')
-  ) {
-    return {
-      type: 'waiting',
-      label: '等待企业确认',
-      note: '申请已提交，正在等待企业确认。',
-      disabled: true
-    };
-  }
-
-  return {
-    type: 'request',
-    label: '申请合作',
-    note: '先提交合作申请，企业确认后再进入聊天。',
-    disabled: false
-  };
-}
-
-const activeTaskAction = computed(() =>
-  deriveTalentTaskActionState(activeTaskDetail.value || {}, taskActionStateOverrides[activeTaskKey.value] || '')
-);
-const taskMarketRestrictionMessage = computed(() => tradingRestrictionMessage(authState.user, 'talent'));
-const taskMarketTradingBlocked = computed(() => Boolean(taskMarketRestrictionMessage.value));
-
-function clearDetailActionFeedback() {
-  detailActionError.value = '';
-  detailActionSuccess.value = '';
-}
-
-async function enterTaskCommunication(task) {
-  if (taskMarketTradingBlocked.value) {
-    throw new Error(taskMarketRestrictionMessage.value);
-  }
-  const response = await initiateTaskRoom({
-    taskId: task?.id
-  });
-  const roomKey = String(response?.roomKey || response?.taskRoom?.roomKey || response?.room?.roomKey || '').trim();
-  if (response?.requestError || response?.success === false || !roomKey) {
-    throw new Error(response?.requestError || response?.message || response?.nextStep || '当前暂时无法进入沟通，请稍后重试。');
-  }
-  await router.push({
-    path: roleRouteMap.talent.messages,
-    query: {
-      room: roomKey,
-      taskId: task.id,
-      source: 'task-market'
-    }
-  });
-}
-
-async function handlePrimaryTaskAction() {
-  const task = activeTaskDetail.value;
-  const action = activeTaskAction.value;
-  if (!task || !action || action.disabled || taskMarketTradingBlocked.value) {
-    if (taskMarketTradingBlocked.value) {
-      detailActionError.value = taskMarketRestrictionMessage.value;
-    }
-    return;
-  }
-
-  detailActionPending.value = true;
-  clearDetailActionFeedback();
-  try {
-    if (action.type === 'enter_chat') {
-      await enterTaskCommunication(task);
-      return;
-    }
-
-    if (action.type === 'request') {
-      const response = await requestTaskCollaboration(task.id);
-      const requestRoomKey = String(response?.roomKey || response?.taskRoom?.roomKey || response?.room?.roomKey || '').trim();
-      if (response?.requestError || response?.applicationStatus === 'FAILED') {
-        throw new Error(response?.requestError || response?.nextStep || '当前暂时无法提交合作申请，请稍后重试。');
-      }
-      if (response?.applicationStatus === 'SELECTED' || requestRoomKey) {
-        taskActionStateOverrides[task.id] = 'enter_chat';
-        detailActionSuccess.value = response?.nextStep || '企业已确认当前合作，正在进入沟通。';
-        await enterTaskCommunication(task);
-        return;
-      }
-      taskActionStateOverrides[task.id] = 'waiting';
-      detailActionSuccess.value = response?.nextStep || '申请已提交，等待企业确认。';
-      await loadPage();
-      return;
-    }
-  } catch (error) {
-    detailActionError.value = error?.message || '当前暂时无法处理这个动作，请稍后重试。';
-  } finally {
-    detailActionPending.value = false;
-  }
-}
-
-function normalizeOptions(items = [], fallback = ['全部']) {
-  const values = Array.isArray(items)
-    ? items.map((item) => String(item || '').trim()).filter(Boolean)
-    : [];
-  const unique = [...new Set(values)];
-  if (!unique.length) {
-    return fallback;
-  }
-  return unique.includes('全部') ? unique : ['全部', ...unique];
-}
-
-function parseBudgetLowerBound(value) {
-  const text = String(value || '').trim().toLowerCase();
-  if (!text) {
-    return Number.NaN;
-  }
-  const compact = text.replace(/,/g, '');
-  const kiloMatch = compact.match(/(\d+(?:\.\d+)?)\s*k/);
-  if (kiloMatch) {
-    return Number(kiloMatch[1]) * 1000;
-  }
-  const numericMatch = compact.match(/(\d+(?:\.\d+)?)/);
-  return numericMatch ? Number(numericMatch[1]) : Number.NaN;
-}
-
-function parsePeriodDays(value) {
-  const match = String(value || '').match(/(\d+)/);
-  return match ? Number(match[1]) : Number.NaN;
-}
-
-function deriveTagOptions(items = []) {
-  const tags = [];
-  items.forEach((task) => {
-    (Array.isArray(task?.tags) ? task.tags : []).forEach((tag) => {
-      if (!tags.includes(tag) && tags.length < 8) {
-        tags.push(tag);
-      }
-    });
-  });
-  return normalizeOptions(tags, ['全部']);
-}
+const page = ref(createEmptyMarketplace())
+const loading = ref(false)
+const loadError = ref('')
+const errorMessage = ref('')
+const keyword = ref(typeof route.query.q === 'string' ? route.query.q : '')
+const selectedFilters = ref({})
+const hydratingFromRoute = ref(false)
 
 const filterGroups = computed(() => {
-  const groups = page.value?.filterGroups || {};
-  const items = Array.isArray(page.value?.items) ? page.value.items : [];
+  const rawGroups = page.value?.filterGroups
+  const groups = Array.isArray(rawGroups)
+    ? rawGroups
+    : rawGroups && typeof rawGroups === 'object'
+      ? Object.entries(rawGroups).map(([label, items]) => ({ label, items }))
+      : []
+  return groups.map((group, index) => ({
+    label: group?.label || `筛选 ${index + 1}`,
+    items: Array.isArray(group?.items) ? group.items.filter(Boolean) : [],
+  }))
+})
 
-  return [
-    {
-      key: 'tag',
-      label: '标签',
-      options: normalizeOptions(groups.tag || deriveTagOptions(items), ['全部'])
-    },
-    {
-      key: 'period',
-      label: '工期',
-      options: normalizeOptions(groups.period, ['全部', '3天内', '4-7天', '8天以上'])
-    },
-    {
-      key: 'budget',
-      label: '价格',
-      options: normalizeOptions(groups.budget, ['全部', '3000以下', '3000-8000', '8000-15000', '15000以上'])
-    },
-    {
-      key: 'companyRating',
-      label: '企业评级',
-      options: normalizeOptions(groups.companyRating, ['全部', 'S级', 'A级', 'B级'])
+const normalizedItems = computed(() => {
+  const items = Array.isArray(page.value?.items) ? page.value.items : []
+  return items.map((item, index) => normalizeJobItem(item, index))
+})
+
+const filteredItems = computed(() => filterMarketplaceItems(normalizedItems.value, keyword.value, selectedFilters.value))
+const activeFilterCount = computed(() => Object.values(selectedFilters.value).reduce((count, items) => count + (Array.isArray(items) ? items.length : 0), 0))
+const selectedTaskId = computed(() => normalizeTaskId(route.query.taskId))
+const sortLabel = computed(() => normalizeQueryValue(route.query.sort))
+
+onMounted(loadMarketplace)
+
+watch(filterGroups, () => {
+  hydrateFromRoute()
+}, { immediate: true })
+
+watch(() => route.query, () => {
+  hydrateFromRoute()
+}, { deep: true, immediate: true })
+
+watch([keyword, selectedFilters, filterGroups], () => {
+  if (hydratingFromRoute.value || !filterGroups.value.length) return
+  syncBrowseQuery()
+}, { deep: true })
+
+async function loadMarketplace() {
+  loading.value = true
+  loadError.value = ''
+  errorMessage.value = ''
+  try {
+    const payload = await getTaskMarketplaceData()
+    page.value = normalizeMarketplace(payload)
+  } catch (error) {
+    loadError.value = error?.message || '任务广场加载失败'
+    page.value = createEmptyMarketplace()
+  } finally {
+    loading.value = false
+  }
+}
+
+function hydrateFromRoute() {
+  hydratingFromRoute.value = true
+  keyword.value = typeof route.query.q === 'string' ? route.query.q : ''
+  selectedFilters.value = filterGroups.value.length ? parseSelectedFilters(route.query, filterGroups.value) : {}
+  nextTick(() => {
+    hydratingFromRoute.value = false
+  })
+}
+
+function syncBrowseQuery() {
+  const nextQuery = buildBrowseQuery(route.query, {
+    q: keyword.value.trim() || undefined,
+    ...buildFilterQuery(selectedFilters.value, filterGroups.value),
+  })
+
+  if (serializeQuery(route.query) === serializeQuery(nextQuery)) return
+  router.replace({ path: '/talent/tasks', query: nextQuery })
+}
+
+function serializeQuery(query = {}) {
+  return Object.keys(query)
+    .sort()
+    .map((key) => `${key}:${JSON.stringify(query[key])}`)
+    .join('|')
+}
+
+function normalizeTaskId(value) {
+  return Array.isArray(value) ? String(value[0] || '').trim() : String(value || '').trim()
+}
+
+function normalizeQueryValue(value) {
+  if (Array.isArray(value)) return String(value[0] || '').trim()
+  return String(value || '').trim()
+}
+
+function isSelectedFilter(label, option) {
+  return Array.isArray(selectedFilters.value?.[label]) && selectedFilters.value[label].includes(option)
+}
+
+function toggleFilter(label, option) {
+  const group = filterGroups.value.find((entry) => entry.label === label)
+  if (!group) return
+  const current = Array.isArray(selectedFilters.value[label]) ? [...selectedFilters.value[label]] : []
+  const nextValue = String(option || '').trim()
+  if (!nextValue) return
+  if (current.includes(nextValue)) {
+    selectedFilters.value = {
+      ...selectedFilters.value,
+      [label]: current.filter((value) => value !== nextValue),
     }
-  ];
-});
+  } else {
+    selectedFilters.value = {
+      ...selectedFilters.value,
+      [label]: [...current, nextValue],
+    }
+  }
+}
 
-const activeFilterCount = computed(() =>
-  filterGroups.value.reduce((count, group) => count + (selectedFilters[group.key] === '全部' ? 0 : 1), 0)
-);
+function resetSearch() {
+  keyword.value = ''
+  selectedFilters.value = {}
+  const nextQuery = {}
+  const sortValue = normalizeQueryValue(route.query.sort)
+  if (sortValue) nextQuery.sort = sortValue
+  router.replace({ path: '/talent/tasks', query: nextQuery })
+}
 
-const filteredItems = computed(() => {
-  const items = Array.isArray(page.value?.items) ? page.value.items : [];
+function selectJob(item) {
+  const taskId = String(item?.taskId || item?.id || '').trim()
+  if (!taskId) return
+  router.replace(buildTaskBrowseLocation(route.query, { taskId }))
+}
 
-  return items.filter((task) => {
-    const matchesTag =
-      selectedFilters.tag === '全部' ||
-      (Array.isArray(task.tags) && task.tags.includes(selectedFilters.tag));
+function isSelectedJob(item) {
+  return normalizeTaskId(item?.taskId || item?.id) === selectedTaskId.value
+}
 
-    const periodDays = parsePeriodDays(task.period);
-    const matchesPeriod =
-      selectedFilters.period === '全部' ||
-      (selectedFilters.period === '3天内' && !Number.isNaN(periodDays) && periodDays <= 3) ||
-      (selectedFilters.period === '4-7天' && !Number.isNaN(periodDays) && periodDays >= 4 && periodDays <= 7) ||
-      (selectedFilters.period === '8天以上' && !Number.isNaN(periodDays) && periodDays >= 8);
+function resolveTaskKey(item) {
+  return String(item?.taskId || item?.id || '').trim()
+}
 
-    const budgetAmount = parseBudgetLowerBound(task.budget);
-    const matchesBudget =
-      selectedFilters.budget === '全部' ||
-      (selectedFilters.budget === '3000以下' && !Number.isNaN(budgetAmount) && budgetAmount < 3000) ||
-      (selectedFilters.budget === '3000-8000' && !Number.isNaN(budgetAmount) && budgetAmount >= 3000 && budgetAmount < 8000) ||
-      (selectedFilters.budget === '8000-15000' && !Number.isNaN(budgetAmount) && budgetAmount >= 8000 && budgetAmount < 15000) ||
-      (selectedFilters.budget === '15000以上' && !Number.isNaN(budgetAmount) && budgetAmount >= 15000);
+function detailLocation(item) {
+  return buildTaskDetailLocation(resolveTaskKey(item), route.query)
+}
 
-    const matchesCompanyRating =
-      selectedFilters.companyRating === '全部' ||
-      String(task.companyRating || '').trim() === selectedFilters.companyRating;
+function applyLocation(item) {
+  return buildTaskApplyLocation(resolveTaskKey(item), route.query)
+}
 
-    return matchesTag && matchesPeriod && matchesBudget && matchesCompanyRating;
-  });
-});
-
-const marketTotalMetric = computed(() => {
-  const items = Array.isArray(page.value?.items) ? page.value.items : [];
-  const metrics = Array.isArray(page.value?.metrics) ? page.value.metrics : [];
-  const explicitTotal = metrics.find((item) => String(item?.label || '').includes('当前任务总数'));
-
+function messagesLocation(item, state) {
+  const taskId = resolveTaskKey(item)
+  const room = String(state?.serverProposalRoomKey || '').trim()
   return {
-    label: '当前任务总数',
-    value: String(explicitTotal?.value || items.length),
-    note: '只看当前可浏览任务。'
-  };
-});
-
-function updateFilter(key, option) {
-  selectedFilters[key] = option;
-}
-
-function resetFilters() {
-  selectedFilters.tag = '全部';
-  selectedFilters.period = '全部';
-  selectedFilters.budget = '全部';
-  selectedFilters.companyRating = '全部';
-}
-
-function syncSelectedFilters() {
-  filterGroups.value.forEach((group) => {
-    if (!group.options.includes(selectedFilters[group.key])) {
-      selectedFilters[group.key] = group.options[0] || '全部';
-    }
-  });
-}
-
-async function loadPage() {
-  page.value = await getTaskMarketplaceData();
-  syncSelectedFilters();
-  syncActiveTask();
-}
-
-function syncActiveTask() {
-  const items = filteredItems.value;
-  if (!items.length) {
-    closeTaskDetail();
-    return;
+    path: roleRouteMap.talent.messages,
+    query: {
+      taskId,
+      source: 'application',
+      surface: 'application',
+      ...(room ? { room } : {}),
+    },
   }
-
-  const matched = items.find((item) => item.id === activeTaskKey.value);
-  const target = matched || items[0];
-  activeTaskKey.value = target.id ?? null;
-  activeTaskDetail.value = target.taskDetail || target || null;
 }
 
-onMounted(async () => {
-  await loadPage();
-  if (typeof window !== 'undefined') {
-    marketplaceRefreshTimer = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        return;
-      }
-      void loadPage();
-    }, 6000);
+function contractLocation(item) {
+  const taskId = resolveTaskKey(item)
+  return {
+    path: roleRouteMap.talent.workspace,
+    query: {
+      taskId,
+      source: 'contract',
+      surface: 'contract',
+      originSource: 'application',
+      originTaskId: taskId,
+    },
   }
-});
+}
 
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined' && marketplaceRefreshTimer) {
-    window.clearInterval(marketplaceRefreshTimer);
+function jobCardState(item) {
+  const taskKey = resolveTaskKey(item)
+  const draft = readStoredProposalDraft(taskKey)
+  return deriveProposalState({
+    job: item,
+    draft,
+    selectedQuestions: Array.isArray(item?.questions) ? item.questions : [],
+    selectedSignals: Array.isArray(item?.signals) ? item.signals : [],
+    submittedAt: draft.submittedAt,
+    submittedRoomKey: draft.submittedRoomKey,
+  })
+}
+
+function jobCardAction(item) {
+  const state = jobCardState(item)
+  if (state.primaryAction === 'submit') {
+    return { label: state.primaryActionLabel, to: applyLocation(item) }
   }
-});
+  if (state.primaryAction === 'messages') {
+    return { label: state.primaryActionLabel, to: messagesLocation(item, state) }
+  }
+  if (state.primaryAction === 'contract') {
+    return { label: state.primaryActionLabel, to: contractLocation(item) }
+  }
+  return { label: '查看任务', to: detailLocation(item) }
+}
 
-watch(filteredItems, () => {
-  syncActiveTask();
-});
 </script>
 
 <style scoped>
-.task-market-workbench-page {
+.task-market-page,
+.stack-xs,
+.stack-sm,
+.stack-md,
+.stack-lg,
+.filter-stack,
+.job-list,
+.result-trust,
+.chip-grid,
+.section-head,
+.section-head--split,
+.task-market-header,
+.task-market-header__copy,
+.task-market-results,
+.task-market-sidebar,
+.job-card,
+.job-card__cta,
+.job-card__cta-copy,
+.job-card__select,
+.empty-panel,
+.state-banner,
+.toolbar,
+.search-field {
+  display: grid;
+}
+
+.task-market-page {
+  gap: 24px;
+}
+
+.stack-xs {
+  gap: 8px;
+}
+
+.stack-sm {
+  gap: 10px;
+}
+
+.stack-md {
+  gap: 16px;
+}
+
+.stack-lg {
   gap: 20px;
 }
 
-.task-market-page-header {
-  display: grid;
-  gap: 8px;
+.workspace-shell-card,
+.job-card,
+.empty-panel,
+.state-banner,
+.search-field,
+.filter-group,
+.result-trust__item,
+.info-pill,
+.match-chip,
+.button-primary,
+.button-secondary {
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  border-radius: 24px;
+  background: #fff;
 }
 
-.task-market-detail-highlight {
-  font-size: 28px;
-  line-height: 1;
-  color: rgba(245, 249, 255, 0.98);
+.workspace-shell-card,
+.state-banner,
+.empty-panel,
+.task-market-results,
+.task-market-sidebar {
+  padding: 20px;
+  box-shadow: 0 18px 48px rgba(39, 55, 27, 0.06);
 }
 
-.task-market-detail-feedback {
-  align-self: flex-start;
+.task-market-header {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 20px;
+  align-items: end;
 }
 
-.task-market-decision-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(220px, 0.62fr);
-  gap: 8px;
-  align-items: start;
-}
-
-.task-market-conclusion-card {
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(121, 155, 255, 0.14);
-  background:
-    radial-gradient(circle at top right, rgba(76, 201, 255, 0.08), transparent 36%),
-    linear-gradient(180deg, rgba(11, 19, 34, 0.95), rgba(8, 15, 28, 0.98));
-}
-
-.task-market-conclusion-card h3 {
-  margin: 0;
-  font-size: 22px;
-  line-height: 1;
-}
-
-.task-market-conclusion-tags {
-  margin-top: 0;
-}
-
-.task-market-filter-card {
-  padding: 12px;
-}
-
-.task-market-filter-header {
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.task-market-filter-grid {
-  display: grid;
-  gap: 8px;
-}
-
-.task-market-filter-group-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.task-market-filter-group {
-  padding: 8px;
-  border-radius: 14px;
-  background: rgba(7, 14, 25, 0.52);
-  border: 1px solid rgba(121, 155, 255, 0.1);
-}
-
-.task-market-filter-chip-row {
+.task-market-header__pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-}
-
-.task-market-filter-chip {
-  border-color: rgba(121, 155, 255, 0.12);
-  background: rgba(10, 18, 32, 0.72);
-  padding: 6px 10px;
-}
-
-.task-market-filter-chip.is-active {
-  border-color: rgba(95, 131, 255, 0.34);
-  background: linear-gradient(135deg, rgba(68, 103, 220, 0.22), rgba(19, 34, 67, 0.92));
-}
-
-.task-market-board {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
-  gap: 10px;
-  align-items: start;
-}
-
-.task-market-list-rail {
-  min-width: 0;
-}
-
-.task-market-task-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px;
-  gap: 12px;
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(121, 155, 255, 0.12);
-  background:
-    radial-gradient(circle at top right, rgba(76, 201, 255, 0.04), transparent 30%),
-    rgba(7, 14, 25, 0.88);
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-}
-
-.task-market-task-row:hover {
-  transform: translateY(-1px);
-  border-color: rgba(76, 201, 255, 0.2);
-}
-
-.task-market-task-row.is-active {
-  border-color: rgba(95, 131, 255, 0.3);
-  background:
-    radial-gradient(circle at top right, rgba(76, 201, 255, 0.08), transparent 36%),
-    rgba(10, 18, 32, 0.98);
-}
-
-.task-market-task-row-main {
-  display: grid;
-  gap: 8px;
-}
-
-.task-market-task-row-header {
-  align-items: flex-start;
   gap: 10px;
 }
 
-.task-market-task-title-block h3 {
+.task-market-lead,
+.empty-panel p,
+.state-banner p,
+.job-card__summary,
+.job-card__cta-copy small,
+.job-card__cta-copy span,
+.filter-group__head span,
+.section-head__meta {
+  color: #5c5c56;
+}
+
+.task-market-header h1,
+.section-head h2,
+.job-card__topline strong,
+.job-card__cta-copy strong,
+.empty-panel strong,
+.state-banner strong,
+.filter-group__head strong {
   margin: 0;
+  color: #111827;
 }
 
-.task-market-task-statusbar {
-  justify-content: flex-end;
-  gap: 6px;
+.task-market-header h1 {
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  line-height: 1.02;
 }
 
-@media (max-width: 1180px) {
-  .task-market-decision-strip,
-  .task-market-board {
-    grid-template-columns: 1fr;
-  }
+.search-field {
+  gap: 10px;
+  padding: 16px 18px;
 }
 
-.task-market-task-judgment-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.task-market-task-judgment {
-  display: grid;
-  gap: 4px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  background: rgba(10, 18, 32, 0.68);
-  border: 1px solid rgba(121, 155, 255, 0.1);
-}
-
-.task-market-task-judgment span {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.task-market-task-judgment strong {
-  color: var(--text-strong);
-  font-size: 14px;
-}
-
-.task-market-task-row-side {
-  display: grid;
-  align-content: center;
-  gap: 8px;
-  padding-left: 0;
-}
-
-.task-market-task-action-row {
-  justify-content: flex-start;
-}
-
-.task-market-task-action-row .button-primary {
+.search-input {
   width: 100%;
-  justify-content: center;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  background: transparent;
 }
 
-.task-market-detail-column {
-  min-width: 0;
+.task-market-layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 280px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
 }
 
-.task-market-detail-sticky {
+.task-market-sidebar {
   position: sticky;
-  top: 20px;
+  top: 18px;
 }
 
-.task-market-detail-panel {
+.filter-stack {
+  gap: 16px;
+}
+
+.filter-group {
   padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(121, 155, 255, 0.12);
-  background:
-    radial-gradient(circle at top right, rgba(76, 201, 255, 0.06), transparent 32%),
-    rgba(7, 14, 25, 0.9);
+  background: rgba(247, 248, 244, 0.66);
 }
 
-.task-market-detail-header,
-.task-market-detail-toolbar,
-.task-market-detail-footer {
+.filter-group__head,
+.section-head,
+.section-head--split,
+.job-card__topline,
+.job-card__cta,
+.toolbar {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  align-items: flex-start;
 }
 
-.task-market-detail-badges {
+.section-head--split {
+  align-items: center;
+}
+
+.chip-grid {
+  grid-template-columns: repeat(auto-fit, minmax(90px, max-content));
+  gap: 10px;
+}
+
+.chip-grid--wrap {
+  grid-template-columns: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
 }
 
-.task-market-detail-section {
-  margin-top: 0;
+.filter-chip,
+.info-pill,
+.match-chip,
+.soft-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(18, 18, 18, 0.1);
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
-.task-market-detail-grid {
-  gap: 12px;
+.filter-chip {
+  background: #fff;
+  color: #111827;
 }
 
-.task-market-detail-card {
-  padding: 12px;
+.filter-chip.is-active {
+  background: #108a00;
+  border-color: #108a00;
+  color: #fff;
 }
 
-.task-market-detail-placeholder {
+.info-pill,
+.match-chip,
+.soft-pill {
+  background: #f7f8f4;
+  color: #111827;
+}
+
+.job-list {
+  gap: 16px;
+}
+
+.job-card {
   padding: 18px;
+  gap: 14px;
+  background: #fff;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
-.task-market-detail-empty {
-  border: 1px dashed rgba(121, 155, 255, 0.14);
+.job-card.is-active {
+  border-color: rgba(16, 138, 0, 0.28);
+  box-shadow: 0 18px 44px rgba(16, 138, 0, 0.09);
 }
 
-.task-market-detail-list {
+.job-card__select {
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.job-card__signals,
+.result-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.job-card__signals span,
+.result-trust__item {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #f7f8f4;
+  color: #444;
+  font-size: 0.9rem;
+}
+
+.job-card__cta-copy span,
+.job-card__cta-copy small,
+.task-market-lead,
+.muted-copy {
   margin: 0;
-  padding-left: 18px;
 }
 
-@media (max-width: 1180px) {
-  .task-market-decision-strip,
-  .task-market-board {
+.job-card__cta {
+  align-items: center;
+}
+
+.job-card__cta-copy {
+  gap: 4px;
+}
+
+.button-primary,
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.button-primary {
+  background: #108a00;
+  border-color: #108a00;
+  color: #fff;
+}
+
+.button-secondary {
+  color: #111827;
+  background: #fff;
+}
+
+.task-market-sidebar__footer {
+  justify-content: flex-end;
+}
+
+.empty-panel,
+.state-banner {
+  align-content: start;
+  gap: 8px;
+}
+
+.empty-panel--compact,
+.empty-panel--detail,
+.empty-panel--results {
+  min-height: 160px;
+}
+
+.eyebrow {
+  color: #66715f;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1100px) {
+  .task-market-layout,
+  .task-market-header {
     grid-template-columns: 1fr;
   }
 
-  .task-market-detail-sticky {
+  .task-market-sidebar {
     position: static;
   }
 }
 
-@media (max-width: 960px) {
-  .task-market-filter-group-grid,
-  .task-market-task-row,
-  .task-market-task-judgment-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 760px) {
+  .job-card__cta,
+  .section-head,
+  .section-head--split,
+  .task-market-header,
+  .filter-group__head,
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
   }
+}
+</style>
 
-  .task-market-task-row-side {
-    padding-left: 0;
-    border-left: 0;
-    border-top: 1px solid rgba(113, 128, 150, 0.14);
-    padding-top: 12px;
+<style scoped>
+/* codex visual polish */
+.task-market-header {
+  padding: 34px;
+  border-radius: 34px;
+  background: linear-gradient(135deg, rgba(239, 248, 236, 0.94), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.08);
+}
+.task-market-header h1 {
+  max-width: 11ch;
+  font-size: clamp(38px, 4.8vw, 56px);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+.task-market-layout {
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.task-market-layout > aside,
+.task-market-layout > main {
+  min-width: 0;
+}
+.task-market-page .workspace-shell-card,
+.task-market-page .job-card,
+.task-market-page .mini-card,
+.task-market-page .panel {
+  border-radius: 28px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.05);
+}
+.task-market-page .job-card {
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #fff;
+}
+.task-market-page .job-card__summary {
+  max-width: 64ch;
+}
+.task-market-page .button-secondary {
+  min-height: 42px;
+}
+@media (max-width: 1080px) {
+  .task-market-layout {
+    grid-template-columns: 1fr;
   }
 }
 </style>

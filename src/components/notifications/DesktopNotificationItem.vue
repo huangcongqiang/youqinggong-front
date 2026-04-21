@@ -6,7 +6,7 @@
     <button type="button" class="desktop-notification-item__body" @click="$emit('select', item)">
       <div class="desktop-notification-item__head">
         <div class="stack-xs">
-          <span class="desktop-notification-item__eyebrow">{{ item.groupLabel || '待办通知' }}</span>
+          <span class="desktop-notification-item__eyebrow">{{ item.groupLabel || 'Action item' }}</span>
           <strong>{{ item.title }}</strong>
         </div>
         <span v-if="item.countLabel" class="desktop-notification-item__count">{{ item.countLabel }}</span>
@@ -53,20 +53,20 @@ defineEmits(['select', 'action']);
   gap: 14px;
   padding: 18px;
   border-radius: 22px;
-  border: 1px solid rgba(158, 179, 212, 0.08);
-  background: rgba(10, 16, 27, 0.7);
+  border: 1px solid rgba(29, 79, 53, 0.08);
+  background: rgba(255, 255, 255, 0.9);
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
 .desktop-notification-item:hover {
   transform: translateY(-1px);
-  border-color: rgba(105, 168, 255, 0.2);
+  border-color: rgba(16, 138, 0, 0.2);
 }
 
 .desktop-notification-item.is-active {
-  border-color: rgba(105, 168, 255, 0.26);
-  background: linear-gradient(180deg, rgba(24, 38, 67, 0.9), rgba(10, 16, 28, 0.96));
-  box-shadow: inset 0 0 0 1px rgba(105, 168, 255, 0.12);
+  border-color: rgba(16, 138, 0, 0.26);
+  background: linear-gradient(180deg, rgba(244, 249, 244, 0.98), rgba(233, 244, 235, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(16, 138, 0, 0.12), 0 12px 28px rgba(18, 52, 35, 0.08);
 }
 
 .desktop-notification-item.is-urgent {
@@ -78,8 +78,8 @@ defineEmits(['select', 'action']);
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(120, 178, 255, 1), rgba(69, 115, 255, 1));
-  box-shadow: 0 0 0 4px rgba(85, 144, 255, 0.12);
+  background: linear-gradient(135deg, rgba(122, 177, 91, 1), rgba(16, 138, 0, 1));
+  box-shadow: 0 0 0 4px rgba(16, 138, 0, 0.12);
 }
 
 .desktop-notification-item__body {
@@ -119,8 +119,8 @@ defineEmits(['select', 'action']);
   min-height: 32px;
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid rgba(158, 179, 212, 0.12);
-  background: rgba(14, 20, 31, 0.92);
+  border: 1px solid rgba(29, 79, 53, 0.12);
+  background: rgba(244, 248, 244, 0.96);
   color: var(--text-soft);
   white-space: nowrap;
 }
@@ -145,8 +145,8 @@ defineEmits(['select', 'action']);
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid rgba(158, 179, 212, 0.08);
-  background: rgba(8, 13, 22, 0.78);
+  border: 1px solid rgba(29, 79, 53, 0.08);
+  background: rgba(247, 250, 247, 0.98);
 }
 
 .desktop-notification-item__actions {

@@ -1,11 +1,11 @@
 <template>
-  <div class="app-shell">
-    <div class="ambient ambient-one"></div>
-    <div class="ambient ambient-two"></div>
-    <div class="ambient ambient-grid"></div>
-    <div class="ambient ambient-orbit ambient-orbit-left"></div>
-    <div class="ambient ambient-orbit ambient-orbit-right"></div>
+  <div :class="['app-shell', isPortalRoute ? 'app-shell--portal' : 'app-shell--workspace']">
     <template v-if="isPortalRoute">
+      <div class="ambient ambient-one"></div>
+      <div class="ambient ambient-two"></div>
+      <div class="ambient ambient-grid"></div>
+      <div class="ambient ambient-orbit ambient-orbit-left"></div>
+      <div class="ambient ambient-orbit ambient-orbit-right"></div>
       <AppHeader />
       <main class="page-shell">
         <router-view />

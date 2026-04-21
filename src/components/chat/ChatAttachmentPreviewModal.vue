@@ -3,7 +3,7 @@
     <article class="dashboard-detail-card stack-md message-attachment-preview-card">
       <div class="panel-header">
         <div class="stack-sm">
-          <span class="eyebrow">附件预览</span>
+          <span class="eyebrow">Attachment preview</span>
           <h3>{{ attachment.name }}</h3>
           <p class="muted">{{ attachmentMetaText(attachment) }}</p>
         </div>
@@ -16,9 +16,9 @@
             target="_blank"
             rel="noreferrer"
           >
-            下载附件
+            Download attachment
           </a>
-          <button class="button-secondary" type="button" @click="$emit('close')">关闭</button>
+          <button class="button-secondary" type="button" @click="$emit('close')">Close</button>
         </div>
       </div>
 
@@ -38,7 +38,7 @@
 
       <div v-else class="message-attachment-preview-empty">
         <strong>{{ attachment.name }}</strong>
-        <p class="muted">当前先提供附件记录与基础预览。视频和文档的在线预览会在正式上传服务接入后继续补齐。</p>
+        <p class="muted">This view currently shows the attachment record and a basic preview. Rich preview for video and documents will expand once the full upload service is in place.</p>
       </div>
     </article>
   </div>

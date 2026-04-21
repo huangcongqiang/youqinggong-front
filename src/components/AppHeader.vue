@@ -4,7 +4,7 @@
       <router-link to="/" class="brand-lockup">
         <span class="brand-chip">{{ headerModel.chip }}</span>
         <div>
-          <span class="brand-mark">有轻功</span>
+          <span class="brand-mark">YouQingGong</span>
           <span class="brand-copy brand-copy-desktop">{{ headerModel.copy }}</span>
           <span class="brand-copy brand-copy-mobile">{{ mobileTitle }}</span>
         </div>
@@ -22,9 +22,10 @@
       </nav>
 
       <div class="nav-actions">
+        <span v-if="headerSurfaceLabel" class="nav-surface-chip">{{ headerSurfaceLabel }}</span>
         <div v-if="authState.user" class="nav-user-chip">
           <span class="nav-user-name">{{ authState.user.displayName }}</span>
-          <span class="nav-user-meta">{{ authState.user.audience === 'talent' ? '人才端' : '企业端' }}</span>
+          <span class="nav-user-meta">{{ authState.user.audience === 'talent' ? '人才账号' : '企业账号' }}</span>
         </div>
         <button
           v-if="headerModel.secondary?.action === 'login'"
@@ -70,6 +71,18 @@ const route = useRoute();
 const router = useRouter();
 const authState = useAuthState();
 const showLogout = computed(() => Boolean(authState.user));
+const isWorkspaceAudience = computed(() => ['enterprise', 'talent'].includes(resolveAudience(route)));
+const headerSurfaceLabel = computed(() => {
+  if (!authState.user) {
+    return isWorkspaceAudience.value ? '工作台预览' : '公开站点';
+  }
+
+  if (isWorkspaceAudience.value) {
+    return authState.user.audience === 'talent' ? '当前为人才工作台' : '当前为企业工作台';
+  }
+
+  return '工作台入口';
+});
 const mobileTitle = computed(() => String(route.meta?.title || '有轻功'));
 
 async function handleLogout() {
@@ -78,15 +91,8 @@ async function handleLogout() {
 }
 
 function openLoginModal(audience = 'enterprise') {
-  router.replace({
-    path: route.path,
-    query: {
-      ...route.query,
-      login: '1',
-      audience
-    },
-    hash: route.hash
-  });
+  const redirect = route.fullPath === '/' ? '' : route.fullPath;
+  router.push(roleRouteMap.portal.login(audience, redirect));
 }
 
 const headerModel = computed(() => {
@@ -95,55 +101,55 @@ const headerModel = computed(() => {
 
   if (audience === 'enterprise') {
     return {
-      chip: '企业端',
-      copy: '发单、选人、推进交付',
+      chip: '企业工作台',
+      copy: '任务、消息、合作记录',
       links: [
         { to: '/enterprise', label: '工作台' },
-        { to: '/enterprise/chat', label: '聊天' },
         { to: '/enterprise/publish', label: '发布任务' },
-        { to: '/enterprise/talents', label: '人才广场' }
+        { to: '/enterprise/talents', label: '搜索人才' },
+        { to: '/enterprise/records', label: '合作记录' }
       ],
       primary: authUser
-        ? { to: '/enterprise/chat', label: '去聊天' }
-        : { action: 'login', audience: 'enterprise', label: '登录企业端' },
+        ? { to: '/enterprise/chat', label: '消息' }
+        : { action: 'login', audience: 'enterprise', label: '企业登录' },
       secondary: authUser
-        ? { to: '/enterprise/publish', label: '发布任务' }
-        : { to: roleRouteMap.portal.register('enterprise'), label: '去注册' }
+        ? { to: '/enterprise/reports', label: '交易记录' }
+        : { to: roleRouteMap.portal.register('enterprise'), label: '企业注册' }
     };
   }
 
   if (audience === 'talent') {
     return {
-      chip: '人才端',
-      copy: '接单、协作、沉淀记录',
+      chip: '人才工作台',
+      copy: '任务、消息、收入记录',
       links: [
         { to: '/talent', label: '工作台' },
-        { to: '/talent/chat', label: '聊天' },
-        { to: '/talent/tasks', label: '任务广场' },
-        { to: '/talent/workspace', label: '协作空间' }
+        { to: '/talent/tasks', label: '找任务' },
+        { to: '/talent/chat', label: '消息' },
+        { to: '/talent/records', label: '收入记录' }
       ],
       primary: authUser
-        ? { to: '/talent/chat', label: '去聊天' }
-        : { action: 'login', audience: 'talent', label: '登录人才端' },
+        ? { to: '/talent/chat', label: '消息' }
+        : { action: 'login', audience: 'talent', label: '人才登录' },
       secondary: authUser
-        ? { to: '/talent/tasks', label: '去找任务' }
-        : { to: roleRouteMap.portal.register('talent'), label: '去注册' }
+        ? { to: '/talent/workspace', label: '合同协作' }
+        : { to: roleRouteMap.portal.register('talent'), label: '人才注册' }
     };
   }
 
   return {
-    chip: '官网',
-    copy: '企业与 AI 人才的协作平台',
+    chip: '公开站点',
+    copy: 'AI 协作人才市场',
     links: [
       { to: '/', label: '首页' },
-      { href: '#features', label: '平台介绍' },
-      { href: '#cases', label: '案例' },
-      { href: '#contact', label: '联系方式' }
+      { href: '#features', label: '使用方式' },
+      { href: '#cases', label: '合作案例' },
+      { href: '#contact', label: '联系入口' }
     ],
     primary: authUser
-      ? { to: authUser.homeRoute || (authUser.audience === 'talent' ? '/talent' : '/enterprise'), label: '进入当前账号' }
-      : { to: roleRouteMap.portal.register('enterprise'), label: '立即注册' },
-    secondary: authUser ? null : { action: 'login', audience: 'enterprise', label: '登录' }
+      ? { to: authUser.homeRoute || (authUser.audience === 'talent' ? '/talent' : '/enterprise'), label: '进入工作台' }
+      : { to: roleRouteMap.portal.register('enterprise'), label: '企业注册' },
+    secondary: authUser ? null : { action: 'login', audience: 'talent', label: '人才登录' }
   };
 });
 </script>
@@ -166,13 +172,11 @@ const headerModel = computed(() => {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 18px;
-  background:
-    linear-gradient(180deg, rgba(10, 14, 22, 0.94), rgba(8, 12, 20, 0.98)),
-    radial-gradient(circle at top left, rgba(104, 138, 229, 0.05), transparent 38%);
-  border: 1px solid rgba(176, 192, 221, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 22px;
   backdrop-filter: blur(18px);
-  box-shadow: 0 14px 30px rgba(2, 6, 14, 0.18);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
 }
 
 .brand-lockup {
@@ -187,9 +191,9 @@ const headerModel = computed(() => {
   min-height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid rgba(176, 192, 221, 0.09);
-  background: rgba(14, 20, 31, 0.94);
-  color: rgba(214, 224, 238, 0.82);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #eef6ee;
+  color: #48604a;
   font-size: 10px;
   letter-spacing: 0.12em;
 }
@@ -200,14 +204,14 @@ const headerModel = computed(() => {
   font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.03em;
-  color: var(--text-strong);
+  color: #17311d;
 }
 
 .brand-copy {
   display: block;
   margin-top: 4px;
   font-size: 11px;
-  color: rgba(153, 168, 189, 0.82);
+  color: #5e715f;
   letter-spacing: 0.02em;
 }
 
@@ -218,20 +222,20 @@ const headerModel = computed(() => {
 .nav-links a {
   padding: 9px 11px;
   border-radius: 999px;
-  color: rgba(153, 168, 189, 0.9);
+  color: #52524a;
   transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .nav-links .router-link-exact-active,
 .nav-links .router-link-active {
-  background: rgba(88, 113, 180, 0.12);
-  color: var(--text-strong);
-  box-shadow: inset 0 0 0 1px rgba(141, 172, 255, 0.12);
+  background: #f0f7ef;
+  color: #121212;
+  box-shadow: inset 0 0 0 1px rgba(16, 138, 0, 0.12);
 }
 
 .nav-links a:hover {
   transform: translateY(-1px);
-  color: #d7e0ec;
+  color: #121212;
 }
 
 .nav-links,
@@ -239,6 +243,21 @@ const headerModel = computed(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.nav-surface-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 143, 58, 0.16);
+  background: #f2fbf1;
+  color: #1f6b35;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .nav-button {
@@ -253,18 +272,18 @@ const headerModel = computed(() => {
   gap: 2px;
   padding: 7px 10px;
   border-radius: 14px;
-  border: 1px solid rgba(176, 192, 221, 0.1);
-  background: rgba(11, 17, 28, 0.88);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f7f7f3;
 }
 
 .nav-user-name {
-  color: var(--text-main);
+  color: #121212;
   font-size: 12px;
   font-weight: 600;
 }
 
 .nav-user-meta {
-  color: var(--text-faint);
+  color: #6a6a61;
   font-size: 10px;
 }
 
@@ -297,11 +316,15 @@ const headerModel = computed(() => {
     border-left: none;
     border-right: none;
     border-top: none;
-    box-shadow: 0 12px 28px rgba(0, 4, 14, 0.18);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
   }
 
   .brand-chip,
   .nav-links {
+    display: none;
+  }
+
+  .nav-surface-chip {
     display: none;
   }
 
@@ -317,7 +340,7 @@ const headerModel = computed(() => {
     display: block;
     margin-top: 3px;
     letter-spacing: 0.02em;
-    color: rgba(171, 186, 209, 0.88);
+    color: #7a7a72;
   }
 
   .nav-actions {

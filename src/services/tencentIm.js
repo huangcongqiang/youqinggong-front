@@ -77,7 +77,7 @@ function waitUntilReady() {
     readyResolver = resolve;
     window.setTimeout(() => {
       if (!isReady) {
-        reject(new Error('Tencent IM SDK not ready'));
+        reject(new Error('Realtime messaging service is not ready'));
       }
     }, 10000);
   });
@@ -89,7 +89,7 @@ function normalizeMessage(message, displayName, userId) {
   const attachments = extractPayloadAttachments(message);
   const author = message.from === userId
     ? displayName || message.from
-    : (message.nick || message.from || '腾讯 IM 系统消息');
+    : (message.nick || message.from || '系统消息');
 
   return {
     id: message.ID || message.idClient || `${message.from}-${message.time}-${payloadText}`,
@@ -144,7 +144,7 @@ function extractPayloadText(message) {
   if (message?.payload?.data) {
     return String(message.payload.data);
   }
-  return '[暂不支持的消息类型]';
+  return '[暂不支持的消息内容]';
 }
 
 function extractTencentSystemPayload(message) {
@@ -172,7 +172,7 @@ function shouldHideTencentSystemMessage(message, systemPayload, payloadText) {
     return true;
   }
 
-  return payloadText === '[暂不支持的消息类型]';
+  return payloadText === '[暂不支持的消息内容]';
 }
 
 function inferAttachmentKind(type, name) {

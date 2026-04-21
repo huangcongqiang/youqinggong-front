@@ -11,7 +11,7 @@ export function enrichRoomItem(item, activeRoomKey, communicationRecord) {
   if (item.roomKey === activeRoomKey && communicationRecord) {
     return {
       ...item,
-      communicationStatus: communicationRecord.status || item.communicationStatus || '已生成',
+      communicationStatus: communicationRecord.status || item.communicationStatus || 'Generated',
       communicationSavedAt: communicationRecord.savedAt || item.communicationSavedAt || ''
     };
   }
@@ -55,18 +55,18 @@ export function buildTargetedEmptyRoom({
   return {
     roomKey: '',
     taskId: '',
-    title: targetCounterpartName ? `与 ${targetCounterpartName} 的聊天` : '还没有聊天',
+    title: targetCounterpartName ? `Conversation with ${targetCounterpartName}` : 'No conversation yet',
     taskTitle: '',
     counterpartName: targetCounterpartName,
     counterpartPlatformUserId: targetCounterpartPlatformUserId,
-    stage: '等待任务开始',
+    stage: 'Waiting for a contract',
     focus: targetCounterpartName
       ? requiresTaskSelection
-        ? `请先为 ${targetCounterpartName} 选择一个任务，再进入当前轮协商。`
+        ? `先为 ${targetCounterpartName} 选择合同，再回来继续这条会话。`
         : hasMultipleMatches
-        ? `当前与 ${targetCounterpartName} 已有多个任务房间，请先从上方会话列表选择要继续沟通的任务。`
-        : `当前还没有与 ${targetCounterpartName} 建立聊天。请先绑定任务，再进入当前轮协商。`
-      : '当企业发布任务并选中人才后，新的协商房间会出现在这里。',
+        ? `和 ${targetCounterpartName} 之间有多条合同会话，请先从上面的列表里选对合同。`
+        : `No contract conversation exists with ${targetCounterpartName} yet. Link a contract first, then continue here.`
+      : 'Once a client posts work and selects talent, the contract conversation will appear here.',
     taskDetail: null,
     members: [],
     participants: targetCounterpartName ? [targetCounterpartName] : [],

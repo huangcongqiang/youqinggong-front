@@ -40,20 +40,23 @@ export function messageAvatarText(author) {
 }
 
 export function messageDisplayAuthor(message, currentActor) {
-  return isSelfMessage(message, currentActor) ? '我' : String(message?.author || '协作成员');
+  if (isSystemMessage(message)) {
+    return '系统';
+  }
+  return isSelfMessage(message, currentActor) ? '我' : String(message?.author || '协作者');
 }
 
 export function calendarStateLabel(state) {
   if (state === 'open') {
-    return '可接单';
+    return '可安排';
   }
   if (state === 'busy') {
-    return '执行中';
+    return '进行中';
   }
   if (state === 'closed') {
-    return '暂停接单';
+    return '已暂停';
   }
-  return '待同步';
+  return '待确认';
 }
 
 export function summarizeTaskConfirmationHistory(history) {
@@ -74,9 +77,9 @@ export function summarizeTaskConfirmationHistory(history) {
       versionMap.set(version, {
         id: item?.id || `version-${version}-${index}`,
         version,
-        action: item?.action || `第 ${version} 版`,
+        action: item?.action || `版本 ${version}`,
         actor: item?.actor || '系统',
-        status: item?.status || '待确认',
+        status: item?.status || '待验收',
         note: item?.note || '',
         summary: item?.summary || '',
         scopeNote: item?.scopeNote || '',
@@ -236,7 +239,7 @@ export function attachmentKindLabel(kind) {
 export function attachmentMetaText(attachment) {
   const normalized = normalizeAttachmentValue(attachment);
   if (!normalized) {
-    return '文件';
+    return 'File';
   }
   const sizeText = formatAttachmentSize(normalized.size);
   return sizeText ? `${attachmentKindLabel(normalized.kind)} · ${sizeText}` : attachmentKindLabel(normalized.kind);
@@ -256,10 +259,11 @@ export function composerAttachmentPayload(attachments) {
 
 export function buildMessagePayloads(text, attachments, author) {
   const payloads = [];
+  const isSystemAuthor = String(author || '').trim() === 'AI 系统消息' || String(author || '').trim().toLowerCase() === 'ai system message';
   if (text) {
     payloads.push({
       author,
-      type: author === 'AI 系统消息' ? 'SYSTEM' : 'TEXT',
+      type: isSystemAuthor ? 'SYSTEM' : 'TEXT',
       text,
       attachments: []
     });
@@ -268,7 +272,7 @@ export function buildMessagePayloads(text, attachments, author) {
   listOf(attachments).forEach((attachment) => {
     payloads.push({
       author,
-      type: author === 'AI 系统消息' ? 'SYSTEM' : 'TEXT',
+      type: isSystemAuthor ? 'SYSTEM' : 'TEXT',
       text: '',
       attachments: [
         {
@@ -288,16 +292,16 @@ export function buildMessagePayloads(text, attachments, author) {
 }
 
 export function taskConfirmationStatusClass(status) {
-  if (status === '待人才确认') {
+  if (status === '待人才确认' || status === 'Needs talent confirmation') {
     return 'is-warning';
   }
-  if (status === '待企业修改') {
+  if (status === '待企业修改' || status === 'Needs client revision') {
     return 'is-danger';
   }
-  if (status === '已修改') {
+  if (status === '已修改' || status === 'Revised') {
     return 'is-info';
   }
-  if (status === '已确认') {
+  if (status === '已确认' || status === 'Confirmed') {
     return 'is-success';
   }
   return 'is-info';

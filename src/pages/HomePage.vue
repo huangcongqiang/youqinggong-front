@@ -5,11 +5,9 @@
         <div class="homepage-hero-main stack-lg">
           <div class="homepage-hero-copy stack-lg">
             <div class="stack-sm homepage-hero-copy-block">
-              <p class="hero-kicker">从需求到交付，一条线做完</p>
-              <h1 class="hero-display">把需求变成结果。</h1>
-              <p class="hero-lead hero-lead-compact">
-                发布、协作、验收都在一条闭环里。
-              </p>
+              <p class="hero-kicker">一个入口，一条协作主线</p>
+              <h1 class="hero-display">有轻功。</h1>
+              <p class="hero-lead hero-lead-compact">一条工作流解决你的任务。</p>
             </div>
 
             <div class="action-row portal-hero-actions">
@@ -29,9 +27,9 @@
         <aside class="homepage-hero-side">
           <article class="homepage-hero-side-card stack-md">
             <div class="section-lead stack-xs homepage-hero-side-copy">
-              <span class="eyebrow">平台方式</span>
-              <h2>发布、协作、验收在一条线。</h2>
-              <p class="muted homepage-hero-side-note">先定范围，再推进执行。</p>
+              <span class="eyebrow">平台流程</span>
+              <h2>快速开始。</h2>
+              <p class="muted homepage-hero-side-note">4步完成你的需求。</p>
             </div>
 
             <div class="homepage-step-strip homepage-step-strip-compact">
@@ -51,8 +49,8 @@
     <section id="features" class="homepage-entry-stack">
       <article id="roles" class="glass-panel stack-md homepage-role-shell">
         <div class="homepage-showcase-copy stack-xs">
-          <span class="eyebrow">角色入口</span>
-          <h2>先看角色，再选入口。</h2>
+          <span class="eyebrow">选择入口</span>
+          <h2>先选角色，再进入正确的起点。</h2>
         </div>
 
         <div class="portal-role-grid homepage-role-grid homepage-role-grid-compact">
@@ -73,10 +71,10 @@
 
       <article id="cases" class="glass-panel stack-md portal-case-board homepage-case-board homepage-case-board-compact">
         <div class="section-lead stack-sm">
-          <span class="eyebrow">案例</span>
-          <h2>看真实结果。</h2>
+          <span class="eyebrow">案例快照</span>
+          <h2>看看真实合作是怎样落地的。</h2>
           <p class="muted">
-            企业看交付，人才看回报。
+            企业更关注交付结果，人才更关注协作过程和收入沉淀。
           </p>
         </div>
 
@@ -109,27 +107,27 @@
           <article v-if="activeCase" class="homepage-carousel-card">
             <div class="homepage-carousel-media" :style="coverStyle(activeCase)">
               <div class="homepage-carousel-overlay">
-                <span class="soft-pill">{{ activeCase.type }}</span>
+                <span class="soft-pill">{{ translateText(activeCase.type || '') }}</span>
                 <div class="stack-xs">
-                  <h4>{{ activeCase.coverTitle }}</h4>
-                  <p>{{ activeCase.coverCaption }}</p>
+                  <h4>{{ translateText(activeCase.coverTitle || '') }}</h4>
+                  <p>{{ translateText(activeCase.coverCaption || '') }}</p>
                 </div>
                 <div class="homepage-carousel-stats">
-                  <span v-for="item in activeCase.coverStats" :key="item" class="homepage-carousel-stat">{{ item }}</span>
+              <span v-for="item in activeCase.coverStats" :key="item" class="homepage-carousel-stat">{{ translateText(item) }}</span>
                 </div>
               </div>
             </div>
 
             <div class="homepage-carousel-body stack-sm">
-              <h4>{{ activeCase.name }}</h4>
-              <p class="muted">{{ activeCase.summary }}</p>
+              <h4>{{ translateText(activeCase.name || '') }}</h4>
+              <p class="muted">{{ translateText(activeCase.summary || '') }}</p>
               <div class="portal-case-result">
-                <span class="eyebrow">结果</span>
-                <p class="muted">{{ activeCase.result }}</p>
+                <span class="eyebrow">合作结果</span>
+                <p class="muted">{{ translateText(activeCase.result || '') }}</p>
               </div>
               <div v-if="activeCase.ratingSummary" class="homepage-carousel-rating stack-xs">
-                <span class="soft-pill">{{ activeCase.ratingBadge || '合作评分' }}</span>
-                <p class="muted">{{ activeCase.ratingSummary }}</p>
+                <span class="soft-pill">{{ translateText(activeCase.ratingBadge || '评分摘要') }}</span>
+                <p class="muted">{{ translateText(activeCase.ratingSummary || '') }}</p>
               </div>
             </div>
           </article>
@@ -146,7 +144,7 @@
               type="button"
               class="homepage-carousel-dot"
               :class="{ 'is-active': index === activeCaseIndex }"
-              :aria-label="`查看 ${item.name}`"
+              :aria-label="`查看案例 ${translateText(item.name || '')}`"
               @click="selectCaseIndex(index)"
             />
           </div>
@@ -156,15 +154,15 @@
 
     <section id="contact" class="glass-panel portal-contact-panel homepage-contact-panel">
       <div class="section-lead stack-sm">
-        <span class="eyebrow">联系方式</span>
-        <h2>准备开始，就从这里进入。</h2>
+        <span class="eyebrow">开始使用</span>
+        <h2>先从正确入口进入。</h2>
         <p class="muted">
-          企业注册、人才注册和平台说明都从这里进入。
+          企业注册、人才注册和平台说明都从这里开始。
         </p>
       </div>
 
       <div class="portal-contact-list">
-        <div v-for="item in compactContacts" :key="item.label" class="contact-card portal-contact-card">
+        <div v-for="item in compactContacts" :key="item.label" class="contact-card portal-contact-card" translate="no">
           <div class="contact-card-main">
             <div class="contact-card-icon">
               <VisualGlyph :name="item.icon" />
@@ -188,13 +186,12 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
 import VisualGlyph from '../components/VisualGlyph.vue';
 import { getLandingData } from '../services/api';
 import { useAuthState } from '../stores/auth';
 import { roleRouteMap } from '../utils/roleRoutes';
+import { translateText } from '../utils/uiLocale';
 
-const route = useRoute();
 const authState = useAuthState();
 const page = ref(null);
 const enterpriseCaseIndex = ref(0);
@@ -202,14 +199,7 @@ const talentCaseIndex = ref(0);
 const caseAudience = ref('enterprise');
 
 function buildLoginRoute(audience = 'enterprise') {
-  return {
-    path: '/',
-    query: {
-      ...route.query,
-      login: '1',
-      audience
-    }
-  };
+  return roleRouteMap.portal.login(audience);
 }
 
 const primaryHeroRoute = computed(() => {
@@ -219,15 +209,36 @@ const primaryHeroRoute = computed(() => {
   return roleRouteMap.portal.register('enterprise');
 });
 
-const primaryHeroLabel = computed(() => (authState.user ? '进入当前账号' : '企业注册'));
-const secondaryHeroRoute = computed(() => roleRouteMap.portal.register('talent'));
-const secondaryHeroLabel = computed(() => (authState.user ? '切换账号' : '人才注册'));
+const primaryHeroLabel = computed(() => (authState.user ? '进入工作台' : '企业注册'));
+const secondaryHeroRoute = computed(() => {
+  if (authState.user) {
+    return buildLoginRoute(authState.user.audience === 'talent' ? 'enterprise' : 'talent');
+  }
+  return roleRouteMap.portal.register('talent');
+});
+const secondaryHeroLabel = computed(() => {
+  if (!authState.user) {
+    return '人才注册';
+  }
+  return authState.user.audience === 'talent' ? '切换到企业账号' : '切换到人才账号';
+});
 
+const compactContactFallbacks = [
+  { label: '商务合作', note: '适合企业入驻、渠道合作、方案咨询。' },
+  { label: '人才入驻', note: '适合作品投递、档期同步、入驻咨询。' },
+  { label: '微信咨询', note: '适合预约产品演示、沟通需求和获取报价。' }
+];
 const compactContacts = computed(() =>
-  (page.value?.contacts || []).slice(0, 3).map((item, index) => ({
-    ...item,
-    icon: ['tower', 'network', 'check'][index] || 'spark'
-  }))
+  (page.value?.contacts || []).slice(0, 3).map((item, index) => {
+    const fallback = compactContactFallbacks[index] || {};
+    return {
+      ...item,
+      label: fallback.label || translateText(item?.label || ''),
+      note: fallback.note || translateText(item?.note || ''),
+      value: translateText(item?.value || ''),
+      icon: ['tower', 'network', 'check'][index] || 'spark'
+    };
+  })
 );
 const caseGroups = computed(() => page.value?.caseGroups || []);
 const enterpriseCases = computed(
@@ -240,28 +251,33 @@ const activeCaseList = computed(() => (caseAudience.value === 'enterprise' ? ent
 const activeCaseIndex = computed(() => (caseAudience.value === 'enterprise' ? enterpriseCaseIndex.value : talentCaseIndex.value));
 const activeCase = computed(() => activeCaseList.value[activeCaseIndex.value] || activeCaseList.value[0] || null);
 const activeCaseTitle = computed(() =>
-  caseAudience.value === 'enterprise' ? '企业如何更快发布、选人、推进交付。' : '人才如何沉淀作品、收入和长期合作。'
+  caseAudience.value === 'enterprise' ? '看看企业如何更快发起需求、筛选合适人才并推进交付。' : '看看人才如何沉淀作品、收入和长期合作。'
 );
-const activeCaseAudienceLabel = computed(() => (caseAudience.value === 'enterprise' ? '企业案例' : '人才案例'));
+const activeCaseAudienceLabel = computed(() => (caseAudience.value === 'enterprise' ? '企业案例快照' : '人才案例快照'));
 
 const homepageSteps = computed(() => {
   const fallbackSteps = [
-    { title: '企业发起', note: '输入需求与预算' },
-    { title: 'AI 拆解', note: '给出模块与周期' },
-    { title: '人才协作', note: '确认版本与交付' },
-    { title: '验收评分', note: '留痕并沉淀口碑' }
+    { title: '明确需求', note: '先把范围、预算和目标说明清楚' },
+    { title: 'AI 梳理', note: '快速形成结构、周期和协作拆解' },
+    { title: '匹配人才', note: '确认人选、条款和交付安排' },
+    { title: '验收结算', note: '完成验收、结算并沉淀合作记录' }
   ];
 
   return (page.value?.stages || fallbackSteps).slice(0, 4).map((item, index) => ({
-    title: item.title,
-    note: item.note || item.description || fallbackSteps[index].note,
+    title: translateText(item?.title || fallbackSteps[index].title),
+    note: translateText(item?.note || item?.description || fallbackSteps[index].note),
     index: `0${index + 1}`,
     icon: ['brief', 'spark', 'network', 'medal'][index] || 'spark'
   }));
 });
 
 const homepageProofSignals = computed(() =>
-  (page.value?.metrics || []).slice(0, 3)
+  (page.value?.metrics || []).slice(0, 3).map((item) => ({
+    ...item,
+    label: translateText(item?.label || item?.title || ''),
+    value: translateText(String(item?.value ?? item?.count ?? item?.amount ?? item?.total ?? '')),
+    note: translateText(item?.note || item?.description || '')
+  }))
 );
 
 const roleCards = computed(() =>
@@ -270,14 +286,20 @@ const roleCards = computed(() =>
     return {
       ...card,
       icon: audience === 'enterprise' ? 'tower' : 'talent',
-      shortDesc:
-        audience === 'enterprise'
-          ? '发布任务，快速推进交付。'
-          : '接任务，沉淀作品与收入。',
+      title: translateText(card?.title || (audience === 'enterprise' ? '企业端' : '人才端')),
+      shortDesc: translateText(
+        card?.desc
+          || card?.shortDesc
+          || (audience === 'enterprise'
+            ? '发布任务，推进交付，缩短招聘路径。'
+            : '找任务，沉淀证明，持续积累收入。')
+      ),
       points:
-        audience === 'enterprise'
-          ? ['发布需求', '选择人才']
-          : ['查看任务', '确认合作'],
+        (Array.isArray(card?.points) && card.points.length
+          ? card.points
+          : audience === 'enterprise'
+            ? ['发布任务', '筛选人才', '推进交付']
+            : ['寻找任务', '确认合作', '积累收入']).map((item) => translateText(item)),
       route: authState.user
         ? authState.user.audience === audience
           ? audience === 'enterprise'
@@ -287,9 +309,9 @@ const roleCards = computed(() =>
         : roleRouteMap.portal.register(audience),
       cta: authState.user
         ? authState.user.audience === audience
-          ? `进入${audience === 'enterprise' ? '企业端' : '人才端'}`
-          : `切换到${audience === 'enterprise' ? '企业端' : '人才端'}`
-        : `注册${audience === 'enterprise' ? '企业端' : '人才端'}`
+          ? `进入${audience === 'enterprise' ? '企业' : '人才'}工作台`
+          : `切换到${audience === 'enterprise' ? '企业' : '人才'}账号`
+        : `注册${audience === 'enterprise' ? '企业' : '人才'}账号`
       };
   })
 );
@@ -326,7 +348,7 @@ function previewRolePoints(points) {
 
 function coverStyle(item) {
   return {
-    backgroundImage: `${item?.coverGradient || 'linear-gradient(135deg, rgba(28, 50, 92, 0.9), rgba(12, 20, 35, 0.94))'}, radial-gradient(circle at top right, rgba(118,163,255,0.18), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.04), transparent 42%)`
+    backgroundImage: `${item?.coverGradient || 'linear-gradient(135deg, rgba(26, 62, 44, 0.92), rgba(13, 22, 17, 0.96))'}, radial-gradient(circle at top right, rgba(122, 177, 91, 0.18), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.04), transparent 42%)`
   };
 }
 
@@ -334,3 +356,60 @@ onMounted(async () => {
   page.value = await getLandingData();
 });
 </script>
+
+<style scoped>
+/* codex visual polish */
+.homepage-compact-hero {
+  padding: 42px;
+  border-radius: 36px;
+  background: linear-gradient(135deg, rgba(236, 247, 232, 0.96), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 28px 64px rgba(15, 23, 42, 0.08);
+}
+.homepage-landing-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) 400px;
+  gap: 28px;
+  align-items: stretch;
+}
+.homepage-hero-copy {
+  max-width: 760px;
+}
+.hero-display {
+  max-width: 10ch;
+  font-size: clamp(48px, 6vw, 76px);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+.hero-lead-compact {
+  max-width: 58ch;
+}
+.portal-hero-actions .button-secondary {
+  border-color: transparent;
+  background: transparent;
+  min-height: auto;
+  padding-inline: 0;
+  color: #2d5b2f;
+}
+.homepage-hero-side-card,
+.homepage-entry-card-compact,
+.homepage-carousel-card,
+.portal-contact-panel {
+  border-radius: 30px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 22px 54px rgba(15, 23, 42, 0.06);
+}
+.homepage-step-strip,
+.homepage-role-grid-compact,
+.portal-contact-list {
+  gap: 18px;
+}
+@media (max-width: 980px) {
+  .homepage-landing-shell {
+    grid-template-columns: 1fr;
+  }
+  .hero-display {
+    max-width: none;
+  }
+}
+</style>

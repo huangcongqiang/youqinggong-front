@@ -8,7 +8,7 @@
       </div>
 
       <button
-        v-if="showRefresh"
+        v-if="show刷新"
         type="button"
         class="button-secondary"
         @click="$emit('refresh')"
@@ -60,11 +60,11 @@ const props = defineProps({
   title: { type: String, required: true },
   description: { type: String, default: '' },
   items: { type: Array, default: () => [] },
-  emptyTitle: { type: String, default: '当前没有待处理通知' },
-  emptyDescription: { type: String, default: '新的高优先级事项出现后，会自动汇总到这里。' },
-  showRefresh: { type: Boolean, default: false },
+  emptyTitle: { type: String, default: '当前没有需要处理的通知' },
+  emptyDescription: { type: String, default: '新的高优先级通知会自动汇总到这里。' },
+  show刷新: { type: Boolean, default: false },
   refreshLabel: { type: String, default: '刷新' },
-  footerNote: { type: String, default: '批量动作先保留骨架，后续接审批流与财务流。' },
+  footerNote: { type: String, default: '可以先用批量动作清理轻量事项，再打开需要深入处理的通知。' },
   footerActions: { type: Array, default: () => [] }
 });
 
@@ -80,9 +80,9 @@ const normalizedFooterActions = computed(() =>
 .desktop-notification-list {
   padding: 22px;
   border-radius: 28px;
-  border: 1px solid rgba(158, 179, 212, 0.1);
-  background: linear-gradient(180deg, rgba(14, 19, 31, 0.94), rgba(7, 11, 18, 0.98));
-  box-shadow: 0 24px 56px rgba(0, 4, 16, 0.24);
+  border: 1px solid rgba(29, 79, 53, 0.1);
+  background: linear-gradient(180deg, rgba(247, 251, 247, 0.98), rgba(238, 246, 240, 0.98));
+  box-shadow: 0 24px 56px rgba(18, 52, 35, 0.12);
   min-height: 100%;
 }
 
@@ -111,8 +111,8 @@ const normalizedFooterActions = computed(() =>
   justify-content: center;
   padding: 24px;
   border-radius: 22px;
-  border: 1px dashed rgba(158, 179, 212, 0.12);
-  background: rgba(9, 14, 24, 0.72);
+  border: 1px dashed rgba(29, 79, 53, 0.12);
+  background: rgba(250, 252, 250, 0.92);
 }
 
 .desktop-notification-list__empty strong {

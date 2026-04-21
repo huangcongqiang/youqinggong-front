@@ -1,3 +1,5 @@
+import { translateText } from './uiLocale.js';
+
 const CONTEXT_KEYS = ['itemId', 'group', 'approvalId', 'taskId', 'recordId', 'room', 'nodeId', 'tab', 'source'];
 const ORIGIN_KEYS = ['source', 'itemId', 'group', 'approvalId', 'taskId', 'recordId', 'room'];
 const ORIGIN_KEY_MAP = {
@@ -11,15 +13,16 @@ const ORIGIN_KEY_MAP = {
 };
 
 const SOURCE_LABELS = {
-  messages: '返回聊天',
-  workspace: '返回协作空间',
-  'record-detail': '返回记录详情',
-  records: '返回记录列表',
-  acceptance: '返回验收页',
-  notifications: '返回通知中心',
-  approvals: '返回审批中心',
-  'dashboard-enterprise': '返回企业工作台',
-  'dashboard-talent': '返回人才工作台'
+  messages: 'Back to messages',
+  workspace: 'Back to overview',
+  contract: 'Back to contract',
+  'record-detail': 'Back to history detail',
+  records: 'Back to history',
+  acceptance: 'Back to review',
+  notifications: 'Back to notifications',
+  approvals: 'Back to approvals',
+  'dashboard-enterprise': 'Back to client dashboard',
+  'dashboard-talent': 'Back to freelancer dashboard'
 };
 
 export function normalizeContextValue(value) {
@@ -154,5 +157,5 @@ export function buildCenterReturnQuery({ current = {}, origin = {} } = {}) {
 }
 
 export function labelForObjectPageSource(source, fallback = '返回来源') {
-  return SOURCE_LABELS[normalizeContextValue(source)] || fallback;
+  return translateText(SOURCE_LABELS[normalizeContextValue(source)] || fallback);
 }

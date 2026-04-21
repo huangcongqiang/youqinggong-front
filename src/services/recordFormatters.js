@@ -1,51 +1,63 @@
+import { getIntlLocale, getUiLocale, translateText } from '../utils/uiLocale.js'
+
 export function formatMoney(amount) {
-  return `¥${new Intl.NumberFormat('zh-CN').format(Number(amount) || 0)}`;
+  return `¥${new Intl.NumberFormat(getIntlLocale()).format(Number(amount) || 0)}`
 }
 
 export function formatDateLabel(value) {
-  const normalizedValue = String(value || '').trim();
+  const normalizedValue = String(value || '').trim()
+  const pendingLabel = translateText('Pending sync')
   if (!normalizedValue) {
-    return '待同步';
+    return pendingLabel
   }
 
-  const date = normalizedValue.includes('T') ? new Date(normalizedValue) : new Date(`${normalizedValue}T00:00:00`);
+  const date = normalizedValue.includes('T') ? new Date(normalizedValue) : new Date(`${normalizedValue}T00:00:00`)
   if (Number.isNaN(date.getTime())) {
-    return normalizedValue;
+    return translateText(normalizedValue)
   }
 
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit'
-  })
-    .format(date)
-    .replace(/\//g, '.');
+  if (getUiLocale() === 'zh') {
+    return new Intl.DateTimeFormat('zh-CN', {
+      month: '2-digit',
+      day: '2-digit'
+    })
+      .format(date)
+      .replace(/\//g, '.')
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric'
+  }).format(date)
 }
 
 export function formatDateRangeLabel(startAt, endAt) {
-  const startLabel = formatDateLabel(startAt);
-  const endLabel = formatDateLabel(endAt);
+  const pendingLabel = translateText('Pending sync')
+  const startLabel = formatDateLabel(startAt)
+  const endLabel = formatDateLabel(endAt)
 
-  if (startLabel === '待同步' && endLabel === '待同步') {
-    return '待同步';
+  if (startLabel === pendingLabel && endLabel === pendingLabel) {
+    return pendingLabel
   }
-  if (startLabel === '待同步') {
-    return endLabel;
+  if (startLabel === pendingLabel) {
+    return endLabel
   }
-  if (endLabel === '待同步' || startLabel === endLabel) {
-    return startLabel;
+  if (endLabel === pendingLabel || startLabel === endLabel) {
+    return startLabel
   }
 
-  return `${startLabel} - ${endLabel}`;
+  return `${startLabel} - ${endLabel}`
 }
 
 export function formatGrade(value) {
+  const pendingLabel = translateText('Pending rating')
   if (!value) {
-    return '待评分';
+    return pendingLabel
   }
 
-  if (value === '待评级' || value === '待评分') {
-    return value;
+  if (value === '待评级' || value === '待评分' || value === 'Pending rating') {
+    return pendingLabel
   }
 
-  return `${value} 级`;
+  return getUiLocale() === 'zh' ? `${translateText(String(value))} 级` : translateText(String(value))
 }

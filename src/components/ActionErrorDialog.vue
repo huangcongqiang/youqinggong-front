@@ -7,7 +7,7 @@
             <span class="eyebrow">{{ eyebrow }}</span>
             <h3>{{ title }}</h3>
           </div>
-          <button class="button-secondary" type="button" @click="visible = false">知道了</button>
+          <button class="button-secondary" type="button" @click="visible = false">关闭</button>
         </div>
         <p class="muted">{{ normalizedMessage }}</p>
       </article>
@@ -25,11 +25,11 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: '当前操作暂时失败'
+    default: '操作需要处理'
   },
   eyebrow: {
     type: String,
-    default: '错误提示'
+    default: '待处理'
   }
 });
 
@@ -58,7 +58,7 @@ watch(
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(3, 8, 18, 0.62);
+  background: rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(8px);
 }
 
@@ -66,18 +66,18 @@ watch(
   width: min(460px, 100%);
   padding: 24px;
   border-radius: 24px;
-  border: 1px solid rgba(255, 132, 132, 0.24);
-  background: linear-gradient(180deg, rgba(25, 12, 18, 0.96) 0%, rgba(13, 16, 29, 0.98) 100%);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(220, 38, 38, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 245, 245, 0.98) 100%);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
 }
 
 .action-error-dialog-card h3 {
   margin: 0;
-  color: #fff2f2;
+  color: #111827;
 }
 
 .action-error-dialog-card .muted {
-  color: rgba(255, 228, 228, 0.82);
+  color: rgba(71, 85, 105, 0.9);
   line-height: 1.7;
 }
 </style>

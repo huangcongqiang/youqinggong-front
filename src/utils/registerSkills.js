@@ -1,87 +1,44 @@
-export const talentSkillOptions = [
-  'AI 产品设计',
-  '全栈开发',
-  '前端开发',
-  '后端开发',
-  'UI / UX 设计',
-  '品牌设计',
-  '内容创作',
-  '视频剪辑',
-  '增长运营',
-  'AI Agent 工作流'
-];
+import {
+  SHARED_SKILL_OPTIONS,
+  buildSharedSkillSelection,
+  normalizeSharedSkillText,
+} from './sharedSkillTags';
 
-const presetSkillMap = new Map(
-  talentSkillOptions.map((skill) => [buildRegisterSkillKey(skill), skill])
-);
-const skillAliasMap = new Map([
-  [buildRegisterSkillKey('ui / ux'), 'UI / UX 设计'],
-  [buildRegisterSkillKey('ui/ux'), 'UI / UX 设计'],
-  [buildRegisterSkillKey('ui ux'), 'UI / UX 设计'],
-  [buildRegisterSkillKey('ui设计'), 'UI / UX 设计'],
-  [buildRegisterSkillKey('交互设计'), 'UI / UX 设计'],
-  [buildRegisterSkillKey('界面设计'), 'UI / UX 设计'],
-  [buildRegisterSkillKey('ai agent'), 'AI Agent 工作流'],
-  [buildRegisterSkillKey('agent workflow'), 'AI Agent 工作流'],
-  [buildRegisterSkillKey('prompt / agent'), 'AI Agent 工作流'],
-  [buildRegisterSkillKey('prompt/agent'), 'AI Agent 工作流'],
-  [buildRegisterSkillKey('自动化工作流'), 'AI Agent 工作流'],
-  [buildRegisterSkillKey('全栈'), '全栈开发'],
-  [buildRegisterSkillKey('full stack'), '全栈开发'],
-  [buildRegisterSkillKey('前端'), '前端开发'],
-  [buildRegisterSkillKey('后端'), '后端开发'],
-  [buildRegisterSkillKey('产品设计'), 'AI 产品设计'],
-  [buildRegisterSkillKey('视觉设计'), '品牌设计'],
-  [buildRegisterSkillKey('文案'), '内容创作'],
-  [buildRegisterSkillKey('剪辑'), '视频剪辑'],
-  [buildRegisterSkillKey('增长'), '增长运营']
-]);
+export const talentSkillOptions = SHARED_SKILL_OPTIONS;
 
 export function normalizeRegisterSkill(value) {
+  return normalizeSharedSkillText(value);
+}
+
+function splitCustomSkillInput(value) {
   if (typeof value !== 'string') {
-    return '';
+    return [];
   }
-  return value.trim().replace(/\s+/g, ' ');
+
+  return value
+    .split(/[,\n，；;、]+/g)
+    .map((item) => normalizeSharedSkillText(item))
+    .filter(Boolean);
 }
 
-function buildRegisterSkillKey(value) {
-  return normalizeRegisterSkill(value)
-    .toLowerCase()
-    .replace(/\s*[／/]\s*/g, '/')
-    .replace(/\s*[+＋]\s*/g, '+')
-    .replace(/\s+/g, ' ');
-}
+export { splitCustomSkillInput };
 
-function resolveRegisterSkillLabel(value) {
-  const normalizedValue = normalizeRegisterSkill(value);
-  if (!normalizedValue) {
-    return '';
-  }
-  const skillKey = buildRegisterSkillKey(normalizedValue);
-  return skillAliasMap.get(skillKey) || presetSkillMap.get(skillKey) || normalizedValue;
+function resolveSkillSelection(selectedSkills, customSkills) {
+  const normalizedSelected = Array.isArray(selectedSkills) ? selectedSkills : [];
+  const normalizedCustom = Array.isArray(customSkills) ? customSkills : [];
+  return buildSharedSkillSelection(normalizedSelected, normalizedCustom);
 }
 
 export function buildRegisterSkills(selectedSkills, customSkill = '', includeCustomSkill = false) {
-  const merged = [];
-  const mergedKeys = new Set();
-  const normalizedCustomSkill = includeCustomSkill ? resolveRegisterSkillLabel(customSkill) : '';
-
-  for (const skill of Array.isArray(selectedSkills) ? selectedSkills : []) {
-    const normalizedSkill = resolveRegisterSkillLabel(skill);
-    const normalizedKey = buildRegisterSkillKey(normalizedSkill);
-    if (normalizedSkill && !mergedKeys.has(normalizedKey)) {
-      merged.push(normalizedSkill);
-      mergedKeys.add(normalizedKey);
-    }
-  }
-
-  if (normalizedCustomSkill && !mergedKeys.has(buildRegisterSkillKey(normalizedCustomSkill))) {
-    merged.push(normalizedCustomSkill);
-  }
-
-  return merged;
+  const customSkills = includeCustomSkill ? splitCustomSkillInput(customSkill) : [];
+  const { skills, customSkills: normalizedCustomSkills } = resolveSkillSelection(selectedSkills, customSkills);
+  return [...skills, ...normalizedCustomSkills];
 }
 
-export function buildRegisterHeadline(skills) {
-  return buildRegisterSkills(skills).join(' / ');
+export function buildRegisterSkillPayload(selectedSkills, customSkills = []) {
+  return resolveSkillSelection(selectedSkills, customSkills);
+}
+
+export function buildRegisterHeadline(skills, customSkills = []) {
+  return buildRegisterSkillPayload(skills, customSkills).allSkills.join(' / ');
 }

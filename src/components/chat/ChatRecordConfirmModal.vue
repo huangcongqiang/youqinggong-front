@@ -2,40 +2,40 @@
   <div v-if="open" class="dashboard-detail-modal" @click.self="$emit('close')">
     <article class="dashboard-detail-card stack-md chat-record-confirm-card">
       <div class="stack-sm">
-        <span class="eyebrow">结束本轮沟通</span>
-        <h3>确认现在生成 AI 沟通纪要？</h3>
+        <span class="eyebrow">Wrap this conversation</span>
+        <h3>Generate the assistant recap now?</h3>
         <p class="muted">
-          聊天记录会继续保留。这里的动作只是在当前聊天基础上，整理出这一轮的结论、待办和沟通摘要。
+          The full conversation stays here. This action only turns the current conversation into a recap with decisions, open items, and a short summary.
         </p>
       </div>
 
       <div class="dashboard-preview-list">
         <div class="dashboard-preview-item">
           <div class="stack-xs">
-            <strong>当前房间</strong>
-            <p>{{ room?.title || '当前聊天房间' }}</p>
+            <strong>当前会话</strong>
+            <p>{{ room?.title || '当前合同会话' }}</p>
           </div>
         </div>
         <div class="dashboard-preview-item">
           <div class="stack-xs">
-            <strong>最近一条消息</strong>
-            <p>{{ room?.lastMessage || '暂无最新消息' }}</p>
+            <strong>Latest message</strong>
+            <p>{{ room?.lastMessage || 'No recent message yet' }}</p>
           </div>
         </div>
         <div class="dashboard-preview-item">
           <div class="stack-xs">
-            <strong>当前纪要状态</strong>
-            <p>{{ communicationRecord?.status || '未生成' }}</p>
+            <strong>当前摘要状态</strong>
+            <p>{{ communicationRecord?.status || 'Not generated yet' }}</p>
           </div>
         </div>
       </div>
 
       <div class="toolbar chat-record-confirm-toolbar">
         <button class="button-secondary" type="button" :disabled="isGeneratingRecord" @click="$emit('close')">
-          再聊一会
+          Keep chatting
         </button>
         <button class="button-primary" type="button" :disabled="isGeneratingRecord || !activeRoomKey" @click="$emit('confirm')">
-          {{ isGeneratingRecord ? 'AI 正在整理纪要...' : '确认并生成纪要' }}
+          {{ isGeneratingRecord ? '助手正在准备摘要…' : '确认并生成摘要' }}
         </button>
       </div>
     </article>

@@ -15,7 +15,7 @@
         :aria-controls="detailId"
         @click="toggleExpanded"
       >
-        {{ expanded ? '收起详情' : toggleLabel }}
+        {{ expanded ? 'Hide details' : toggleLabel }}
       </button>
     </header>
 
@@ -44,7 +44,7 @@
         >
           <div class="stack-xs">
             <strong>{{ item.label }}</strong>
-            <p class="muted">{{ item.note || '进入对应页面处理' }}</p>
+            <p class="muted">{{ item.note || '打开相关合同继续处理' }}</p>
           </div>
           <span class="desktop-attention-hub__count">{{ item.count || 0 }}</span>
         </router-link>
@@ -56,7 +56,7 @@
         >
           <div class="stack-xs">
             <strong>{{ item.label }}</strong>
-            <p class="muted">{{ item.note || '处理入口即将开放' }}</p>
+            <p class="muted">{{ item.note || 'Access is coming soon' }}</p>
           </div>
           <span class="desktop-attention-hub__count">{{ item.count || 0 }}</span>
         </div>
@@ -91,10 +91,10 @@
           <p v-if="detailDescription" class="muted">{{ detailDescription }}</p>
         </div>
         <ul class="desktop-attention-hub__detail-list">
-          <li v-for="item in normalizedDetailItems" :key="item.label">
-            <strong>{{ item.label }}</strong>
-            <span>{{ item.value }}</span>
-          </li>
+      <li v-for="item in normalizedDetailItems" :key="item.label">
+        <strong>{{ item.label }}</strong>
+        <span>{{ item.value }}</span>
+      </li>
         </ul>
       </section>
     </transition>
@@ -108,7 +108,7 @@ const emit = defineEmits(['toggle']);
 const props = defineProps({
   eyebrow: {
     type: String,
-    default: '优先处理'
+    default: 'Action needed'
   },
   title: {
     type: String,
@@ -120,11 +120,11 @@ const props = defineProps({
   },
   summaryLabel: {
     type: String,
-    default: '待处理'
+    default: 'To review'
   },
   summaryValue: {
     type: String,
-    default: '0 项'
+    default: '0 items'
   },
   summaryNote: {
     type: String,
@@ -144,7 +144,7 @@ const props = defineProps({
   },
   detailTitle: {
     type: String,
-    default: '更多信息'
+    default: 'More context'
   },
   detailDescription: {
     type: String,
@@ -152,7 +152,7 @@ const props = defineProps({
   },
   toggleLabel: {
     type: String,
-    default: '查看全部'
+    default: 'View all'
   },
   defaultExpanded: {
     type: Boolean,
@@ -216,14 +216,14 @@ const normalizedDetailItems = computed(() =>
     .map((item, index) => {
       if (item && typeof item === 'object') {
         return {
-          label: toText(item.label || `条目 ${index + 1}`),
+          label: toText(item.label || `Item ${index + 1}`),
           value: toText(item.value)
         };
       }
 
       const value = toText(item);
       return {
-        label: `条目 ${index + 1}`,
+        label: `Item ${index + 1}`,
         value
       };
     })
@@ -235,11 +235,11 @@ const normalizedDetailItems = computed(() =>
 .desktop-attention-hub {
   padding: 20px;
   border-radius: 24px;
-  border: 1px solid rgba(148, 170, 210, 0.12);
+  border: 1px solid rgba(20, 20, 20, 0.08);
   background:
-    linear-gradient(180deg, rgba(16, 19, 28, 0.96), rgba(9, 12, 20, 0.99)),
-    radial-gradient(circle at top right, rgba(104, 138, 229, 0.08), transparent 34%);
-  box-shadow: 0 18px 40px rgba(3, 6, 16, 0.22);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 249, 246, 0.98)),
+    radial-gradient(circle at top right, rgba(20, 168, 0, 0.06), transparent 34%);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
 .desktop-attention-hub__header,
@@ -290,8 +290,8 @@ const normalizedDetailItems = computed(() =>
 .desktop-attention-hub__detail {
   padding: 14px;
   border-radius: 18px;
-  border: 1px solid rgba(158, 179, 212, 0.1);
-  background: rgba(12, 17, 28, 0.58);
+  border: 1px solid rgba(20, 20, 20, 0.08);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .desktop-attention-hub__metric {
@@ -299,12 +299,12 @@ const normalizedDetailItems = computed(() =>
   flex-direction: column;
   gap: 6px;
   padding: 18px;
-  background: linear-gradient(180deg, rgba(14, 20, 33, 0.88), rgba(10, 14, 24, 0.94));
+  background: linear-gradient(180deg, rgba(241, 250, 239, 0.94), rgba(255, 255, 255, 0.98));
 }
 
 .desktop-attention-hub__metric-label,
 .desktop-attention-hub__stat-label {
-  color: var(--text-faint);
+  color: rgba(77, 86, 105, 0.78);
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -347,15 +347,15 @@ const normalizedDetailItems = computed(() =>
   gap: 12px;
   padding: 13px 14px;
   border-radius: 18px;
-  border: 1px solid rgba(148, 170, 210, 0.12);
-  background: rgba(13, 18, 29, 0.5);
+  border: 1px solid rgba(20, 20, 20, 0.08);
+  background: rgba(255, 255, 255, 0.94);
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
 .desktop-attention-hub__item:hover {
   transform: translateY(-1px);
-  border-color: rgba(105, 168, 255, 0.18);
-  background: rgba(15, 21, 34, 0.72);
+  border-color: rgba(20, 168, 0, 0.18);
+  background: rgba(246, 251, 244, 0.96);
 }
 
 .desktop-attention-hub__item.is-disabled {
@@ -379,8 +379,8 @@ const normalizedDetailItems = computed(() =>
   height: 30px;
   padding: 0 9px;
   border-radius: 999px;
-  background: rgba(105, 168, 255, 0.12);
-  color: #e6f0ff;
+  background: rgba(20, 168, 0, 0.12);
+  color: #0c6a1f;
   font-weight: 700;
   font-size: 13px;
 }
@@ -412,7 +412,7 @@ const normalizedDetailItems = computed(() =>
   justify-content: space-between;
   padding: 11px 13px;
   border-radius: 16px;
-  background: rgba(7, 12, 21, 0.76);
+  background: rgba(247, 248, 245, 0.96);
 }
 
 .desktop-attention-hub__detail-list strong {

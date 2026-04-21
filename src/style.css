@@ -9,6 +9,11 @@
   --text-soft: #91a2b8;
   --text-faint: #617286;
   --text-strong: #f2f7fd;
+  --field-dark-bg: rgba(8, 18, 36, 0.88);
+  --field-dark-bg-strong: rgba(8, 12, 20, 0.94);
+  --field-dark-border: rgba(151, 170, 204, 0.16);
+  --field-dark-text: #eef4ff;
+  --field-dark-placeholder: rgba(208, 220, 236, 0.54);
   --accent: #6d9dff;
   --accent-deep: #4269d9;
   --accent-warm: #8bb8ff;
@@ -358,13 +363,14 @@ button {
 
 .homepage-compact-hero {
   padding: 24px;
+  min-height: 520px;
 }
 
 .homepage-landing-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
   gap: 22px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .homepage-role-grid {
@@ -378,7 +384,12 @@ button {
 }
 
 .homepage-hero-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
   max-width: 900px;
+  min-height: 100%;
 }
 
 .homepage-hero-copy-block {
@@ -388,6 +399,11 @@ button {
 .homepage-hero-main,
 .homepage-hero-side {
   min-width: 0;
+}
+
+.homepage-hero-main {
+  display: flex;
+  min-height: 100%;
 }
 
 .homepage-hero-side-card {
@@ -1108,6 +1124,12 @@ button {
 
 .portal-contact-card .muted {
   -webkit-line-clamp: 2;
+  color: rgba(231, 238, 247, 0.88);
+}
+
+.portal-contact-card h4,
+.portal-contact-card strong {
+  color: #f8fbff;
 }
 
 .homepage-featured-case {
@@ -1275,7 +1297,9 @@ button {
 }
 
 .portal-hero-actions {
-  margin-top: -2px;
+  margin-top: auto;
+  padding-top: 28px;
+  align-self: flex-start;
 }
 
 .portal-note-strip {
@@ -1797,8 +1821,9 @@ button:disabled {
   resize: vertical;
   border-radius: 20px;
   border: 1px solid var(--line-soft);
-  background: rgba(8, 18, 36, 0.88);
-  color: var(--text-main);
+  background: var(--field-dark-bg);
+  color: var(--field-dark-text);
+  caret-color: var(--field-dark-text);
   line-height: 1.8;
 }
 
@@ -1809,8 +1834,29 @@ button:disabled {
   padding: 0 16px;
   border-radius: 16px;
   border: 1px solid var(--line-soft);
-  background: rgba(8, 18, 36, 0.88);
-  color: var(--text-main);
+  background: var(--field-dark-bg);
+  color: var(--field-dark-text);
+  caret-color: var(--field-dark-text);
+}
+
+.text-input::placeholder,
+.textarea::placeholder,
+.room-search-input::placeholder,
+.message-input::placeholder {
+  color: var(--field-dark-placeholder);
+}
+
+.text-input:-webkit-autofill,
+.text-input:-webkit-autofill:hover,
+.text-input:-webkit-autofill:focus,
+.room-search-input:-webkit-autofill,
+.room-search-input:-webkit-autofill:hover,
+.room-search-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--field-dark-text);
+  caret-color: var(--field-dark-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--field-dark-bg) inset;
+  box-shadow: 0 0 0 1000px var(--field-dark-bg) inset;
+  transition: background-color 9999s ease-out 0s;
 }
 
 .form-grid {
@@ -1911,6 +1957,7 @@ button:disabled {
 
 .register-shell-head .muted {
   margin: 0;
+  color: rgba(72, 86, 104, 0.96);
 }
 
 .register-role-topline {
@@ -1924,6 +1971,7 @@ button:disabled {
 .register-role-topline .muted {
   margin: 0;
   font-size: 12px;
+  color: rgba(224, 232, 245, 0.72);
 }
 
 .register-progress-strip {
@@ -1935,8 +1983,8 @@ button:disabled {
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid rgba(121, 155, 255, 0.16);
-  background: rgba(10, 22, 44, 0.5);
-  color: var(--text-soft);
+  background: rgba(24, 42, 79, 0.76);
+  color: rgba(245, 249, 255, 0.92);
   font-size: 13px;
 }
 
@@ -1944,17 +1992,29 @@ button:disabled {
   justify-content: center;
   padding: 9px 12px;
   border-radius: 16px;
-  background: rgba(10, 22, 44, 0.44);
+  background: rgba(22, 38, 73, 0.82);
+  color: rgba(242, 247, 253, 0.92);
+  border-color: rgba(134, 166, 255, 0.22);
 }
 
 .register-progress-chip strong {
   font-size: 14px;
+  color: inherit;
+}
+
+.register-progress-chip,
+.register-progress-chip strong,
+.register-progress-chip small,
+.register-progress-chip .muted {
+  color: rgba(244, 248, 255, 0.94);
 }
 
 .register-progress-chip .publish-stepper-index {
   width: 28px;
   height: 28px;
   font-size: 12px;
+  color: #f6fbff;
+  background: linear-gradient(135deg, rgba(88, 112, 255, 0.96), rgba(101, 148, 255, 0.9));
 }
 
 .onboarding-stepper {
@@ -1982,8 +2042,8 @@ button:disabled {
   padding: 18px;
   border-radius: 20px;
   border: 1px solid rgba(121, 155, 255, 0.12);
-  background: rgba(10, 22, 44, 0.68);
-  color: inherit;
+  background: linear-gradient(180deg, rgba(24, 42, 79, 0.92), rgba(13, 24, 46, 0.94));
+  color: rgba(245, 249, 255, 0.96);
   text-align: left;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1994,14 +2054,27 @@ button:disabled {
 }
 
 .register-role-card.is-active-tab {
-  border-color: rgba(76, 201, 255, 0.28);
-  box-shadow: inset 0 0 0 1px rgba(76, 201, 255, 0.12);
-  background: linear-gradient(180deg, rgba(26, 49, 102, 0.78), rgba(12, 25, 47, 0.82));
+  border-color: rgba(92, 208, 255, 0.34);
+  box-shadow:
+    inset 0 0 0 1px rgba(92, 208, 255, 0.12),
+    0 18px 36px rgba(10, 21, 43, 0.22);
+  background: linear-gradient(180deg, rgba(39, 72, 145, 0.9), rgba(18, 37, 70, 0.94));
 }
 
 .register-role-card h3 {
   margin: 0;
   font-size: 20px;
+  color: rgba(248, 251, 255, 0.98);
+}
+
+.register-role-card .eyebrow,
+.register-role-card .muted,
+.register-role-card p {
+  color: rgba(225, 234, 247, 0.82);
+}
+
+.register-role-card .eyebrow {
+  color: rgba(248, 251, 255, 0.92);
 }
 
 .onboarding-textarea {
@@ -3107,14 +3180,13 @@ button:disabled {
   margin: 0;
 }
 
-.publish-shell-grid,
 .message-shell-grid {
   --chat-room-list-height: 228px;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 16px;
   align-items: stretch;
-  height: calc(100vh - 96px);
+  height: calc(100vh - 100px);
   min-height: 560px;
 }
 
@@ -3435,9 +3507,9 @@ button:disabled {
 .room-card-button {
   width: 100%;
   padding: 12px 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(121, 155, 255, 0.12);
-  background: rgba(10, 22, 44, 0.72);
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel);
   color: inherit;
   text-align: left;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
@@ -3448,8 +3520,7 @@ button:disabled {
 .preset-card.is-active,
 .room-card-button.is-active {
   transform: none;
-  border-color: rgba(100, 167, 255, 0.24);
-  box-shadow: inset 0 0 0 1px rgba(100, 167, 255, 0.08);
+  border-color: var(--accent);
 }
 
 .preset-card-head,
@@ -3469,6 +3540,7 @@ button:disabled {
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -3501,6 +3573,7 @@ button:disabled {
   max-width: 540px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -3579,6 +3652,10 @@ button:disabled {
   max-height: 100%;
   padding: 20px;
   overflow: hidden;
+  background: var(--bg-panel-strong);
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--shadow);
 }
 
 .message-room-header {
@@ -3599,8 +3676,8 @@ button:disabled {
   min-height: 32px;
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid rgba(164, 185, 221, 0.1);
-  background: rgba(12, 18, 28, 0.74);
+  border: 1px solid var(--line-soft);
+  background: var(--bg-main);
   color: var(--text-soft);
   font-size: 12px;
   white-space: nowrap;
@@ -3623,24 +3700,27 @@ button:disabled {
   width: 100%;
   min-height: 116px;
   padding: 14px 16px;
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(15, 20, 31, 0.9), rgba(9, 14, 21, 0.98)),
-    radial-gradient(circle at top right, rgba(106, 167, 255, 0.05), transparent 36%);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
 .room-card-button.is-active {
-  border-color: rgba(105, 168, 255, 0.34);
-  background:
-    linear-gradient(180deg, rgba(18, 24, 37, 0.96), rgba(10, 15, 24, 0.98)),
-    radial-gradient(circle at top right, rgba(105, 168, 255, 0.1), transparent 40%);
+  border-color: var(--accent);
+  background: rgba(16, 138, 0, 0.05);
 }
 
 .room-search-input {
-  background: rgba(8, 15, 25, 0.86);
+  background: var(--bg-panel);
+}
+
+.room-search-input,
+.message-input {
+  color: var(--text-main);
+  caret-color: var(--text-main);
 }
 
 .room-filter-toolbar {
@@ -3656,8 +3736,8 @@ button:disabled {
   min-height: 38px;
   padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid rgba(164, 185, 221, 0.1);
-  background: rgba(10, 16, 26, 0.72);
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel);
   color: var(--text-soft);
   transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
@@ -3670,21 +3750,24 @@ button:disabled {
   height: 24px;
   padding: 0 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.04);
   font-style: normal;
   font-size: 12px;
 }
 
 .room-filter-button.is-active-tab {
-  border-color: rgba(105, 168, 255, 0.28);
-  background: rgba(17, 27, 41, 0.86);
-  color: var(--text-strong);
+  border-color: var(--accent);
+  background: rgba(16, 138, 0, 0.08);
+  color: var(--accent-deep);
 }
 
 .room-empty-card {
   min-width: 280px;
   justify-content: center;
   padding: 20px;
+  background: var(--bg-panel);
+  border-radius: 12px;
+  border: 1px dashed var(--line-soft);
 }
 
 .message-panel-meta {
@@ -3703,9 +3786,10 @@ button:disabled {
   max-height: none;
   padding: 20px;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(14, 19, 29, 0.9), rgba(9, 14, 21, 0.98)),
-    radial-gradient(circle at top right, rgba(106, 167, 255, 0.06), transparent 32%);
+  background: var(--bg-panel-strong);
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--shadow);
 }
 
 .message-context-panel {
@@ -3717,6 +3801,10 @@ button:disabled {
   padding: 20px;
   overflow-y: auto;
   overflow-x: hidden;
+  background: var(--bg-panel-strong);
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  box-shadow: var(--shadow);
 }
 
 .message-context-header {
@@ -3787,9 +3875,9 @@ button:disabled {
 /* ── Task Confirmation Banner ────────────────────────── */
 .message-task-banner {
   flex: 0 0 auto;
-  border-radius: 14px;
-  border: 1px solid rgba(164, 185, 221, 0.1);
-  background: linear-gradient(180deg, rgba(16, 22, 33, 0.88), rgba(10, 15, 23, 0.96));
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel);
   overflow: hidden;
   margin-bottom: 4px;
 }
@@ -3816,19 +3904,21 @@ button:disabled {
 
 .message-task-banner-chevron {
   font-size: 10px;
-  color: rgba(164, 185, 221, 0.45);
+  color: var(--text-faint);
   flex-shrink: 0;
 }
 
 .message-task-banner-body {
   padding: 12px 16px 14px;
-  border-top: 1px solid rgba(164, 185, 221, 0.08);
+  border-top: 1px solid var(--line-soft);
 }
 
 /* ── Chat-area compact typography ────────────────────── */
 .message-room-panel h3,
 .message-chat-panel h3 {
-  font-size: 14px;
+  font-size: 16px;
+  color: var(--text-main);
+  font-weight: 600;
   line-height: 1.35;
   margin: 0;
 }
@@ -3840,9 +3930,7 @@ button:disabled {
   margin: 0;
 }
 
-.message-chat-header h3 {
-  font-size: 14px;
-}
+
 
 /* Compact pills & buttons inside the chat header */
 .message-chat-header .soft-pill,
@@ -3872,7 +3960,13 @@ button:disabled {
   gap: 18px;
 }
 
-.message-chat-header h3,
+.message-chat-header h3 {
+  font-size: 16px;
+  color: var(--text-main);
+  font-weight: 600;
+  margin: 0;
+}
+
 .message-chat-header p {
   margin: 0;
 }
@@ -3892,12 +3986,9 @@ button:disabled {
   min-height: 0;
   height: auto;
   padding: 14px;
-  border-radius: 28px;
-  border: 1px solid rgba(164, 185, 221, 0.08);
-  background:
-    linear-gradient(180deg, rgba(7, 12, 19, 0.96), rgba(6, 10, 16, 0.98)),
-    radial-gradient(circle at top right, rgba(106, 167, 255, 0.04), transparent 36%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel);
   overflow: hidden;
 }
 
@@ -3906,11 +3997,9 @@ button:disabled {
   z-index: 0;
   flex: 0 0 auto;
   padding: 14px 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(164, 185, 221, 0.08);
-  background:
-    linear-gradient(180deg, rgba(16, 22, 33, 0.88), rgba(10, 15, 23, 0.96)),
-    radial-gradient(circle at top left, rgba(106, 167, 255, 0.06), transparent 44%);
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel);
   margin-bottom: 12px;
 }
 
@@ -3943,9 +4032,9 @@ button:disabled {
   flex-direction: column;
   gap: 6px;
   padding: 11px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(121, 155, 255, 0.1);
-  background: rgba(8, 15, 28, 0.58);
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-main);
 }
 
 .message-task-confirmation-fact strong {
@@ -3972,6 +4061,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
 }
 
 .task-confirmation-history {
@@ -4026,8 +4116,9 @@ button:disabled {
   flex: 1 1 auto;
   height: 100%;
   max-height: none;
-  padding: 2px 6px 2px 2px;
-  overflow: auto;
+  padding: 2px 14px 2px 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: smooth;
 }
 
@@ -4039,9 +4130,9 @@ button:disabled {
   justify-content: center;
   min-height: 240px;
   padding: 18px;
-  border-radius: 20px;
-  border: 1px dashed rgba(121, 155, 255, 0.14);
-  background: rgba(7, 14, 27, 0.56);
+  border-radius: 12px;
+  border: 1px dashed var(--line-soft);
+  background: var(--bg-panel);
 }
 
 .message-thread-empty h4,
@@ -4116,11 +4207,9 @@ button:disabled {
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  border-radius: 22px;
-  border: 1px solid rgba(164, 185, 221, 0.08);
-  background:
-    linear-gradient(180deg, rgba(13, 18, 28, 0.92), rgba(9, 13, 21, 0.98)),
-    radial-gradient(circle at top right, rgba(106, 167, 255, 0.03), transparent 36%);
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel-strong);
 }
 
 .message-file-input {
@@ -4160,9 +4249,9 @@ button:disabled {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(121, 155, 255, 0.14);
-  background: rgba(9, 19, 38, 0.72);
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-main);
 }
 
 .message-send-status p {
@@ -4176,9 +4265,9 @@ button:disabled {
   gap: 10px;
   max-width: 100%;
   padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(121, 155, 255, 0.16);
-  background: rgba(9, 19, 38, 0.86);
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-main);
   color: inherit;
 }
 
@@ -4261,9 +4350,16 @@ button:disabled {
   max-height: 160px;
   resize: vertical;
   padding: 12px 16px;
-  border-radius: 16px;
-  background: rgba(8, 12, 20, 0.94);
-  border-color: rgba(239, 228, 212, 0.08);
+  border-radius: 8px;
+  background: var(--bg-main);
+  border: 1px solid var(--line-strong);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.message-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  outline: none;
 }
 
 .case-card {
@@ -4549,12 +4645,18 @@ button:disabled {
   border-radius: 20px;
   border: 1px solid rgba(121, 155, 255, 0.12);
   background: rgba(9, 19, 38, 0.8);
+  color: rgba(244, 248, 255, 0.95);
 }
 
 .contact-card-main {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.contact-card-main > div {
   min-width: 0;
 }
 
@@ -4573,15 +4675,23 @@ button:disabled {
 
 .contact-card h4 {
   margin: 0 0 6px;
+  color: rgba(248, 251, 255, 0.98);
 }
 
 .contact-card p {
   margin: 0;
+  color: rgba(221, 230, 244, 0.76);
 }
 
 .contact-card strong {
   font-size: 18px;
-  color: var(--text-strong);
+  color: rgba(248, 251, 255, 0.98);
+  flex: 0 1 32%;
+  min-width: 220px;
+  max-width: 100%;
+  text-align: right;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .result-card h3 {
@@ -4642,17 +4752,18 @@ button:disabled {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 14px;
+  border-radius: 50%;
   flex: 0 0 auto;
-  background: rgba(12, 27, 54, 0.92);
-  border: 1px solid rgba(121, 155, 255, 0.14);
-  color: #f6f8ff;
+  background: var(--bg-panel);
+  border: 1px solid var(--line-soft);
+  color: var(--text-strong);
   font-weight: 700;
 }
 
 .message-avatar.is-self {
-  background: linear-gradient(135deg, rgba(48, 219, 176, 0.24), rgba(76, 201, 255, 0.2));
-  border-color: rgba(48, 219, 176, 0.22);
+  background: rgba(16, 138, 0, 0.08);
+  border-color: rgba(16, 138, 0, 0.2);
+  color: var(--accent-deep);
 }
 
 .message-payload {
@@ -4681,20 +4792,21 @@ button:disabled {
 
 .message-bubble {
   max-width: 100%;
-  padding: 14px 16px;
-  border-radius: 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
   border: 1px solid var(--line-soft);
-  background: rgba(11, 25, 49, 0.84);
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
 .message-bubble.is-other {
-  border-top-left-radius: 8px;
+  border-top-left-radius: 4px;
 }
 
 .message-bubble.is-self {
-  border-top-right-radius: 8px;
-  border-color: rgba(48, 219, 176, 0.2);
-  background: linear-gradient(135deg, rgba(48, 219, 176, 0.18), rgba(76, 201, 255, 0.12));
+  border-top-right-radius: 4px;
+  border-color: rgba(16, 138, 0, 0.2);
+  background: rgba(16, 138, 0, 0.08);
 }
 
 .message-text {
@@ -4718,9 +4830,9 @@ button:disabled {
   gap: 12px;
   width: 100%;
   padding: 10px;
-  border-radius: 16px;
-  border: 1px solid rgba(121, 155, 255, 0.14);
-  background: rgba(6, 16, 33, 0.42);
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-main);
   color: inherit;
   text-align: left;
 }
@@ -4743,10 +4855,10 @@ button:disabled {
   justify-content: center;
   width: 72px;
   height: 72px;
-  border-radius: 14px;
-  background: rgba(18, 34, 66, 0.84);
-  border: 1px solid rgba(121, 155, 255, 0.14);
-  color: #f6f8ff;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--line-soft);
+  color: var(--text-soft);
   font-weight: 700;
 }
 
@@ -4788,9 +4900,9 @@ button:disabled {
   flex-direction: column;
   gap: 10px;
   padding: 24px;
-  border-radius: 20px;
-  border: 1px dashed rgba(121, 155, 255, 0.18);
-  background: rgba(10, 22, 44, 0.56);
+  border-radius: 12px;
+  border: 1px dashed var(--line-soft);
+  background: var(--bg-panel);
 }
 
 .message-system-time {
@@ -4801,7 +4913,7 @@ button:disabled {
 .message-system-text {
   margin: 0;
   max-width: min(78%, 720px);
-  color: rgba(195, 206, 228, 0.74);
+  color: var(--text-soft);
   font-size: 13px;
   line-height: 1.7;
   text-align: center;
@@ -5351,7 +5463,7 @@ button:disabled {
 
 .dashboard-priority-item:hover {
   transform: translateY(-1px);
-  border-color: rgba(105, 168, 255, 0.18);
+  border-color: rgba(16, 138, 0, 0.18);
 }
 
 .dashboard-priority-item p {
@@ -5514,6 +5626,7 @@ button:disabled {
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -5521,6 +5634,7 @@ button:disabled {
 .dashboard-module-submeta {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -5548,6 +5662,7 @@ button:disabled {
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -6690,6 +6805,7 @@ button:disabled {
   margin: 6px 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -7716,6 +7832,7 @@ button:disabled {
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -8366,8 +8483,8 @@ button:disabled {
   gap: 14px;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid rgba(158, 179, 212, 0.08);
-  background: rgba(10, 15, 26, 0.76);
+  border: 1px solid rgba(29, 79, 53, 0.08);
+  background: rgba(13, 26, 21, 0.78);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
@@ -8375,12 +8492,12 @@ button:disabled {
 
 .desktop-center-group:hover {
   transform: translateY(-1px);
-  border-color: rgba(105, 168, 255, 0.18);
+  border-color: rgba(16, 138, 0, 0.18);
 }
 
 .desktop-center-group.is-active {
-  border-color: rgba(105, 168, 255, 0.26);
-  background: linear-gradient(180deg, rgba(23, 38, 68, 0.9), rgba(9, 14, 24, 0.96));
+  border-color: rgba(16, 138, 0, 0.26);
+  background: linear-gradient(180deg, rgba(18, 50, 35, 0.9), rgba(10, 20, 16, 0.96));
 }
 
 .desktop-center-group strong {
@@ -8398,8 +8515,8 @@ button:disabled {
   min-height: 32px;
   padding: 0 11px;
   border-radius: 999px;
-  border: 1px solid rgba(158, 179, 212, 0.1);
-  background: rgba(14, 20, 31, 0.92);
+  border: 1px solid rgba(29, 79, 53, 0.1);
+  background: rgba(14, 26, 21, 0.92);
   color: var(--text-soft);
   font-weight: 600;
   white-space: nowrap;
@@ -8437,8 +8554,8 @@ button:disabled {
 .desktop-center-context__section {
   padding: 13px 15px;
   border-radius: 18px;
-  border: 1px solid rgba(158, 179, 212, 0.08);
-  background: rgba(10, 15, 25, 0.76);
+  border: 1px solid rgba(29, 79, 53, 0.08);
+  background: rgba(13, 25, 20, 0.78);
 }
 
 .desktop-center-context__summary .muted,
@@ -8468,8 +8585,8 @@ button:disabled {
   gap: 6px;
   padding: 12px 14px;
   border-radius: 16px;
-  border: 1px solid rgba(158, 179, 212, 0.08);
-  background: rgba(8, 12, 21, 0.84);
+  border: 1px solid rgba(29, 79, 53, 0.08);
+  background: rgba(11, 19, 15, 0.84);
 }
 
 .desktop-center-context__list strong,
@@ -8494,4 +8611,555 @@ button:disabled {
   .desktop-center-workbench {
     grid-template-columns: 1fr;
   }
+}
+
+
+/* Upwork workspace foundation */
+.app-shell--workspace {
+  --bg-main: #f8f8f4;
+  --bg-panel: #fffef8;
+  --bg-panel-strong: #ffffff;
+  --line-soft: rgba(18, 18, 18, 0.08);
+  --line-strong: rgba(18, 18, 18, 0.14);
+  --text-main: #2f2f2a;
+  --text-soft: #65655f;
+  --text-faint: #8d8d87;
+  --text-strong: #111111;
+  --accent: #108a00;
+  --accent-deep: #0f6d0f;
+  --accent-warm: #3bb54a;
+  --accent-gold: #f5df9c;
+  --shadow: 0 18px 44px rgba(18, 18, 18, 0.08);
+  --font-display: "Aptos", "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-body: "Aptos", "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif;
+}
+
+.app-shell--workspace,
+.app-shell--workspace body {
+  color-scheme: light;
+}
+
+.app-shell--workspace {
+  background: #f8f8f4;
+}
+
+.app-shell--workspace .ambient {
+  display: none;
+}
+
+.app-shell--workspace .page-shell {
+  max-width: min(1360px, calc(100vw - 48px));
+  padding: 34px 0 72px;
+}
+
+.app-shell--workspace .panel,
+.app-shell--workspace .dashboard-module-card,
+.app-shell--workspace .surface-card,
+.app-shell--workspace .message-room-panel,
+.app-shell--workspace .message-chat-panel,
+.app-shell--workspace .message-context-panel {
+  background: #fffef8;
+  border-color: rgba(18, 18, 18, 0.08);
+  box-shadow: 0 16px 34px rgba(18, 18, 18, 0.05);
+}
+
+.app-shell--workspace .button-primary {
+  background: #108a00;
+  border-color: #108a00;
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(16, 138, 0, 0.16);
+}
+
+.app-shell--workspace .button-secondary {
+  background: #fffef8;
+  border-color: rgba(18, 18, 18, 0.12);
+  color: #1f1f1a;
+}
+
+.app-shell--workspace .eyebrow {
+  color: #6f6f68;
+}
+
+.app-shell--workspace .empty-state {
+  background: #f6f3ea;
+  border-color: rgba(18, 18, 18, 0.06);
+}
+
+.app-shell--workspace .muted {
+  color: #66665f;
+}
+
+
+/* Upwork workspace dashboard harmonization */
+.app-shell--workspace .business-hero-card {
+  display: none;
+}
+
+.app-shell--workspace .glass-panel,
+.app-shell--workspace .business-panel,
+.app-shell--workspace .dashboard-detail-card,
+.app-shell--workspace .dashboard-wallet-panel,
+.app-shell--workspace .dashboard-secondary-strip,
+.app-shell--workspace .dashboard-module-card,
+.app-shell--workspace .dashboard-overview-rail {
+  background: #fffef8;
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  box-shadow: 0 16px 34px rgba(18, 18, 18, 0.05);
+}
+
+.app-shell--workspace .business-queue-item,
+.app-shell--workspace .business-collaboration-card,
+.app-shell--workspace .business-action-card,
+.app-shell--workspace .business-talent-card,
+.app-shell--workspace .business-spend-item,
+.app-shell--workspace .business-conversation-item,
+.app-shell--workspace .business-task-item,
+.app-shell--workspace .dashboard-wallet-row,
+.app-shell--workspace .dashboard-overview-item,
+.app-shell--workspace .room-card-button,
+.app-shell--workspace .message-thread-shell,
+.app-shell--workspace .message-task-confirmation-fact {
+  background: #ffffff;
+  border-color: rgba(18, 18, 18, 0.08);
+}
+
+.app-shell--workspace .business-panel-header h3,
+.app-shell--workspace .dashboard-overview-header h3,
+.app-shell--workspace .dashboard-module-heading h3,
+.app-shell--workspace .panel-header h3,
+.app-shell--workspace .dashboard-detail-card h3 {
+  color: #111111;
+}
+
+.app-shell--workspace .business-inline-link,
+.app-shell--workspace .dashboard-link-button.is-ghost {
+  color: #108a00;
+}
+
+.app-shell--workspace .business-pill,
+.app-shell--workspace .business-status-pill,
+.app-shell--workspace .assistant-chip,
+.app-shell--workspace .dashboard-wallet-kpi__label {
+  background: #eff7ee;
+  color: #187236;
+}
+
+.app-shell--workspace .dashboard-wallet-kpi__value,
+.app-shell--workspace .business-spend-item-aside strong,
+.app-shell--workspace .dashboard-overview-item strong,
+.app-shell--workspace .business-metric-card strong {
+  color: #111111;
+}
+
+
+/* codex palette harmonization */
+:root {
+  color-scheme: light;
+  --bg-main: #f3f7f1;
+  --bg-panel: rgba(255, 255, 250, 0.9);
+  --bg-panel-strong: rgba(251, 251, 246, 0.98);
+  --line-soft: rgba(35, 51, 29, 0.08);
+  --line-strong: rgba(16, 138, 0, 0.16);
+  --text-main: #243021;
+  --text-soft: #5d6858;
+  --text-faint: #7b8476;
+  --text-strong: #10180f;
+  --accent: #108a00;
+  --accent-deep: #0d6f00;
+  --accent-warm: #5fa257;
+  --accent-gold: #af6f15;
+  --shadow: 0 24px 56px rgba(42, 56, 34, 0.08);
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(118, 189, 88, 0.16), transparent 24%),
+    radial-gradient(circle at 90% 10%, rgba(16, 138, 0, 0.08), transparent 18%),
+    radial-gradient(circle at 78% 100%, rgba(191, 214, 170, 0.18), transparent 22%),
+    linear-gradient(180deg, #f8fbf5 0%, #f1f6ef 48%, #edf3ea 100%);
+  color: var(--text-main);
+}
+
+.hero-card,
+.glass-panel,
+.metric-card,
+.mini-card,
+.list-card,
+.result-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 251, 0.96), rgba(248, 250, 244, 0.98)),
+    radial-gradient(circle at top right, rgba(16, 138, 0, 0.05), transparent 36%);
+  border-color: rgba(35, 51, 29, 0.08);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+}
+
+.hero-card::after,
+.glass-panel::after {
+  background: radial-gradient(circle, rgba(16, 138, 0, 0.08), transparent 68%);
+}
+
+.portal-hero,
+.homepage-showcase-panel,
+.homepage-hero-side-card,
+.homepage-showcase-panel,
+.homepage-hero-signal,
+.homepage-step-strip-tile,
+.homepage-role-point,
+.homepage-entry-card .soft-pill,
+.homepage-entry-icon-shell,
+.homepage-hero-side-card,
+.homepage-hero-side-note,
+.homepage-step-strip-item,
+.homepage-step-strip-tile,
+.homepage-hero-signal {
+  background:
+    linear-gradient(180deg, rgba(253, 254, 250, 0.96), rgba(246, 249, 241, 0.98)),
+    radial-gradient(circle at top right, rgba(16, 138, 0, 0.05), transparent 40%);
+  border-color: rgba(35, 51, 29, 0.08);
+  color: var(--text-main);
+}
+
+.hero-brandmark {
+  background: #124b17;
+  border-color: rgba(16, 138, 0, 0.2);
+  color: #ffffff;
+}
+
+.hero-brandcopy,
+.homepage-entry-card-meta,
+.homepage-role-point,
+.homepage-step-strip-item > span,
+.homepage-step-strip-tile > span {
+  color: #5f6b5c;
+}
+
+.ambient-grid {
+  background-image:
+    linear-gradient(rgba(93, 131, 85, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(93, 131, 85, 0.05) 1px, transparent 1px);
+}
+
+.ambient-one {
+  background: radial-gradient(circle, rgba(83, 164, 70, 0.18), transparent 68%);
+}
+
+.ambient-two {
+  background: radial-gradient(circle, rgba(151, 194, 120, 0.16), transparent 70%);
+}
+
+.ambient-orbit {
+  border-color: rgba(63, 108, 57, 0.08);
+  box-shadow:
+    inset 0 0 28px rgba(55, 112, 42, 0.05),
+    0 0 42px rgba(55, 112, 42, 0.04);
+}
+
+.eyebrow {
+  background: rgba(241, 246, 236, 0.92);
+  color: #5d6858;
+  border-color: rgba(35, 51, 29, 0.08);
+}
+
+.button-primary,
+.app-shell--workspace .button-primary {
+  background: #108a00;
+  border-color: #108a00;
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(16, 138, 0, 0.16);
+}
+
+.button-secondary,
+.app-shell--workspace .button-secondary {
+  background: #fffef8;
+  border-color: rgba(18, 18, 18, 0.12);
+  color: #1f271b;
+  box-shadow: none;
+}
+
+.button-link-lite,
+.app-shell--workspace .button-link,
+.app-shell--workspace .dashboard-link-button.is-ghost,
+.app-shell--workspace .business-inline-link {
+  color: #108a00;
+}
+
+.empty-state,
+.workspace-empty-state,
+.record-empty-state,
+.task-market-empty-state,
+.chat-record-empty-state,
+.app-shell--workspace .empty-state {
+  background: #f4f7ef;
+  border: 1px dashed rgba(16, 138, 0, 0.16);
+  color: #5d6858;
+}
+
+.app-shell--workspace .panel,
+.app-shell--workspace .dashboard-module-card,
+.app-shell--workspace .surface-card,
+.app-shell--workspace .glass-panel,
+.app-shell--workspace .business-panel,
+.app-shell--workspace .dashboard-detail-card,
+.app-shell--workspace .dashboard-wallet-panel,
+.app-shell--workspace .dashboard-secondary-strip,
+.app-shell--workspace .dashboard-overview-rail,
+.app-shell--workspace .message-room-panel,
+.app-shell--workspace .message-chat-panel,
+.app-shell--workspace .message-context-panel {
+  background: #fffef8;
+  border-color: rgba(35, 51, 29, 0.08);
+  box-shadow: 0 16px 34px rgba(35, 51, 29, 0.06);
+}
+
+.app-shell--workspace .business-queue-item,
+.app-shell--workspace .business-collaboration-card,
+.app-shell--workspace .business-action-card,
+.app-shell--workspace .business-talent-card,
+.app-shell--workspace .business-spend-item,
+.app-shell--workspace .business-conversation-item,
+.app-shell--workspace .business-task-item,
+.app-shell--workspace .dashboard-wallet-row,
+.app-shell--workspace .dashboard-overview-item,
+.app-shell--workspace .room-card-button,
+.app-shell--workspace .message-thread-shell,
+.app-shell--workspace .message-task-confirmation-fact {
+  background: #ffffff;
+  border-color: rgba(35, 51, 29, 0.08);
+}
+
+.app-shell--workspace .muted,
+.muted,
+.section-title p,
+.hero-lead {
+  color: #606b5b;
+}
+
+.app-shell--portal .page-shell,
+.app-shell--workspace .page-shell {
+  padding-top: 42px;
+}
+
+/* portal and auth contrast sweep */
+.app-shell--portal .homepage-hero-side-card,
+.app-shell--portal .homepage-hero-signal,
+.app-shell--portal .homepage-step-strip-item,
+.app-shell--portal .homepage-step-strip-tile,
+.app-shell--portal .homepage-entry-card,
+.app-shell--portal .portal-contact-card,
+.app-shell--portal .homepage-carousel-button,
+.app-shell--portal .register-progress-chip,
+.app-shell--portal .register-role-card {
+  background: linear-gradient(180deg, rgba(255, 255, 252, 0.98), rgba(246, 249, 241, 0.98));
+  border-color: rgba(35, 51, 29, 0.08);
+  color: #1f271b;
+  box-shadow: 0 12px 28px rgba(35, 51, 29, 0.06);
+}
+
+.app-shell--portal .homepage-entry-card h3,
+.app-shell--portal .portal-contact-card h4,
+.app-shell--portal .portal-contact-card strong,
+.app-shell--portal .homepage-hero-signal strong,
+.app-shell--portal .homepage-step-strip-item strong,
+.app-shell--portal .register-role-card h3,
+.app-shell--portal .register-progress-chip strong {
+  color: #111111;
+}
+
+.app-shell--portal .homepage-entry-card .muted,
+.app-shell--portal .homepage-entry-card-meta,
+.app-shell--portal .homepage-step-strip-item > span,
+.app-shell--portal .portal-contact-card .muted,
+.app-shell--portal .register-role-card .muted,
+.app-shell--portal .register-role-topline .muted,
+.app-shell--portal .register-shell-head .muted {
+  color: #5d6858;
+}
+
+.app-shell--portal .homepage-entry-card .soft-pill,
+.app-shell--portal .register-role-card .eyebrow,
+.app-shell--portal .register-current-audience {
+  background: #eff7ee;
+  border-color: rgba(16, 138, 0, 0.16);
+  color: #187236;
+}
+
+.app-shell--portal .homepage-step-strip-index,
+.app-shell--portal .register-progress-chip .publish-stepper-index,
+.app-shell--portal .portal-contact-card .contact-card-icon {
+  background: linear-gradient(135deg, #108a00, #2c7a2c);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.app-shell--portal .register-progress-chip.is-active {
+  background: linear-gradient(135deg, #108a00, #1c6e1d);
+  border-color: #108a00;
+  color: #ffffff;
+}
+
+.app-shell--portal .register-progress-chip.is-active strong,
+.app-shell--portal .register-progress-chip.is-active .muted,
+.app-shell--portal .register-progress-chip.is-active small,
+.app-shell--portal .register-progress-chip.is-active .publish-stepper-index {
+  color: #ffffff;
+}
+
+.app-shell--portal .register-progress-chip.is-complete {
+  background: #eff7ee;
+  border-color: rgba(16, 138, 0, 0.18);
+}
+
+.app-shell--portal .register-role-card.is-active-tab {
+  background: linear-gradient(135deg, #108a00, #1c6e1d);
+  border-color: #108a00;
+  box-shadow: 0 16px 30px rgba(16, 138, 0, 0.18);
+}
+
+.app-shell--portal .register-role-card.is-active-tab h3,
+.app-shell--portal .register-role-card.is-active-tab .muted,
+.app-shell--portal .register-role-card.is-active-tab p,
+.app-shell--portal .register-role-card.is-active-tab .eyebrow,
+.app-shell--portal .register-role-card.is-active-tab .register-role-topline .muted {
+  color: #ffffff;
+}
+
+
+/* codex portal light-theme final override */
+.app-shell--portal .portal-contact-card,
+.app-shell--portal .contact-card,
+.app-shell--portal .register-progress-chip,
+.app-shell--portal .register-role-card,
+.app-shell--portal .register-current-audience {
+  background: linear-gradient(180deg, #f7faf5, #ffffff) !important;
+  border: 1px solid rgba(24, 39, 26, 0.12) !important;
+  color: #172217 !important;
+  box-shadow: 0 16px 32px rgba(24, 39, 26, 0.08) !important;
+}
+
+.app-shell--portal .portal-contact-card h3,
+.app-shell--portal .portal-contact-card h4,
+.app-shell--portal .portal-contact-card p,
+.app-shell--portal .portal-contact-card span,
+.app-shell--portal .portal-contact-card strong,
+.app-shell--portal .contact-card h3,
+.app-shell--portal .contact-card h4,
+.app-shell--portal .contact-card p,
+.app-shell--portal .contact-card span,
+.app-shell--portal .contact-card strong,
+.app-shell--portal .register-role-card h3,
+.app-shell--portal .register-role-card p,
+.app-shell--portal .register-role-card span,
+.app-shell--portal .register-role-card strong,
+.app-shell--portal .register-current-audience,
+.app-shell--portal .register-progress-chip strong,
+.app-shell--portal .register-progress-chip span,
+.app-shell--portal .register-progress-chip small,
+.app-shell--portal .register-shell-head .muted,
+.app-shell--portal .register-hero .muted {
+  color: #172217 !important;
+}
+
+.app-shell--portal .portal-contact-card .muted,
+.app-shell--portal .contact-card .muted,
+.app-shell--portal .register-role-card .muted,
+.app-shell--portal .register-role-topline .muted,
+.app-shell--portal .register-progress-chip .muted {
+  color: #576456 !important;
+}
+
+.app-shell--portal .portal-contact-card .contact-card-icon,
+.app-shell--portal .contact-card .contact-card-icon,
+.app-shell--portal .register-progress-chip .publish-stepper-index {
+  background: linear-gradient(135deg, #108a00, #2c7a2c) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+.app-shell--portal .portal-contact-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, auto);
+  align-items: center;
+  gap: 24px;
+}
+
+.app-shell--portal .portal-contact-card .contact-card-main {
+  min-width: 0;
+  align-items: center;
+}
+
+.app-shell--portal .portal-contact-card .contact-card-main > div {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  min-width: 0;
+}
+
+.app-shell--portal .portal-contact-card h4 {
+  margin: 0;
+  font-size: clamp(22px, 2.2vw, 28px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.app-shell--portal .portal-contact-card p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.app-shell--portal .portal-contact-card strong {
+  justify-self: end;
+  align-self: center;
+  min-width: 0;
+  max-width: min(100%, 360px);
+  line-height: 1.15;
+}
+
+@media (max-width: 1180px) {
+  .app-shell--portal .portal-contact-card {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .app-shell--portal .portal-contact-card strong {
+    justify-self: start;
+    text-align: left;
+    max-width: 100%;
+  }
+}
+
+.app-shell--portal .register-progress-chip.is-active {
+  background: linear-gradient(135deg, #108a00, #2c7a2c) !important;
+  border-color: #108a00 !important;
+}
+
+.app-shell--portal .register-progress-chip.is-active strong,
+.app-shell--portal .register-progress-chip.is-active span,
+.app-shell--portal .register-progress-chip.is-active small,
+.app-shell--portal .register-progress-chip.is-active .muted,
+.app-shell--portal .register-progress-chip.is-active .publish-stepper-index {
+  color: #ffffff !important;
+}
+
+.app-shell--portal .register-role-card.is-active-tab {
+  background: linear-gradient(180deg, #f3fbf2, #ffffff) !important;
+  border-color: rgba(16, 138, 0, 0.48) !important;
+  box-shadow: 0 0 0 1px rgba(16, 138, 0, 0.14), 0 18px 34px rgba(16, 138, 0, 0.12) !important;
+}
+
+.app-shell--portal .register-role-card.is-active-tab h3,
+.app-shell--portal .register-role-card.is-active-tab p,
+.app-shell--portal .register-role-card.is-active-tab span,
+.app-shell--portal .register-role-card.is-active-tab strong,
+.app-shell--portal .register-role-card.is-active-tab .muted,
+.app-shell--portal .register-role-card.is-active-tab .eyebrow {
+  color: #172217 !important;
+}
+
+.app-shell--portal .register-current-audience,
+.app-shell--portal .register-role-card .eyebrow {
+  background: #eff7ee !important;
+  color: #187236 !important;
+  border-color: rgba(16, 138, 0, 0.18) !important;
 }

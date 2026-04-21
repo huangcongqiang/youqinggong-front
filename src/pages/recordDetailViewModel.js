@@ -1,7 +1,40 @@
 import { formatDateLabel, formatDateRangeLabel, formatGrade, formatMoney } from '../services/recordFormatters.js';
+import { financeActionLabel, normalizeFinanceActionCode } from './settlementHelpers.js';
+import { translateText } from '../utils/uiLocale.js';
 
 function listOf(value) {
   return Array.isArray(value) ? value : [];
+}
+
+function translateRecordDetailStatus(value, fallback = '待处理') {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    return translateText(fallback);
+  }
+
+  return translateText(
+    {
+      未发起: '未开始',
+      待验收: '待验收',
+      待审批: '待审批',
+      待请款: '待请款',
+      待开票: '待开票',
+      待对账: '待对账',
+      待结算: '待结算',
+      待处理: '待处理',
+      待开始: '未开始',
+      执行中: '进行中',
+      进行中: '进行中',
+      已完成: '已完成',
+      完成: '已完成',
+      已结算: '已结算',
+      已通过: '已通过',
+      已驳回: '已驳回',
+      已付款: '已付款',
+      已发起: '已发起',
+      争议处理中: '争议处理中'
+    }[raw] || raw
+  );
 }
 
 function latestOf(value, strategy = 'last') {
@@ -73,35 +106,6 @@ function resolveAssetStamp(asset) {
   );
 }
 
-function normalizeFinanceActionCode(value) {
-  const raw = String(value || '').trim().toUpperCase();
-  if (!raw) {
-    return '';
-  }
-
-  const aliases = {
-    REQUEST_CLAIM: 'CLAIM_REQUEST',
-    CLAIM_REQUEST: 'CLAIM_REQUEST',
-    CLAIM: 'CLAIM_REQUEST',
-    APPROVE_CLAIM: 'CLAIM_APPROVE',
-    CLAIM_APPROVE: 'CLAIM_APPROVE',
-    REJECT_CLAIM: 'CLAIM_REJECT',
-    CLAIM_REJECT: 'CLAIM_REJECT',
-    SUBMIT_INVOICE: 'INVOICE_SUBMIT',
-    INVOICE_SUBMIT: 'INVOICE_SUBMIT',
-    CONFIRM_RECONCILIATION: 'RECONCILIATION_CONFIRM',
-    RECONCILIATION_CONFIRM: 'RECONCILIATION_CONFIRM',
-    DISPUTE_RECONCILIATION: 'RECONCILIATION_DISPUTE',
-    RECONCILIATION_DISPUTE: 'RECONCILIATION_DISPUTE',
-    EXECUTE_SETTLEMENT: 'SETTLEMENT_EXECUTE',
-    SETTLEMENT_EXECUTE: 'SETTLEMENT_EXECUTE',
-    FAIL_SETTLEMENT: 'SETTLEMENT_FAIL',
-    SETTLEMENT_FAIL: 'SETTLEMENT_FAIL'
-  };
-
-  return aliases[raw] || raw;
-}
-
 function collectFinanceActionCodes(source) {
   const list = Array.isArray(source) ? source : [];
   return Array.from(
@@ -127,21 +131,6 @@ function collectFinanceActionCodes(source) {
   );
 }
 
-function financeActionLabel(code) {
-  return (
-    {
-      CLAIM_REQUEST: '发起请款',
-      CLAIM_APPROVE: '审批请款',
-      CLAIM_REJECT: '驳回请款',
-      INVOICE_SUBMIT: '提交开票',
-      RECONCILIATION_CONFIRM: '确认对账',
-      RECONCILIATION_DISPUTE: '发起争议',
-      SETTLEMENT_EXECUTE: '执行结算',
-      SETTLEMENT_FAIL: '结算失败'
-    }[normalizeFinanceActionCode(code)] || String(code || '').trim()
-  );
-}
-
 function makeFinanceSection({
   key,
   badge,
@@ -163,8 +152,8 @@ function makeFinanceSection({
 
   return {
     key,
-    badge,
-    title,
+    badge: translateText(badge),
+    title: translateText(title),
     summary,
     note,
     status,
@@ -178,14 +167,57 @@ function resolveOverviewText(record, fallbackLead = '') {
 }
 
 function resolveStageLabel(record) {
-  return record?.stage || record?.statusGroup || record?.status || '待同步';
+  return translateRecordDetailStatus(record?.stage || record?.statusGroup || record?.status, '待处理');
 }
 
 function resolvePartnerName(record) {
   return record?.counterpartName || record?.partnerName || '';
 }
 
-function resolveKeyResults(record) {
+function normalizeRecordNote(note, options = {}) {
+  const text = String(note || '').trim();
+  if (!text) {
+    return '';
+  }
+
+  if (!text.startsWith('合作方：')) {
+    return text;
+  }
+
+  const counterpart = text.slice('合作方：'.length).trim();
+  if (!counterpart) {
+    return text;
+  }
+
+  const audience = String(options.audience || '').trim();
+  const statusKey = String(options.statusKey || '').trim().toUpperCase();
+  const hasCollaboration = Boolean(options.hasCollaboration);
+  const isApplicationStage = !hasCollaboration && (statusKey === 'MATCHING' || statusKey === 'AI_ANALYZING');
+
+  if (isApplicationStage) {
+    if (audience === 'talent') {
+      return `发布方：${counterpart}`;
+    }
+
+    if (audience === 'enterprise') {
+      return `申请人才：${counterpart}`;
+    }
+
+    return `申请对象：${counterpart}`;
+  }
+
+  if (audience === 'talent') {
+    return `企业方：${counterpart}`;
+  }
+
+  if (audience === 'enterprise') {
+    return `人才方：${counterpart}`;
+  }
+
+  return text;
+}
+
+function resolveKeyResults(record, options = {}) {
   const items = [];
   const progressFeed = listOf(record?.progressFeed).length ? listOf(record?.progressFeed) : listOf(record?.sections?.progressFeed);
   const latestProgress = latestOf(sortLatestFirst(progressFeed, resolveProgressStamp), 'first');
@@ -199,39 +231,50 @@ function resolveKeyResults(record) {
   const disputeSummary = record?.disputeSummary || record?.sections?.disputeSummary || {};
 
   listOf(record?.notes).forEach((note) => {
-    items.push({ label: '记录备注', text: note });
+    const normalizedNote = normalizeRecordNote(note, {
+      audience: options.audience,
+      statusKey: record?.statusKey || record?.statusGroup || record?.status,
+      hasCollaboration: Boolean(record?.roomKey || record?.task?.roomKey)
+    });
+    if (!normalizedNote) {
+      return;
+    }
+    items.push({ label: translateText('记录备注'), text: normalizedNote });
   });
 
   if (latestProgress) {
     items.push({
-      label: '最新进展',
-      text: latestProgress.summary || latestProgress.stage || '已提交最新进展'
+      label: translateText('最新进展'),
+      text: latestProgress.summary || latestProgress.stage || '已有最新工作更新。'
     });
   }
 
   if (latestAiReview) {
     items.push({
-      label: 'AI 审核',
-      text: latestAiReview.summary || latestAiReview.note || latestAiReview.title || '已生成审核建议'
+      label: translateText('助手摘要'),
+      text: latestAiReview.summary || latestAiReview.note || latestAiReview.title || '最新助手摘要已生成。'
     });
   }
 
   if (latestReview) {
     items.push({
-      label: '评分反馈',
-      text: latestReview.content || latestReview.note || '已生成最新评分'
+      label: translateText('验收反馈'),
+      text: latestReview.content || latestReview.note || '最新评级已经记录。'
     });
   }
 
-  appendSummaryResult(items, '请款进度', claimSummary);
-  appendSummaryResult(items, '开票进度', invoiceSummary);
-  appendSummaryResult(items, '对账进度', reconciliationSummary);
-  appendSummaryResult(items, '结算进度', settlementSummary);
+  appendSummaryResult(items, '请款', claimSummary);
+  appendSummaryResult(items, '发票', invoiceSummary);
+  appendSummaryResult(items, '对账', reconciliationSummary);
+  appendSummaryResult(items, '结算', settlementSummary);
 
   if (disputeSummary?.status && disputeSummary.status !== '未发起') {
     items.push({
-      label: '争议处理',
-      text: disputeSummary.nextStep || disputeSummary.note || `当前争议状态：${disputeSummary.status}`
+      label: translateText('争议处理'),
+      text:
+        disputeSummary.nextStep ||
+        disputeSummary.note ||
+        `当前争议状态：${translateRecordDetailStatus(disputeSummary.status, '待处理')}`
     });
   }
 
@@ -250,12 +293,12 @@ function resolveFinanceSections(record, availableActionCodes) {
       key: 'claim',
       badge: '请款',
       title: '请款申请',
-      summary: String(claimSummary?.summary || claimSummary?.note || '任务闭环后可发起请款。').trim(),
+      summary: String(claimSummary?.summary || claimSummary?.note || '验收完成后即可提交请款。').trim(),
       note: String(claimSummary?.nextStep || claimSummary?.decisionNote || claimSummary?.note || '').trim(),
-      status: String(claimSummary?.status || '待同步').trim(),
+      status: translateRecordDetailStatus(claimSummary?.status || '待处理', '待处理'),
       meta: [
         claimSummary?.amount ? `金额 ${claimSummary.amount}` : '',
-        claimSummary?.requestedAt ? `提交 ${claimSummary.requestedAt}` : '',
+        claimSummary?.requestedAt ? `提交于 ${claimSummary.requestedAt}` : '',
         claimSummary?.payoutRatio ? `比例 ${claimSummary.payoutRatio}` : ''
       ],
       actionCodes: ['CLAIM_REQUEST', 'CLAIM_APPROVE', 'CLAIM_REJECT'],
@@ -263,14 +306,14 @@ function resolveFinanceSections(record, availableActionCodes) {
     }),
     makeFinanceSection({
       key: 'invoice',
-      badge: '开票',
-      title: '开票申请',
-      summary: String(invoiceSummary?.summary || invoiceSummary?.note || '请款批准后可提交开票。').trim(),
+      badge: '发票',
+      title: '发票申请',
+      summary: String(invoiceSummary?.summary || invoiceSummary?.note || '请款通过后即可提交发票。').trim(),
       note: String(invoiceSummary?.nextStep || invoiceSummary?.decisionNote || invoiceSummary?.note || '').trim(),
-      status: String(invoiceSummary?.status || '待同步').trim(),
+      status: translateRecordDetailStatus(invoiceSummary?.status || '待处理', '待处理'),
       meta: [
         invoiceSummary?.amount ? `金额 ${invoiceSummary.amount}` : '',
-        invoiceSummary?.submittedAt ? `提交 ${invoiceSummary.submittedAt}` : '',
+        invoiceSummary?.submittedAt ? `提交于 ${invoiceSummary.submittedAt}` : '',
         invoiceSummary?.invoiceType ? `类型 ${invoiceSummary.invoiceType}` : ''
       ],
       actionCodes: ['INVOICE_SUBMIT'],
@@ -279,14 +322,14 @@ function resolveFinanceSections(record, availableActionCodes) {
     makeFinanceSection({
       key: 'reconciliation',
       badge: '对账',
-      title: '对账确认',
-      summary: String(reconciliationSummary?.summary || reconciliationSummary?.note || '提交开票后可进入对账。').trim(),
+      title: '对账',
+      summary: String(reconciliationSummary?.summary || reconciliationSummary?.note || '发票提交后即可进入对账。').trim(),
       note: String(reconciliationSummary?.nextStep || reconciliationSummary?.decisionNote || reconciliationSummary?.note || '').trim(),
-      status: String(reconciliationSummary?.status || '待同步').trim(),
+      status: translateRecordDetailStatus(reconciliationSummary?.status || '待处理', '待处理'),
       meta: [
         reconciliationSummary?.amount ? `金额 ${reconciliationSummary.amount}` : '',
-        reconciliationSummary?.submittedAt ? `提交 ${reconciliationSummary.submittedAt}` : '',
-        reconciliationSummary?.updatedAt ? `更新 ${reconciliationSummary.updatedAt}` : ''
+        reconciliationSummary?.submittedAt ? `提交于 ${reconciliationSummary.submittedAt}` : '',
+        reconciliationSummary?.updatedAt ? `更新于 ${reconciliationSummary.updatedAt}` : ''
       ],
       actionCodes: ['RECONCILIATION_CONFIRM', 'RECONCILIATION_DISPUTE'],
       availableActionCodes
@@ -294,14 +337,14 @@ function resolveFinanceSections(record, availableActionCodes) {
     makeFinanceSection({
       key: 'settlement',
       badge: '结算',
-      title: '结算执行',
-      summary: String(settlementSummary?.summary || settlementSummary?.note || '对账完成后可进入结算。').trim(),
+      title: '执行结算',
+      summary: String(settlementSummary?.summary || settlementSummary?.note || '对账完成后即可进入结算。').trim(),
       note: String(settlementSummary?.nextStep || settlementSummary?.decisionNote || settlementSummary?.note || '').trim(),
-      status: String(settlementSummary?.status || '待同步').trim(),
+      status: translateRecordDetailStatus(settlementSummary?.status || '待处理', '待处理'),
       meta: [
         settlementSummary?.amount ? `金额 ${settlementSummary.amount}` : '',
         settlementSummary?.payoutRatio ? `比例 ${settlementSummary.payoutRatio}` : '',
-        settlementSummary?.settledAt ? `结算 ${settlementSummary.settledAt}` : ''
+        settlementSummary?.settledAt ? `结算于 ${settlementSummary.settledAt}` : ''
       ],
       actionCodes: ['SETTLEMENT_EXECUTE', 'SETTLEMENT_FAIL'],
       availableActionCodes
@@ -309,15 +352,15 @@ function resolveFinanceSections(record, availableActionCodes) {
     makeFinanceSection({
       key: 'dispute',
       badge: '争议',
-      title: '争议与风控',
+      title: '争议与风险',
       summary: disputeSummary?.status && disputeSummary.status !== '未发起'
-        ? `当前争议状态：${disputeSummary.status}`
-        : '如对账有异议，平台会生成争议与风控工单。',
+        ? `当前争议状态：${translateRecordDetailStatus(disputeSummary.status, '待处理')}`
+        : '如果对账存在争议，平台会继续发起争议和风险工单。',
       note: String(disputeSummary?.nextStep || disputeSummary?.note || '').trim(),
-      status: String(disputeSummary?.status || '未发起').trim(),
+      status: translateRecordDetailStatus(disputeSummary?.status || '未发起', '未开始'),
       meta: [
         disputeSummary?.amount ? `金额 ${disputeSummary.amount}` : '',
-        disputeSummary?.submittedAt ? `发起 ${disputeSummary.submittedAt}` : '',
+        disputeSummary?.submittedAt ? `发起于 ${disputeSummary.submittedAt}` : '',
         disputeSummary?.riskTicketId ? `工单 ${disputeSummary.riskTicketId}` : ''
       ],
       actionCodes: ['RECONCILIATION_DISPUTE', 'SETTLEMENT_FAIL'],
@@ -330,12 +373,12 @@ function appendSummaryResult(items, label, summary) {
   const status = String(summary?.status || '').trim();
   const amount = String(summary?.amount || '').trim();
   const nextStep = String(summary?.nextStep || summary?.note || '').trim();
-  if (!status || status === '未发起') {
+  if (!status || status === '未发起' || status === '未开始') {
     return;
   }
   items.push({
-    label,
-    text: [status, amount, nextStep].filter(Boolean).join(' · ')
+    label: translateText(label),
+    text: [translateRecordDetailStatus(status, '待处理'), amount, nextStep].filter(Boolean).join(' · ')
   });
 }
 
@@ -383,7 +426,7 @@ function normalizeProgressItem(item, index = 0) {
   return {
     key: String(item?.id || item?.progressId || item?.time || `progress-${index}`),
     time: String(item?.time || '').trim(),
-    summary: String(item?.summary || item?.note || item?.content || item?.description || '已提交进展更新').trim(),
+    summary: String(item?.summary || item?.note || item?.content || item?.description || '已有工作更新。').trim(),
     description: String(item?.description || item?.detail || item?.content || '').trim(),
     progress: progressText,
     stage: String(item?.stage || '').trim(),
@@ -421,10 +464,10 @@ export function buildRecordDetailViewModel(record, options = {}) {
         roomKey: ''
       },
       overviewText: fallbackLead,
-      stageLabel: '待同步',
+      stageLabel: '待处理',
       partnerName: '',
       amountValue: formatMoney(0),
-      amountNote: '本单合作金额',
+      amountNote: '合同金额',
       startDateLabel: formatDateLabel(''),
       endDateLabel: formatDateLabel(''),
       dateRangeLabel: formatDateRangeLabel('', ''),
@@ -462,7 +505,7 @@ export function buildRecordDetailViewModel(record, options = {}) {
     stageLabel: resolveStageLabel(safeRecord),
     partnerName: resolvePartnerName(safeRecord),
     amountValue: safeRecord.amountValue || formatMoney(safeRecord.amount),
-    amountNote: safeRecord.amountNote || '本单合作金额',
+    amountNote: safeRecord.amountNote || '合同金额',
     startDateLabel: formatDateLabel(startAt),
     endDateLabel: formatDateLabel(endAt),
     dateRangeLabel: formatDateRangeLabel(startAt, endAt),
@@ -474,7 +517,9 @@ export function buildRecordDetailViewModel(record, options = {}) {
     progressItems: sortLatestFirst(progressFeed, resolveProgressStamp).map(normalizeProgressItem),
     financeSections: resolveFinanceSections(safeRecord, availableActionCodes),
     availableActionCodes,
-    keyResults: resolveKeyResults(safeRecord),
-    confirmationHistory: listOf(safeRecord.sections?.confirmationHistory)
+    keyResults: resolveKeyResults(safeRecord, options),
+    confirmationHistory: listOf(safeRecord.sections?.confirmationHistory).length
+      ? listOf(safeRecord.sections?.confirmationHistory)
+      : listOf(safeRecord.reviews)
   };
 }

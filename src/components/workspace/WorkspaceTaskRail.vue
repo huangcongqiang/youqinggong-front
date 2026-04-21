@@ -2,11 +2,11 @@
   <article class="glass-panel workspace-task-rail workspace-pane workspace-pane--rail stack-md">
     <div class="panel-header workspace-section-header">
       <div>
-        <span class="eyebrow">任务树</span>
-        <h3>{{ isEnterprise ? '当前协作任务' : '我的执行任务' }}</h3>
+        <span class="eyebrow">合同列表</span>
+        <h3>{{ isEnterprise ? '当前合同' : '我的合同' }}</h3>
       </div>
       <div class="workspace-task-rail-head-meta">
-        <span class="soft-pill">{{ safeTaskOptions.length }} 个</span>
+        <span class="soft-pill">{{ safeTaskOptions.length }} 条</span>
         <span v-if="activeTask?.focus" class="workspace-task-rail-head-note">{{ activeTask.focus }}</span>
       </div>
     </div>
@@ -25,27 +25,27 @@
             <p class="workspace-task-rail-card-status">{{ task.status || '待处理' }}</p>
             <h4>{{ task.title }}</h4>
           </div>
-          <span class="workspace-task-rail-card-completion">{{ task.completion || '待同步' }}</span>
+          <span class="workspace-task-rail-card-completion">{{ task.completion || '待处理' }}</span>
         </div>
 
         <p class="workspace-task-rail-card-summary">{{ task.summary }}</p>
 
         <div class="workspace-meta-row">
           <span class="workspace-meta-item">{{ task.partnerLabel }}</span>
-          <span class="workspace-meta-item">{{ task.budget || '未填写预算' }}</span>
-          <span class="workspace-meta-item">{{ task.period || '待确认工期' }}</span>
+          <span class="workspace-meta-item">{{ task.budget || '预算待同步' }}</span>
+          <span class="workspace-meta-item">{{ task.period || '周期待同步' }}</span>
         </div>
 
         <div class="workspace-task-rail-card-meta">
-          <span>{{ task.lastSync || '待更新' }}</span>
-          <span>{{ task.focus || '等待处理' }}</span>
+          <span>{{ task.lastSync || '等待同步' }}</span>
+          <span>{{ task.focus || '待处理' }}</span>
         </div>
       </button>
     </div>
 
     <article v-else class="mini-card stack-sm workspace-task-rail-empty">
-      <h4>{{ isEnterprise ? '还没有协作任务' : '还没有执行任务' }}</h4>
-      <p class="muted">{{ isEnterprise ? '发布任务并确认人才后，这里会出现任务切换列表。' : '接单并确认任务后，这里会出现执行中的任务。' }}</p>
+      <h4>{{ isEnterprise ? '当前还没有可跟进的合同' : '当前还没有可跟进的合同' }}</h4>
+      <p class="muted">{{ isEnterprise ? '先发布任务并确认合作对象，合同列表才会在这里出现。' : '先确认合作并接受任务，当前合同才会在这里出现。' }}</p>
     </article>
   </article>
 </template>
@@ -83,17 +83,17 @@ function normalizeTaskOption(task, isEnterprise) {
   const item = task && typeof task === 'object' ? task : {};
   return {
     taskId: stringValue(item.taskId),
-    title: firstText([item.title, item.taskName, item.name], '未命名任务'),
+    title: firstText([item.title, item.taskName, item.name], '未命名合同'),
     status: firstText([item.status, item.phase, item.stage, item.latestNode], '待处理'),
-    summary: firstText([item.summary, item.range, item.period, item.brief], '当前还没有更多任务摘要。'),
+    summary: firstText([item.summary, item.range, item.period, item.brief], '记录同步后，这里会展示更完整的合同信息。'),
     completion: firstText([item.completion, item.progress], ''),
     budget: stringValue(item.budget, ''),
     period: firstText([item.period, item.range], ''),
     lastSync: firstText([item.lastSync, item.latestSync, item.updatedAt, item.time], ''),
     focus: firstText([item.focus, item.note], ''),
     partnerLabel: isEnterprise
-      ? `人才 · ${firstText([item.partnerName, item.talentName, item.assignee], '待确认')}`
-      : `企业 · ${firstText([item.partnerName, item.businessName, item.company], '待确认')}`
+      ? `人才 · ${firstText([item.partnerName, item.talentName, item.assignee], '待同步')}`
+      : `企业 · ${firstText([item.partnerName, item.businessName, item.company], '待同步')}`
   };
 }
 

@@ -3,9 +3,9 @@
     <article class="auth-modal-card stack-md">
       <div class="panel-header panel-header-top">
         <div class="stack-sm">
-          <span class="eyebrow">账号登录</span>
-          <h3>先登录，再进入对应业务端。</h3>
-          <p class="muted">登录后会带上当前账号进入企业端或人才端，不再重复选择身份。</p>
+          <span class="eyebrow">登录</span>
+          <h3>先登录，再继续回到当前工作台。</h3>
+          <p class="muted">我们会带你回到正确的工作台，并保留当前角色上下文。</p>
         </div>
         <button class="button-secondary" type="button" @click="handleClose">关闭</button>
       </div>
@@ -17,7 +17,7 @@
           :class="{ 'is-active-tab': audience === 'enterprise' }"
           @click="audience = 'enterprise'"
         >
-          企业端
+          企业
         </button>
         <button
           type="button"
@@ -25,21 +25,27 @@
           :class="{ 'is-active-tab': audience === 'talent' }"
           @click="audience = 'talent'"
         >
-          人才端
+          人才
         </button>
       </div>
 
       <div class="result-card stack-sm">
-        <span class="eyebrow">登录说明</span>
-        <p class="muted">这里不再提供快捷填充账号。请使用真实账号登录，登录失败时会直接展示正式错误信息。</p>
+        <span class="eyebrow">登录提示</span>
+        <p class="muted">请使用真实账号继续。登录失败时，会直接显示真实错误原因。</p>
       </div>
 
       <div v-if="authState.user" class="result-card stack-sm">
-        <span class="eyebrow">当前登录中</span>
+        <span class="eyebrow">已登录</span>
         <h3>{{ authState.user.displayName }}</h3>
-        <p class="muted">{{ authState.user.audience === 'talent' ? '人才端账号' : '企业端账号' }} · {{ authState.user.mobile }}</p>
+        <p class="muted">{{ authState.user.audience === 'talent' ? '人才账号' : '企业账号' }} · {{ authState.user.mobile }}</p>
+        <AccountStatusPanel
+          v-if="currentStatusModel.items.length"
+          :model="currentStatusModel"
+          eyebrow="工作台状态"
+          @action="handleStatusAction"
+        />
         <div class="toolbar">
-          <button class="button-primary" type="button" @click="continueWithCurrent">继续进入当前账号</button>
+          <button class="button-primary" type="button" @click="continueWithCurrent">{{ continueLabel }}</button>
           <button class="button-secondary" type="button" @click="handleLogout">退出登录</button>
         </div>
       </div>
@@ -57,21 +63,21 @@
 
         <div class="toolbar">
           <button class="button-primary" type="submit" :disabled="authState.loading">
-            {{ authState.loading ? '登录中...' : '登录并进入' }}
+            {{ authState.loading ? '登录中...' : '登录并继续' }}
           </button>
         </div>
       </form>
 
       <div v-if="resultMessage" class="result-card stack-sm">
-        <span class="eyebrow">当前反馈</span>
+        <span class="eyebrow">当前状态</span>
         <h3>{{ resultTitle }}</h3>
         <p class="muted">{{ resultMessage }}</p>
       </div>
 
       <div class="panel-header">
         <div>
-          <span class="eyebrow">还没有账号</span>
-          <p class="muted">注册会进入新的步骤式引导页，先创建账号，再进入对应入驻流程。</p>
+          <span class="eyebrow">还没有账号？</span>
+          <p class="muted">先注册，再进入对应角色的后续设置流程。</p>
         </div>
         <button class="button-secondary" type="button" @click="goToRegister">去注册</button>
       </div>
@@ -82,8 +88,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import AccountStatusPanel from './AccountStatusPanel.vue';
 import { loginWithAccount, signOut, useAuthState } from '../stores/auth';
 import { roleRouteMap } from '../utils/roleRoutes';
+import { buildUpworkFirstAccountStatus } from '../utils/upworkFirstAccountStatus';
 
 const props = defineProps({
   open: {
@@ -110,15 +118,21 @@ const mobile = ref('');
 const password = ref('');
 const resultTitle = ref('');
 const resultMessage = ref('');
+const currentStatusModel = computed(() =>
+  buildUpworkFirstAccountStatus(authState.user, authState.user?.audience || audience.value)
+);
+const continueLabel = computed(() =>
+  currentStatusModel.value.hasBlockingItems || !currentStatusModel.value.approved ? '继续完善账号' : '回到工作台'
+);
 
 const continueRoute = computed(() => {
   const user = authState.user;
   if (!user) {
     return '/';
   }
-  return user.approvalStatus === 'APPROVED'
-    ? user.homeRoute || (user.audience === 'talent' ? roleRouteMap.talent.home : roleRouteMap.enterprise.home)
-    : user.onboardingRoute || (user.audience === 'talent' ? roleRouteMap.talent.onboarding : roleRouteMap.enterprise.onboarding);
+  return currentStatusModel.value.hasBlockingItems || !currentStatusModel.value.approved
+    ? user.onboardingRoute || (user.audience === 'talent' ? roleRouteMap.talent.onboarding : roleRouteMap.enterprise.onboarding)
+    : user.homeRoute || (user.audience === 'talent' ? roleRouteMap.talent.home : roleRouteMap.enterprise.home);
 });
 
 watch(
@@ -166,7 +180,7 @@ async function continueWithCurrent() {
 async function handleLogout() {
   await signOut();
   resultTitle.value = '已退出登录';
-  resultMessage.value = '你可以重新登录其他账号，或先去注册新账号。';
+  resultMessage.value = '你可以登录其他账号，或先创建一个新账号。';
 }
 
 async function handleLogin() {
@@ -178,21 +192,30 @@ async function handleLogin() {
 
   if (!result?.success) {
     resultTitle.value = '登录失败';
-    resultMessage.value = result?.message || '请确认账号、角色入口和密码是否一致。';
+    resultMessage.value = result?.message || '请检查账号、目标页面和密码后再试。';
     return;
   }
 
-  resultTitle.value = '登录成功';
-  resultMessage.value = result.nextStep || '已识别当前账号。';
+  resultTitle.value = '已登录';
+  resultMessage.value = result.nextStep || '当前账号已识别，正在进入对应页面。';
+  const nextStatus = buildUpworkFirstAccountStatus(result.user, result.user?.audience || audience.value);
+  if (nextStatus.hasBlockingItems || !nextStatus.approved) {
+    return;
+  }
   await router.replace(targetRoute(result.user));
 }
 
 async function goToRegister() {
-  await router.push({
-    path: '/register',
-    query: {
-      audience: audience.value
-    }
-  });
+  await router.push(roleRouteMap.portal.register(audience.value));
+}
+
+async function handleStatusAction(item) {
+  if (!item?.actionTo || item.disabled) {
+    return;
+  }
+  await router.push(item.actionTo);
 }
 </script>
+
+<style scoped>
+</style>

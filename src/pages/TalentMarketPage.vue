@@ -1,1016 +1,751 @@
 <template>
-  <section class="page-stack talent-market-page office-directory-page" v-if="page">
-    <ActionErrorDialog title="发起合作暂时失败" :message="collaborationError" />
-
-    <article v-if="page.requestError" class="office-directory-empty stack-sm">
-      <strong>人才广场数据暂时不可用</strong>
-      <p class="muted">{{ page.requestError }}</p>
-    </article>
-
-    <article v-if="collaborationRestrictionMessage" class="office-directory-empty office-directory-empty--warning stack-sm">
-      <strong>当前账号还不能发起合作</strong>
-      <p class="muted">{{ collaborationRestrictionMessage }}</p>
-    </article>
-
-    <section class="office-directory-hero">
-      <div class="office-directory-hero-copy stack-md">
-        <div class="stack-xs">
-          <span class="eyebrow">企业端 / 人才广场</span>
-          <h1>{{ page.summary?.title || '人才广场' }}</h1>
-          <p class="muted office-directory-lead">
-            {{ page.summary?.description || '左侧浏览候选人，右侧承接 profile、判断与合作入口。' }}
-          </p>
-        </div>
-
-        <div class="office-directory-hero-stats">
-          <article v-for="item in heroStats" :key="item.label" class="office-directory-hero-stat">
-            <span class="office-directory-hero-stat__label">{{ item.label }}</span>
-            <strong class="office-directory-hero-stat__value">{{ item.value }}</strong>
-            <p class="office-directory-hero-stat__note muted">{{ item.note }}</p>
-          </article>
-        </div>
+  <section v-if="page" class="talent-search-workspace stack-xl">
+    <section class="talent-search-hero panel">
+      <div class="stack-xs">
+        <span class="eyebrow">{{ heroEyebrow }}</span>
+        <h1>{{ heroTitle }}</h1>
+        <p class="talent-search-hero__description">
+          {{ heroDescription }}
+        </p>
       </div>
 
-      <div class="office-directory-hero-panel stack-md">
-        <div class="stack-xs">
-          <span class="eyebrow">搜索与筛选</span>
-          <h3>先收窄，再决策</h3>
-        </div>
-
-        <label class="office-directory-search-field stack-xs">
-          <span class="office-directory-search-label">搜索人才</span>
-          <input
-            v-model="searchText"
-            class="office-directory-search-input"
-            type="search"
-            placeholder="搜索姓名、技能、服务、作品关键词"
+      <div class="talent-search-hero__tools">
+        <input
+          v-model.trim="keyword"
+          class="talent-search-input"
+          type="search"
+          :placeholder="searchPlaceholder"
+        />
+        <div v-if="quickFilters.length" class="talent-search-chip-row">
+          <button
+            v-for="item in quickFilters"
+            :key="item"
+            class="talent-search-filter-chip"
+            type="button"
+            @click="applyQuick筛选(item)"
           >
-        </label>
-
-        <div class="office-directory-filter-shell stack-xs">
-          <div class="panel-header office-directory-filter-head">
-            <div>
-              <span class="eyebrow">筛选条件</span>
-              <h3>快速收窄候选池</h3>
-            </div>
-            <span class="soft-pill">{{ filteredTalents.length }} 位</span>
-          </div>
-
-          <div class="office-directory-filter-row">
-            <button
-              v-for="filter in filterOptions"
-              :key="filter"
-              type="button"
-              class="office-directory-filter-chip"
-              :class="{ 'is-active': selectedFilter === filter }"
-              @click="selectedFilter = filter"
-            >
-              {{ filter }}
-            </button>
-          </div>
+            {{ item }}
+          </button>
         </div>
-
-        <div class="toolbar office-directory-hero-actions">
-          <router-link class="button-primary" :to="roleRouteMap.enterprise.publish">发布任务</router-link>
-          <router-link class="button-secondary" :to="roleRouteMap.enterprise.home">返回工作台</router-link>
+        <div class="talent-search-hero__meta">
+          <span class="talent-search-hero__meta-pill">{{ heroResultCountLabel }}</span>
+          <span class="talent-search-hero__meta-pill">{{ heroSecondaryCountLabel }}</span>
+          <span class="talent-search-hero__meta-pill">{{ selectedTalent ? '已选 1 位' : '还没有选择人才' }}</span>
         </div>
       </div>
     </section>
 
-    <section class="office-directory-layout">
-      <section class="office-directory-list stack-md">
-        <div class="office-directory-list-header">
-          <div>
-            <span class="eyebrow">搜索结果</span>
-            <h2>{{ filteredTalents.length }} 位人才</h2>
+    <section class="talent-search-layout">
+      <div class="talent-search-条结果 panel stack-md">
+        <div class="section-head">
+          <div class="stack-xs">
+            <span class="eyebrow">结果</span>
+            <h2>人才结果</h2>
           </div>
-          <p class="muted">左侧点击候选人，右侧会固定承接完整 profile 和合作入口。</p>
+          <span class="muted">{{ `${filteredItems.length} 位候选人` }}</span>
         </div>
 
-        <article v-if="filteredTalents.length === 0" class="office-directory-empty stack-sm">
-          <div class="stack-xs">
-            <span class="eyebrow">暂无匹配资源</span>
-            <h3>换个关键词或筛选再看一次</h3>
-          </div>
-          <p class="muted">当前筛出来的资源为空。你可以切回“全部”，或换成更贴近业务方向的标签。</p>
-          <div class="toolbar">
-            <button class="button-secondary" type="button" @click="selectedFilter = '全部'">清空筛选</button>
-            <button class="button-primary" type="button" @click="searchText = ''">清空搜索</button>
-          </div>
-        </article>
+        <div v-if="filteredItems.length" class="talent-search-list">
+          <article
+            v-for="item in filteredItems"
+            :key="item.id"
+            class="talent-search-card"
+            :class="{
+              'is-active': selectedTalent?.id === item.id,
+            }"
+          >
+            <button type="button" class="talent-search-card__body" @click="select人才(item)">
+              <div class="talent-search-card__topline">
+                <div class="stack-xs">
+                  <div class="talent-search-badge-row">
+                    <span v-if="已入围TalentIds.has(item.id)" class="talent-search-badge">已入围</span>
+                    <span v-else class="talent-search-badge talent-search-badge--muted">人才</span>
+                    <span v-if="item.matchLabel || item.match" class="talent-search-badge talent-search-badge--subtle">{{ item.matchLabel || item.match }}</span>
+                  </div>
+                  <strong>{{ item.name }}</strong>
+                  <p>{{ item.role }}</p>
+                </div>
+                <span class="talent-search-rating">{{ item.score }}</span>
+              </div>
 
-        <article
-          v-for="(talent, index) in filteredTalents"
-          :key="talent.slug"
-          class="office-directory-row stack-md"
-          :class="{ 'is-active': activeTalent?.slug === talent.slug }"
-          tabindex="0"
-          role="button"
-          :aria-pressed="activeTalent?.slug === talent.slug"
-          @click="selectTalent(talent)"
-          @keyup.enter="selectTalent(talent)"
-          @keyup.space.prevent="selectTalent(talent)"
-        >
-          <div class="office-directory-row-head">
-            <div class="office-directory-row-rank">
-              <span class="office-directory-row-index">{{ String(index + 1).padStart(2, '0') }}</span>
-            </div>
-            <div class="stack-xs office-directory-row-identity">
-              <h3>{{ talent.name }}</h3>
-              <p class="muted">{{ talent.role }}</p>
-            </div>
-            <div v-if="talentMetaPills(talent).length" class="tag-row office-directory-row-meta">
-              <span v-for="pill in talentMetaPills(talent)" :key="pill" class="soft-pill">{{ pill }}</span>
-            </div>
-          </div>
+              <div class="talent-search-signal-row talent-search-signal-row--tight">
+                <span v-if="item.location" class="talent-search-signal">{{ item.location }}</span>
+                <span v-if="item.responseTime" class="talent-search-signal">{{ item.responseTime }}</span>
+                <span v-if="item.completionRate" class="talent-search-signal">{{ item.completionRate }}</span>
+                <span class="talent-search-signal">{{ item.summarySignal }}</span>
+              </div>
 
-          <p class="muted office-directory-row-summary">{{ talentListSummary(talent) }}</p>
+              <p class="talent-search-card__summary">{{ item.summary }}</p>
 
-          <div v-if="previewTalentTags(talent.tags).length" class="stack-xs">
-            <span class="eyebrow">核心标签</span>
-            <div class="tag-row">
-              <span v-for="tag in previewTalentTags(talent.tags)" :key="tag" class="soft-pill">{{ tag }}</span>
-              <span v-if="countOf(talent.tags) > previewTalentTags(talent.tags).length" class="soft-pill">
-                +{{ countOf(talent.tags) - previewTalentTags(talent.tags).length }}
-              </span>
-            </div>
-          </div>
+              <div v-if="item.standardSkills.length || item.customSkills.length" class="talent-search-chip-groups">
+                <div v-if="item.standardSkills.length" class="talent-search-chip-row">
+                  <span v-for="tag in item.standardSkills" :key="tag" class="talent-search-chip is-standard">{{ tag }}</span>
+                </div>
+                <div v-if="item.customSkills.length" class="talent-search-chip-row">
+                  <span v-for="tag in item.customSkills" :key="tag" class="talent-search-chip is-custom">{{ tag }}</span>
+                </div>
+              </div>
+            </button>
 
-          <div v-if="previewTalentServices(talent.services).length" class="stack-xs">
-            <span class="eyebrow">可承接服务</span>
-            <div class="tag-row">
-              <span v-for="item in previewTalentServices(talent.services)" :key="item" class="soft-pill">{{ item }}</span>
-            </div>
-          </div>
-
-          <div class="office-directory-row-actions toolbar">
-            <span class="muted">点击卡片查看完整 profile</span>
-            <div class="toolbar">
-              <router-link class="button-secondary" :to="detailRoute(talent.slug)" @click.stop>
-                查看详情
-              </router-link>
-              <button class="button-primary" type="button" @click.stop="openCollaborationLauncher(talent)">
-                发起合作
+            <div class="talent-search-card__footer">
+              <button class="button-secondary button-secondary--small" type="button" @click="toggle加入入围(item)">
+                {{ 已入围TalentIds.has(item.id) ? '移除入围' : '加入入围' }}
               </button>
+              <router-link class="button-primary button-secondary--small" :to="item.publishRoute">邀请到任务</router-link>
+            </div>
+          </article>
+        </div>
+        <div v-else class="empty-state talent-search-empty-state">
+          <strong>当前没有符合这些筛选条件的人才</strong>
+          <p>换个关键词，或先清空筛选继续浏览人才。</p>
+        </div>
+      </div>
+
+      <aside class="talent-search-detail panel stack-md" v-if="selectedTalent">
+        <div class="stack-xs">
+          <span class="eyebrow">人才档案</span>
+          <h2>{{ selectedTalent.name }}</h2>
+          <p class="muted">{{ selectedTalent.role }}</p>
+        </div>
+
+        <div class="talent-search-stat-grid">
+          <article class="talent-search-stat-card">
+            <span>评分</span>
+            <strong>{{ selectedTalent.score }}</strong>
+          </article>
+          <article class="talent-search-stat-card">
+            <span>完成率</span>
+            <strong>{{ selectedTalent.completionRate || '暂未公开' }}</strong>
+          </article>
+          <article class="talent-search-stat-card">
+            <span>响应速度</span>
+            <strong>{{ selectedTalent.responseTime || '暂未公开' }}</strong>
+          </article>
+          <article class="talent-search-stat-card">
+            <span>所在地</span>
+            <strong>{{ selectedTalent.location || '暂未公开' }}</strong>
+          </article>
+        </div>
+
+        <div class="stack-sm">
+          <span class="eyebrow">可信信号</span>
+          <div class="talent-search-chip-row">
+            <span class="talent-search-chip">{{ selectedTalent.summarySignal }}</span>
+            <span
+              v-for="tag in selectedTalent.standardSkills.slice(0, 2)"
+              :key="`signal-standard-${tag}`"
+              class="talent-search-chip is-standard"
+            >
+              {{ tag }}
+            </span>
+            <span
+              v-for="tag in selectedTalent.customSkills.slice(0, 1)"
+              :key="`signal-custom-${tag}`"
+              class="talent-search-chip is-custom"
+            >
+              {{ tag }}
+            </span>
+          </div>
+        </div>
+
+        <div class="stack-sm">
+          <span class="eyebrow">概览</span>
+          <p class="talent-search-detail__summary">{{ selectedTalent.summary }}</p>
+        </div>
+
+        <div v-if="selectedTalent.standardSkills.length || selectedTalent.customSkills.length" class="stack-sm">
+          <span class="eyebrow">标签</span>
+          <div class="talent-search-chip-groups">
+            <div v-if="selectedTalent.standardSkills.length" class="stack-xs">
+              <span class="talent-search-label">标准标签</span>
+              <div class="talent-search-chip-row">
+                <span v-for="item in selectedTalent.standardSkills" :key="`detail-standard-${item}`" class="talent-search-chip is-standard">{{ item }}</span>
+              </div>
+            </div>
+            <div v-if="selectedTalent.customSkills.length" class="stack-xs">
+              <span class="talent-search-label">自定义标签</span>
+              <div class="talent-search-chip-row">
+                <span v-for="item in selectedTalent.customSkills" :key="`detail-custom-${item}`" class="talent-search-chip is-custom">{{ item }}</span>
+              </div>
             </div>
           </div>
-        </article>
-      </section>
+        </div>
 
-      <aside class="office-directory-detail-rail">
-        <article v-if="activeTalent" class="office-directory-detail-panel stack-lg">
-          <div class="panel-header office-directory-detail-head">
-            <div class="stack-xs">
-              <span class="eyebrow">当前选中人才</span>
-              <h2>{{ activeTalent.name }}</h2>
-              <p class="muted">{{ activeTalent.role }}</p>
-            </div>
-            <div class="toolbar office-directory-detail-actions">
-              <button class="button-primary" type="button" @click="openCollaborationLauncher(activeTalent)">
-                发起合作并沟通
-              </button>
-              <router-link class="button-secondary" :to="detailRoute(activeTalent.slug)">
-                查看完整详情
-              </router-link>
-            </div>
+        <div v-if="selectedTalent.services.length" class="stack-sm">
+          <span class="eyebrow">服务</span>
+          <div class="talent-search-chip-row">
+            <span v-for="item in selectedTalent.services" :key="item" class="talent-search-chip">{{ item }}</span>
           </div>
+        </div>
 
-          <div v-if="talentMetaPills(activeTalent).length" class="tag-row">
-            <span v-for="pill in talentMetaPills(activeTalent)" :key="pill" class="soft-pill">{{ pill }}</span>
-          </div>
-
-          <section class="office-directory-detail-section stack-sm">
-            <span class="eyebrow">合作判断</span>
-            <strong>{{ activeTalentDecisionTitle }}</strong>
-            <p class="muted">{{ activeTalentDecisionBody }}</p>
-          </section>
-
-          <div class="office-directory-detail-metrics">
-            <article v-for="item in activeTalentFacts" :key="item.label" class="office-directory-detail-metric">
-              <span class="office-directory-detail-metric__label">{{ item.label }}</span>
-              <strong class="office-directory-detail-metric__value">{{ item.value }}</strong>
-              <p class="office-directory-detail-metric__note muted">{{ item.note }}</p>
+        <div class="stack-sm">
+          <span class="eyebrow">最近案例</span>
+          <div v-if="selectedTalent.portfolio.length" class="talent-search-portfolio-list">
+            <article v-for="item in selectedTalent.portfolio" :key="item.title || item.name" class="talent-search-portfolio-card">
+              <strong>{{ item.title || item.name || '作品样本' }}</strong>
+                <p>{{ item.description || item.summary || '打开完整档案查看更完整的上下文。' }}</p>
             </article>
           </div>
-
-          <section class="office-directory-detail-section stack-sm">
-            <div class="section-header">
-              <div>
-                <span class="eyebrow">简介</span>
-                <h3>先看能不能直接进入合作沟通</h3>
-              </div>
-            </div>
-            <p class="muted office-directory-detail-copy">{{ talentDetailSummary(activeTalent) }}</p>
-          </section>
-
-          <section class="office-directory-detail-section stack-sm">
-            <div class="section-header">
-              <div>
-                <span class="eyebrow">技能</span>
-                <h3>核心标签与能力方向</h3>
-              </div>
-            </div>
-            <div v-if="previewTalentTags(activeTalent.tags).length" class="tag-row">
-              <span v-for="tag in previewTalentTags(activeTalent.tags)" :key="tag" class="soft-pill">{{ tag }}</span>
-              <span v-if="countOf(activeTalent.tags) > previewTalentTags(activeTalent.tags).length" class="soft-pill">
-                +{{ countOf(activeTalent.tags) - previewTalentTags(activeTalent.tags).length }}
-              </span>
-            </div>
-            <p v-else class="muted">当前没有更多技能标签。</p>
-          </section>
-
-          <section class="office-directory-detail-section stack-sm">
-            <div class="section-header">
-              <div>
-                <span class="eyebrow">服务</span>
-                <h3>可承接事项</h3>
-              </div>
-            </div>
-            <div v-if="previewTalentServices(activeTalent.services).length" class="tag-row">
-              <span v-for="item in previewTalentServices(activeTalent.services)" :key="item" class="soft-pill">{{ item }}</span>
-            </div>
-            <p v-else class="muted">当前没有可展示的服务项。</p>
-          </section>
-
-          <section class="office-directory-detail-section stack-sm">
-            <div class="section-header">
-              <div>
-                <span class="eyebrow">作品</span>
-                <h3>近期作品摘要</h3>
-              </div>
-            </div>
-            <p class="muted">{{ talentPortfolioSummary(activeTalent) }}</p>
-          </section>
-
-          <section class="office-directory-detail-section stack-sm">
-            <div class="section-header">
-              <div>
-                <span class="eyebrow">履历</span>
-                <h3>必要时再展开完整经历</h3>
-              </div>
-            </div>
-            <p class="muted">{{ compactSummary(activeTalent.summary, 160) }}</p>
-          </section>
-
-          <div class="toolbar office-directory-detail-actions">
-            <router-link class="button-secondary" :to="detailRoute(activeTalent.slug)">
-              进入人才详情页
-            </router-link>
-            <button class="button-primary" type="button" @click="openCollaborationLauncher(activeTalent)">
-              直接发起合作
-            </button>
+          <div v-else class="empty-state talent-search-empty-state is-compact">
+            <strong>这位人才暂时还没有公开案例</strong>
+            <p>先看标签和摘要，再决定是否值得打开完整档案。</p>
           </div>
-        </article>
+        </div>
 
-        <article v-else class="office-directory-detail-placeholder stack-md">
-          <div class="stack-xs">
-            <span class="eyebrow">右侧详情区</span>
-            <h3>从左侧选择一个人才</h3>
-          </div>
-          <p class="muted">这里会固定承接选中的人才信息，适合快速核对评分、响应速度、服务项和近期作品。</p>
-        </article>
+        <div class="talent-search-actions">
+          <router-link class="button-primary" :to="selectedTalent.publishRoute">邀请到任务</router-link>
+          <router-link class="button-secondary" :to="selectedTalent.detailRoute">查看完整档案</router-link>
+        </div>
       </aside>
     </section>
 
-    <CollaborationEntryModal
-      :open="collaborationOpen"
-      :mode="collaborationMode"
-      :talent="collaborationTalentData"
-      :candidates="collaborationCandidates"
-      :loading="collaborationLoading"
-      :error="collaborationError"
-      :busy-task-id="collaborationBusyTaskId"
-      @close="closeCollaborationLauncher"
-      @load-existing="loadCollaborationCandidates"
-      @choose-new="openNewTaskWithTalent"
-      @back-to-chooser="collaborationMode = 'chooser'"
-      @retry="loadCollaborationCandidates"
-      @select-task="startExistingCollaboration"
-    />
-  </section>
-
-  <section v-else class="page-stack talent-market-page office-directory-page">
-    <article class="office-directory-empty stack-md">
-      <span class="eyebrow">人才广场加载中</span>
-      <h3>正在同步候选目录与右侧详情</h3>
-      <p class="muted">请稍等，页面会先拉取可选资源，再固定右侧详情承接区。</p>
-    </article>
+    <ActionErrorDialog :message="errorMessage" title="当前人才搜索暂不可用" eyebrow="搜索人才" />
   </section>
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import ActionErrorDialog from '../components/ActionErrorDialog.vue';
-import CollaborationEntryModal from '../components/CollaborationEntryModal.vue';
-import { getCollaborationCandidates, getTalentMarketplaceData, startTaskCollaboration } from '../services/api';
-import { useAuthState } from '../stores/auth';
-import { tradingRestrictionMessage } from '../utils/tradingAccess';
+import { getTalentMarketplaceData } from '../services/api';
 import { roleRouteMap } from '../utils/roleRoutes';
 
 const route = useRoute();
-const router = useRouter();
-const authState = useAuthState();
 const page = ref(null);
-const searchText = ref(String(route.query.q || '').trim());
-const selectedFilter = ref(String(route.query.filter || '全部').trim() || '全部');
-const activeTalentSlug = ref(null);
-const collaborationOpen = ref(false);
-const collaborationMode = ref('chooser');
-const collaborationTalent = ref(null);
-const collaborationCandidates = ref([]);
-const collaborationLoading = ref(false);
-const collaborationError = ref('');
-const collaborationBusyTaskId = ref('');
+const keyword = ref(typeof route.query.q === 'string' ? route.query.q : '');
+const selectedTalent = ref(null);
+const errorMessage = ref('');
+const 已入围TalentIds = ref(new Set());
 
-const filterOptions = computed(() => {
-  const values = Array.isArray(page.value?.filters) ? page.value.filters : [];
-  const unique = [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))];
-  return ['全部', ...unique];
+const quickFilters = computed(() => {
+  const groupCandidates = [];
+  const rawGroups = Array.isArray(page.value?.filterGroups) ? page.value.filterGroups : [];
+  for (const group of rawGroups) {
+    if (Array.isArray(group?.items)) {
+      group.items.forEach((item) => {
+        if (typeof item === 'string' && item && groupCandidates.length < 6) {
+          groupCandidates.push(item);
+        } else if (typeof item === 'object' && item?.label && groupCandidates.length < 6) {
+          groupCandidates.push(item.label);
+        }
+      });
+    }
+  }
+  if (!groupCandidates.length) {
+    const fallback = Array.isArray(page.value?.filters) ? page.value.filters : [];
+    return fallback.slice(0, 6).map((item) => (typeof item === 'string' ? item : item?.label || item?.title || '筛选'));
+  }
+  return groupCandidates;
 });
 
-const filteredTalents = computed(() => {
+const 已入围Count = computed(() => 已入围TalentIds.value.size);
+const heroEyebrow = computed(() => '搜索人才');
+const heroTitle = computed(() => page.value?.summary?.title || '先看评分、响应速度和最近案例，再决定是否入围或邀请。');
+const heroDescription = computed(() => '把搜索、筛选、档案查看和邀请决策放在同一屏里。先看可信信号和最近案例，再决定是否打开完整档案或直接邀请到任务。');
+const searchPlaceholder = computed(() => '按角色、技能、标签或姓名搜索');
+const heroResultCountLabel = computed(() => `${filteredItems.value.length} 条结果`);
+const heroSecondaryCountLabel = computed(() => `${已入围Count.value} 已入围`);
+
+const filteredItems = computed(() => {
   const items = Array.isArray(page.value?.items) ? page.value.items : [];
-  const activeFilter = selectedFilter.value;
-  const keyword = String(searchText.value || '').trim().toLowerCase();
-
-  return items.filter((talent) => {
-    if (activeFilter !== '全部' && !matchesTalentFilter(talent, activeFilter)) {
-      return false;
-    }
-    if (keyword && !matchesTalentSearch(talent, keyword)) {
-      return false;
-    }
-    return true;
-  });
+  const q = keyword.value.trim().toLowerCase();
+  const normalized = items.map((item, index) => ({
+    id: String(item?.id || item?.talentUserId || index),
+    talentUserId: String(item?.talentUserId || item?.platformUserId || ''),
+    name: item?.name || '人才候选人',
+    role: item?.role || item?.headline || '角色暂未公开',
+    score: item?.score || '暂时没有评分',
+    location: item?.location || '',
+    responseTime: item?.responseTime || '',
+    completionRate: item?.completionRate || '',
+    summary: item?.intro || item?.summary || item?.reason || '先查看档案，再决定是否入围或邀请。',
+    summarySignal: item?.matchLabel || item?.match || item?.summarySignal || '可信信号',
+    standardSkills: Array.isArray(item?.skills) && item.skills.length
+      ? item.skills.slice(0, 4)
+      : Array.isArray(item?.tags)
+        ? item.tags.slice(0, 4)
+        : Array.isArray(item?.headlineTags)
+          ? item.headlineTags.slice(0, 4)
+          : [],
+    customSkills: Array.isArray(item?.customSkills) ? item.customSkills.slice(0, 3) : [],
+    services: Array.isArray(item?.services) ? item.services.slice(0, 6) : [],
+    portfolio: Array.isArray(item?.portfolio) ? item.portfolio.slice(0, 3) : [],
+    detailRoute: item?.slug ? roleRouteMap.enterprise.talentDetail(item.slug) : roleRouteMap.enterprise.market,
+    publishRoute: roleRouteMap.enterprise.publishWithTalent({
+      talentUserId: item?.talentUserId || item?.platformUserId,
+      slug: item?.slug,
+      name: item?.name
+    })
+  }));
+  return q
+    ? normalized.filter((item) =>
+        [item.name, item.role, item.summary, item.standardSkills.join(' '), item.customSkills.join(' '), item.services.join(' '), item.location]
+          .join(' ')
+          .toLowerCase()
+      .includes(q)
+      )
+    : normalized;
 });
 
-const activeTalent = computed(() => {
-  const items = filteredTalents.value;
+watch(filteredItems, (items) => {
   if (!items.length) {
-    return null;
-  }
-  return items.find((talent) => talent.slug === activeTalentSlug.value) || items[0];
-});
-
-const activeTalentDecisionTitle = computed(() => {
-  if (!activeTalent.value) {
-    return '先从左侧选择一位候选人';
-  }
-  const pills = talentMetaPills(activeTalent.value);
-  if (pills.length) {
-    return pills.join(' · ');
-  }
-  return '先看职业方向、标签与简介，再决定是否推进合作';
-});
-
-const activeTalentDecisionBody = computed(() => {
-  if (!activeTalent.value) {
-    return '右侧会承接当前候选人的决策摘要、专长标签和下一步动作。';
-  }
-  const tags = previewTalentTags(activeTalent.value.tags).join('、');
-  const services = previewTalentServices(activeTalent.value.services).join(' / ');
-  if (tags && services) {
-    return `这位人才的公开方向集中在 ${tags}，当前可承接服务包括 ${services}。适合先快速核对，再决定是否立即发起合作。`;
-  }
-  if (tags) {
-    return `这位人才当前最值得先看的，是 ${tags} 这组标签对应的实际能力与近期作品。`;
-  }
-  if (services) {
-    return `当前公开可承接服务包括 ${services}。建议先核对服务范围，再进入完整详情页继续判断。`;
-  }
-  return '当前公开信息较少，建议先进入完整详情页核对履历与作品，再决定是否推进合作。';
-});
-
-const collaborationRestrictionMessage = computed(() => tradingRestrictionMessage(authState.user, 'enterprise'));
-const collaborationBlocked = computed(() => Boolean(collaborationRestrictionMessage.value));
-const collaborationTalentData = computed(() => collaborationTalent.value || activeTalent.value || null);
-
-const heroStats = computed(() => [
-  {
-    label: '候选人才',
-    value: `${filteredTalents.value.length}`,
-    note: '当前可浏览的匹配结果'
-  },
-  {
-    label: '筛选标签',
-    value: `${Math.max(filterOptions.value.length - 1, 0)}`,
-    note: '来自目录的公开标签'
-  },
-  {
-    label: '当前选中',
-    value: activeTalent.value ? activeTalent.value.name : '未选择',
-    note: activeTalent.value ? activeTalent.value.role : '从左侧点击查看'
-  },
-  {
-    label: '合作入口',
-    value: collaborationBlocked.value ? '受限' : '可发起',
-    note: collaborationBlocked.value ? '当前账号限制' : '可直接发起合作'
-  }
-]);
-
-const activeTalentFacts = computed(() => {
-  const portfolioCount = Array.isArray(activeTalent.value?.portfolio) ? activeTalent.value.portfolio.length : (activeTalent.value?.portfolio ? 1 : 0);
-  return [
-    { label: '评分', value: String(activeTalent.value?.score || '暂无'), note: '平台综合表现' },
-    { label: '响应', value: String(activeTalent.value?.responseTime || '暂无'), note: '沟通反馈速度' },
-    { label: '地点', value: String(activeTalent.value?.location || '未公开'), note: '当前公开位置' },
-    { label: '作品', value: `${portfolioCount} 个`, note: '可继续查看样本' }
-  ];
-});
-
-async function openCollaborationLauncher(talent = activeTalent.value) {
-  if (!talent) {
-    return;
-  }
-  collaborationTalent.value = talent;
-  collaborationOpen.value = true;
-  collaborationMode.value = 'existing';
-  collaborationCandidates.value = [];
-  collaborationError.value = '';
-  collaborationLoading.value = false;
-  collaborationBusyTaskId.value = '';
-  if (collaborationBlocked.value) {
-    collaborationMode.value = 'blocked';
-    collaborationError.value = collaborationRestrictionMessage.value || '当前账号暂时还不能发起合作。';
-    return;
-  }
-  if (!collaborationTalentData.value?.talentUserId) {
-    collaborationMode.value = 'blocked';
-    collaborationError.value = '当前人才标识还没准备好，请刷新页面后重试。';
-    return;
-  }
-  await loadCollaborationCandidates();
-}
-
-function closeCollaborationLauncher() {
-  collaborationOpen.value = false;
-  collaborationMode.value = 'chooser';
-  collaborationCandidates.value = [];
-  collaborationError.value = '';
-  collaborationLoading.value = false;
-  collaborationBusyTaskId.value = '';
-}
-
-function openNewTaskWithTalent() {
-  if (!collaborationTalentData.value) {
-    collaborationError.value = '当前人才标识还没准备好，暂时无法新建任务。';
-    return;
-  }
-  const targetRoute = roleRouteMap.enterprise.publishWithTalent(collaborationTalentData.value, 'enterprise-market');
-  closeCollaborationLauncher();
-  router.push(targetRoute).catch((error) => {
-    collaborationOpen.value = true;
-    collaborationMode.value = 'chooser';
-    collaborationError.value = error instanceof Error ? error.message : '当前暂时无法进入发布任务页。';
-  });
-}
-
-async function loadCollaborationCandidates() {
-  collaborationMode.value = 'existing';
-  if (!collaborationTalentData.value?.talentUserId) {
-    collaborationError.value = '当前人才标识还没准备好，暂时无法读取可合作任务。';
+    selectedTalent.value = null;
     collaborationCandidates.value = [];
     return;
   }
-  collaborationLoading.value = true;
-  collaborationError.value = '';
-  try {
-    const payload = await getCollaborationCandidates(collaborationTalentData.value.talentUserId);
-    collaborationCandidates.value = Array.isArray(payload?.items) ? payload.items : [];
-    collaborationError.value = payload?.requestError || '';
-  } catch (error) {
-    collaborationError.value = error instanceof Error ? error.message : '当前暂时无法读取可合作任务。';
-    collaborationCandidates.value = [];
-  } finally {
-    collaborationLoading.value = false;
+  const currentId = selectedTalent.value?.id;
+  if (!currentId || !items.some((item) => item.id === currentId)) {
+    select人才(items[0]);
   }
-}
+}, { immediate: true });
 
-async function startExistingCollaboration(task) {
-  if (!task?.taskId || !collaborationTalentData.value?.talentUserId) {
-    collaborationError.value = '当前任务或人才标识不完整，暂时无法开始合作。';
-    return;
-  }
-  collaborationBusyTaskId.value = task.taskId;
-  collaborationError.value = '';
-  try {
-    const result = await startTaskCollaboration(task.taskId, collaborationTalentData.value.talentUserId);
-    if (result?.requestError || result?.status === 'FAILED') {
-      collaborationError.value = result?.requestError || result?.nextStep || '当前暂时无法开始合作。';
-      return;
-    }
-    const normalizedTaskId = String(result?.taskId || task.taskId || '');
-    const normalizedRoomKey = String(result?.roomKey || '');
-    if (normalizedTaskId !== task.taskId) {
-      collaborationError.value = '协作结果的任务标识不一致，请稍后重试。';
-      return;
-    }
-    if (!normalizedRoomKey) {
-      collaborationError.value = result?.nextStep || '企业已确认合作，但聊天房间编号暂未返回，请稍后从会话列表进入。';
-      return;
-    }
-    closeCollaborationLauncher();
-    await router.push(result?.nextRoute || roleRouteMap.enterprise.messageRoom(normalizedRoomKey, {
-      taskId: task.taskId,
-      source: 'market'
-    }));
-  } finally {
-    collaborationBusyTaskId.value = '';
-  }
-}
-
-function matchesTalentFilter(talent, filter) {
-  const normalizedFilter = String(filter || '').trim();
-  if (!normalizedFilter) {
-    return true;
-  }
-
-  if (normalizedFilter === '高评分') {
-    return Number(talent?.score) >= 4.9;
-  }
-
-  if (normalizedFilter === '近期可接单') {
-    const responseText = String(talent?.responseTime || '');
-    const minutes = Number(responseText.replace(/[^\d]/g, ''));
-    return Number.isFinite(minutes) && minutes <= 15;
-  }
-
-  const searchPool = [
-    talent?.name,
-    talent?.role,
-    talent?.summary,
-    talent?.intro,
-    talent?.portfolio,
-    talent?.location,
-    talent?.score,
-    talent?.responseTime,
-    ...(Array.isArray(talent?.tags) ? talent.tags : []),
-    ...(Array.isArray(talent?.services) ? talent.services : [])
-  ]
-    .map((item) => String(item || '').toLowerCase())
-    .join(' ');
-
-  return searchPool.includes(normalizedFilter.toLowerCase());
-}
-
-function matchesTalentSearch(talent, keyword) {
-  const searchPool = [
-    talent?.name,
-    talent?.role,
-    talent?.summary,
-    talent?.intro,
-    talent?.location,
-    talent?.score,
-    talent?.responseTime,
-    talent?.portfolio,
-    ...(Array.isArray(talent?.tags) ? talent.tags : []),
-    ...(Array.isArray(talent?.services) ? talent.services : [])
-  ]
-    .map((item) => String(item || '').toLowerCase())
-    .join(' ');
-  return searchPool.includes(keyword);
-}
-
-function countOf(items) {
-  return Array.isArray(items) ? items.length : 0;
-}
-
-function previewTalentTags(items) {
-  return (Array.isArray(items) ? items : []).slice(0, 2);
-}
-
-function previewTalentServices(items) {
-  return (Array.isArray(items) ? items : []).slice(0, 2);
-}
-
-function talentMetaPills(talent) {
-  const pills = [];
-  const location = String(talent?.location || '').trim();
-  const score = String(talent?.score || '').trim();
-  const responseTime = String(talent?.responseTime || '').trim();
-  if (location) {
-    pills.push(location);
-  }
-  if (score) {
-    pills.push(`评分 ${score}`);
-  }
-  if (responseTime) {
-    pills.push(`响应 ${responseTime}`);
-  }
-  return pills;
-}
-
-function talentListSummary(talent) {
-  return compactSummary(talent?.summary || talent?.intro || '', 82);
-}
-
-function talentDetailSummary(talent) {
-  return compactSummary(talent?.intro || talent?.summary || '', 120);
-}
-
-function talentPortfolioSummary(talent) {
-  const portfolio = Array.isArray(talent?.portfolio)
-    ? talent.portfolio.map((item) => {
-      if (typeof item === 'string') {
-        return item;
-      }
-      if (item && typeof item === 'object') {
-        return String(item.title || item.name || item.desc || '').trim();
-      }
-      return '';
-    }).filter(Boolean).join(' / ')
-    : String(talent?.portfolio || '').trim();
-  return compactSummary(portfolio, 110);
-}
-
-function compactSummary(value, limit = 56) {
-  const text = String(value || '').trim();
-  if (!text) {
-    return '当前还没有更多摘要信息。';
-  }
-  if (text.length <= limit) {
-    return text;
-  }
-  return `${text.slice(0, limit).trim()}...`;
-}
-
-function selectTalent(talent) {
-  activeTalentSlug.value = talent?.slug || null;
-}
-
-function detailRoute(slug) {
-  const query = { from: 'market' };
-  if (selectedFilter.value && selectedFilter.value !== '全部') {
-    query.filter = selectedFilter.value;
-  }
-  return {
-    path: roleRouteMap.enterprise.detail(slug),
-    query
-  };
-}
-
-watch(
-  filterOptions,
-  (options) => {
-    if (!options.length) {
-      return;
-    }
-    if (!options.includes(selectedFilter.value)) {
-      selectedFilter.value = '全部';
-    }
-  },
-  { immediate: true }
-);
-
-watch(
-  () => route.query.filter,
-  (value) => {
-    const next = String(value || '全部');
-    const allowed = filterOptions.value;
-    selectedFilter.value = allowed.length ? (allowed.includes(next) ? next : '全部') : next;
-  }
-);
-
-watch(
-  filteredTalents,
-  (items) => {
-    if (!items.length) {
-      activeTalentSlug.value = null;
-      return;
-    }
-
-    if (!items.some((talent) => talent.slug === activeTalentSlug.value)) {
-      activeTalentSlug.value = items[0].slug;
-    }
-  },
-  { immediate: true }
-);
-
-watch(selectedFilter, (value) => {
-  if (!page.value) {
-    return;
-  }
-  const nextQuery = { ...route.query };
-  if (!value || value === '全部') {
-    delete nextQuery.filter;
+function toggle加入入围(item) {
+  if (!item?.id) return
+  const next = new Set(已入围TalentIds.value)
+  if (next.has(item.id)) {
+    next.delete(item.id)
   } else {
-    nextQuery.filter = value;
+    next.add(item.id)
   }
-  router.replace({ query: nextQuery });
-});
+  已入围TalentIds.value = next
+  if (!selectedTalent.value || selectedTalent.value.id !== item.id) {
+    select人才(item)
+  }
+}
+
+function select人才(item) {
+  selectedTalent.value = item;
+}
+
+function applyQuick筛选(value) {
+  keyword.value = value;
+}
 
 onMounted(async () => {
-  page.value = await getTalentMarketplaceData();
+  const payload = await getTalentMarketplaceData();
+  page.value = payload;
+  if (payload?.requestError) {
+    errorMessage.value = payload.requestError;
+  }
 });
 </script>
 
 <style scoped>
-.talent-market-page {
+.talent-search-workspace {
   display: grid;
-  gap: 20px;
-  color: #dbe4f0;
+  gap: 24px;
 }
 
-.office-directory-empty,
-.office-directory-hero,
-.office-directory-detail-panel,
-.office-directory-detail-placeholder {
-  border: 1px solid rgba(121, 155, 255, 0.1);
-  background:
-    linear-gradient(180deg, rgba(8, 16, 29, 0.96), rgba(6, 11, 21, 0.98)),
-    radial-gradient(circle at top right, rgba(76, 201, 255, 0.06), transparent 32%);
-  box-shadow: 0 20px 42px rgba(1, 6, 18, 0.16);
-}
-
-.office-directory-empty {
+.talent-search-hero {
   display: grid;
-  gap: 8px;
-  padding: 20px 22px;
-  border-radius: 24px;
-}
-
-.office-directory-empty--warning {
-  border-color: rgba(255, 193, 7, 0.24);
-  background:
-    linear-gradient(180deg, rgba(44, 34, 6, 0.94), rgba(23, 18, 5, 0.98)),
-    radial-gradient(circle at top right, rgba(255, 193, 7, 0.12), transparent 32%);
-}
-
-.office-directory-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.78fr);
+  gap: 24px;
   padding: 28px;
-  border-radius: 30px;
-}
-
-.office-directory-hero-copy,
-.office-directory-hero-panel,
-.office-directory-detail-panel,
-.office-directory-detail-placeholder {
-  display: grid;
-  gap: 14px;
-}
-
-.office-directory-hero-copy h1 {
-  margin: 8px 0 0;
-  font-size: clamp(36px, 4vw, 52px);
-  letter-spacing: -0.05em;
-}
-
-.office-directory-lead,
-.office-directory-row-summary,
-.office-directory-detail-copy,
-.office-directory-detail-placeholder p {
-  line-height: 1.8;
-  margin: 0;
-}
-
-.office-directory-hero-stats,
-.office-directory-detail-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.office-directory-hero-stat,
-.office-directory-detail-metric {
-  display: grid;
-  gap: 6px;
-  padding: 16px;
-  border-radius: 20px;
-  border: 1px solid rgba(121, 155, 255, 0.08);
-  background: rgba(4, 9, 17, 0.72);
-}
-
-.office-directory-hero-stat__label,
-.office-directory-detail-metric__label {
-  color: #91a2b8;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.office-directory-hero-stat__value,
-.office-directory-detail-metric__value {
-  font-size: 18px;
-  letter-spacing: -0.03em;
-  color: #f2f7fd;
-}
-
-.office-directory-hero-stat__note,
-.office-directory-detail-metric__note {
-  margin: 0;
-  font-size: 12px;
-}
-
-.office-directory-search-field {
-  display: grid;
-  gap: 6px;
-}
-
-.office-directory-search-label {
-  font-size: 13px;
-  color: #91a2b8;
-}
-
-.office-directory-search-input {
-  min-height: 48px;
-  padding: 0 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(121, 155, 255, 0.18);
-  background: rgba(5, 9, 16, 0.84);
-  color: #f2f7fd;
-}
-
-.office-directory-filter-shell {
-  padding: 16px;
-  border-radius: 24px;
-  border: 1px solid rgba(121, 155, 255, 0.1);
-  background: rgba(5, 10, 18, 0.84);
-}
-
-.office-directory-filter-head {
-  align-items: flex-start;
-}
-
-.office-directory-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.office-directory-filter-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(121, 155, 255, 0.16);
-  background: rgba(8, 14, 24, 0.9);
-  color: #dbe4f0;
-}
-
-.office-directory-filter-chip.is-active {
-  border-color: rgba(96, 150, 255, 0.34);
-  background: rgba(22, 42, 86, 0.88);
-  color: #f2f7fd;
-  box-shadow: inset 0 0 0 1px rgba(96, 150, 255, 0.14);
-}
-
-.office-directory-hero-actions {
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.office-directory-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.office-directory-list,
-.office-directory-detail-rail {
-  min-width: 0;
-}
-
-.office-directory-detail-rail {
-  position: sticky;
-  top: 96px;
-}
-
-.office-directory-list-header,
-.office-directory-row-head,
-.office-directory-row-actions,
-.office-directory-detail-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.office-directory-row {
-  display: grid;
-  gap: 14px;
-  padding: 18px 20px;
-  border-radius: 28px;
-  border: 1px solid rgba(121, 155, 255, 0.1);
+  border-radius: 32px;
   background:
-    linear-gradient(180deg, rgba(8, 16, 29, 0.92), rgba(6, 11, 21, 0.96)),
-    radial-gradient(circle at top right, rgba(76, 201, 255, 0.06), transparent 32%);
-  transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease;
-  cursor: pointer;
+    radial-gradient(circle at top right, rgba(30, 128, 66, 0.08), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fbfaf5 100%);
 }
 
-.office-directory-row:hover {
-  transform: translateY(-1px);
-  border-color: rgba(76, 201, 255, 0.22);
-  box-shadow: 0 16px 30px rgba(1, 6, 18, 0.18);
+.talent-search-hero h1 {
+  margin: 0;
+  color: #121212;
+  font-size: clamp(2.1rem, 4vw, 3.8rem);
+  line-height: 0.96;
+  letter-spacing: -0.07em;
 }
 
-.office-directory-row:focus-visible {
-  outline: 2px solid rgba(96, 150, 255, 0.74);
-  outline-offset: 3px;
-  border-color: rgba(96, 150, 255, 0.3);
+.talent-search-hero__description {
+  margin: 0;
+  color: #5f5d54;
+  line-height: 1.8;
+  max-width: 58ch;
 }
 
-.office-directory-row.is-active {
-  border-color: rgba(96, 150, 255, 0.28);
-  box-shadow: inset 0 0 0 1px rgba(96, 150, 255, 0.18);
+.talent-search-hero__tools {
+  display: grid;
+  gap: 14px;
+  align-content: start;
 }
 
-.office-directory-row-index {
+.talent-search-matching-summary {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(28, 105, 63, 0.14);
+  background: linear-gradient(180deg, #f4fbf5 0%, #ffffff 100%);
+  box-shadow: 0 14px 30px rgba(16, 24, 40, 0.05);
+}
+
+.talent-search-matching-summary__body {
+  display: grid;
+  gap: 6px;
+}
+
+.talent-search-matching-summary strong {
+  color: #172225;
+  font-size: 1rem;
+}
+
+.talent-search-matching-summary p {
+  margin: 0;
+  color: #5d675e;
+  line-height: 1.7;
+}
+
+.talent-search-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.talent-search-hero__meta-pill,
+.talent-search-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: rgba(96, 150, 255, 0.12);
-  color: #f2f7fd;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eff7ee;
+  color: #187236;
   font-weight: 700;
 }
 
-.office-directory-row-identity h3,
-.office-directory-detail-panel h2,
-.office-directory-empty h3 {
-  margin: 0;
-  color: #f2f7fd;
+.talent-search-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.office-directory-row-summary {
-  color: #91a2b8;
+.talent-search-badge--muted {
+  background: #f4f5f7;
+  color: #54606e;
 }
 
-.office-directory-row-actions {
-  align-items: center;
+.talent-search-badge--subtle {
+  background: #fff7e8;
+  color: #8b5c14;
 }
 
-.office-directory-detail-panel,
-.office-directory-detail-placeholder {
-  padding: 24px;
+.talent-search-input {
+  min-height: 48px;
+  border: 1px solid rgba(18, 18, 18, 0.12);
+  border-radius: 999px;
+  padding: 0 18px;
+  background: #fffef8;
+}
+
+.talent-search-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.95fr);
+  gap: 24px;
+}
+
+.talent-search-workspace.is-matching-mode .talent-search-hero {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 24px 26px;
+}
+
+.talent-search-workspace.is-matching-mode .talent-search-layout {
+  grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.08fr);
+}
+
+.talent-search-workspace.is-matching-mode .talent-search-detail {
+  background:
+    radial-gradient(circle at top right, rgba(31, 120, 69, 0.06), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fbfaf5 100%);
+}
+
+.talent-search-条结果,
+.talent-search-detail {
   border-radius: 28px;
+  padding: 26px;
 }
 
-.office-directory-detail-panel {
-  position: sticky;
-  top: 96px;
+.section-head,
+.talent-search-条结果__header,
+.talent-search-actions,
+.talent-search-card__topline,
+.talent-search-candidate-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.office-directory-detail-section {
-  padding: 18px;
+.section-head h2,
+.talent-search-detail h2 {
+  margin: 4px 0 0;
+  color: #121212;
+  font-size: 1.65rem;
+  line-height: 1.08;
+  letter-spacing: -0.05em;
+}
+
+.talent-search-list,
+.talent-search-candidate-list,
+.talent-search-portfolio-list {
+  display: grid;
+  gap: 14px;
+}
+
+.talent-search-card,
+.talent-search-candidate-card,
+.talent-search-portfolio-card {
+  padding: 18px 20px;
   border-radius: 22px;
-  border: 1px solid rgba(121, 155, 255, 0.08);
-  background: rgba(4, 9, 17, 0.7);
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #ffffff;
+  text-align: left;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.office-directory-detail-actions {
-  justify-content: flex-end;
+.talent-search-card {
+  padding: 0;
+  overflow: hidden;
 }
 
-@media (max-width: 1180px) {
-  .office-directory-hero,
-  .office-directory-layout {
+.talent-search-card__body {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.talent-search-card__body:focus-visible,
+.talent-search-candidate-card:focus-visible,
+.talent-search-filter-chip:focus-visible,
+.talent-search-card__footer .button-secondary:focus-visible {
+  outline: 2px solid rgba(16, 138, 0, 0.32);
+  outline-offset: 2px;
+}
+
+.talent-search-candidate-card.is-highlighted {
+  border-color: rgba(28, 105, 63, 0.35);
+  box-shadow: 0 0 0 1px rgba(28, 105, 63, 0.12), 0 18px 40px rgba(16, 24, 40, 0.08);
+  background: linear-gradient(180deg, #f4fbf5 0%, #ffffff 100%);
+}
+
+.talent-search-recovery-card {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(28, 105, 63, 0.14);
+  background: linear-gradient(180deg, #f6fbf5 0%, #ffffff 100%);
+  box-shadow: 0 12px 30px rgba(16, 24, 40, 0.05);
+}
+
+.talent-search-recovery-card strong {
+  color: #172225;
+  font-size: 1rem;
+}
+
+.talent-search-recovery-card p {
+  margin: 0;
+  color: #5d675e;
+  line-height: 1.65;
+}
+
+.talent-search-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px 18px;
+}
+
+.talent-search-workspace.is-matching-mode .talent-search-card__footer {
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.talent-search-workspace.is-matching-mode .talent-search-card__footer .button-secondary,
+.talent-search-workspace.is-matching-mode .talent-search-card__footer .button-primary {
+  min-width: 160px;
+  justify-content: center;
+}
+
+.talent-search-card:hover,
+.talent-search-candidate-card:hover,
+.talent-search-portfolio-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(16, 138, 0, 0.18);
+  box-shadow: 0 18px 30px rgba(18, 18, 18, 0.05);
+}
+
+.talent-search-card.is-active {
+  border-color: rgba(16, 138, 0, 0.28);
+  background: #eff7ee;
+}
+
+.talent-search-card.is-已入围 {
+  border-color: rgba(16, 138, 0, 0.38);
+  background: #fbfff7;
+  box-shadow: 0 18px 30px rgba(16, 138, 0, 0.08);
+}
+
+.talent-search-card__topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.talent-search-card strong,
+.talent-search-detail strong,
+.talent-search-candidate-card strong,
+.talent-search-portfolio-card strong {
+  color: #121212;
+}
+
+.talent-search-card p,
+.talent-search-detail__summary,
+.talent-search-candidate-card p,
+.talent-search-portfolio-card p {
+  margin: 0;
+  color: #606059;
+  line-height: 1.72;
+}
+
+.talent-search-rating,
+.talent-search-chip,
+.talent-search-signal,
+.talent-search-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eff7ee;
+  color: #187236;
+  font-weight: 700;
+}
+
+.talent-search-filter-chip {
+  border: 1px solid rgba(16, 138, 0, 0.18);
+  background: #ffffff;
+  color: #187236;
+}
+
+.talent-search-chip.is-standard {
+  background: #edf7ea;
+  color: #1f6a3c;
+  border: 1px solid rgba(30, 128, 66, 0.18);
+}
+
+.talent-search-chip.is-custom {
+  background: #fff3e8;
+  color: #9a5b20;
+  border: 1px solid rgba(198, 111, 37, 0.18);
+}
+
+.talent-search-chip-row,
+.talent-search-signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.talent-search-chip-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.talent-search-label {
+  color: #6f7b70;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.talent-search-signal-row--tight {
+  gap: 8px;
+}
+
+.talent-search-detail .talent-search-chip-row {
+  gap: 8px;
+}
+
+.talent-search-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.talent-search-stat-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 20px;
+  background: #f7f4ed;
+}
+
+.talent-search-stat-card span {
+  color: #7a766e;
+}
+
+.talent-search-stat-card strong {
+  color: #121212;
+  font-size: 1.35rem;
+}
+
+.talent-search-actions {
+  flex-wrap: wrap;
+}
+
+.talent-search-detail {
+  position: sticky;
+  top: 124px;
+  align-self: start;
+}
+
+.empty-state {
+  border-radius: 22px;
+  border: 1px dashed rgba(18, 18, 18, 0.14);
+  background: #fffef8;
+  color: #5f5d54;
+}
+
+.talent-search-empty-state {
+  min-height: 160px;
+}
+
+.talent-search-empty-state.is-compact {
+  min-height: 132px;
+}
+
+@media (max-width: 1280px) {
+  .talent-search-hero,
+  .talent-search-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .talent-search-条结果,
+  .talent-search-detail,
+  .talent-search-hero {
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .talent-search-stat-grid {
     grid-template-columns: 1fr;
   }
 
-  .office-directory-detail-rail {
-    position: static;
-  }
-}
-
-@media (max-width: 720px) {
-  .office-directory-hero-stats,
-  .office-directory-detail-metrics {
-    grid-template-columns: 1fr;
-  }
-
-  .office-directory-row-head,
-  .office-directory-row-actions,
-  .office-directory-detail-head,
-  .office-directory-list-header {
+  .talent-search-card__topline,
+  .talent-search-candidate-card,
+  .talent-search-actions,
+  .talent-search-card__footer {
     flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .office-directory-row,
-  .office-directory-hero,
-  .office-directory-detail-panel,
-  .office-directory-detail-placeholder,
-  .office-directory-empty,
-  .office-directory-detail-section {
-    padding: 16px;
-  }
-
-  .office-directory-hero-actions,
-  .office-directory-row-actions {
-    align-items: stretch;
   }
 }
 </style>
