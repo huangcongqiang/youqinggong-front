@@ -1291,8 +1291,8 @@ const acceptanceBackLabel = computed(() => {
 });
 const acceptanceUnavailableRoute = computed(() => acceptanceBackRoute.value || (isEnterprise.value ? roleRouteMap.enterprise.home : roleRouteMap.talent.home));
 
-const actionDialogTitle = computed(() => (actionErrorMessage.value ? '验收动作遇到问题' : '验收流程同步出现异常'));
-const dialogErrorMessage = computed(() => actionErrorMessage.value || liveSyncError.value || '');
+const actionDialogTitle = computed(() => '验收动作遇到问题');
+const dialogErrorMessage = computed(() => actionErrorMessage.value || '');
 
 async function refreshPage() {
   acceptanceResult.value = null;

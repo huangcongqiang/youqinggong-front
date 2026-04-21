@@ -253,10 +253,11 @@ assert(
   'AcceptancePage should not expose English default grade/review draft copy in the acceptance flow.'
 );
 assert(
-  acceptanceSource.includes("const dialogErrorMessage = computed(() => actionErrorMessage.value || liveSyncError.value || '');")
+  acceptanceSource.includes("const dialogErrorMessage = computed(() => actionErrorMessage.value || '');")
+    && acceptanceSource.includes('<LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />')
     && acceptanceSource.includes("if (acceptanceTradingBlocked.value) {\n    return '当前先处理账户限制，解除后再回来继续验收、评级和反馈。';")
     && !acceptanceSource.includes('当前先处理账户限制，再回来继续验收'),
-  'AcceptancePage should keep blocked and request-error states single-sourced instead of duplicating the same warning in both the dialog and the action panel.'
+  'AcceptancePage should keep action errors single-sourced in the dialog while leaving live sync interruptions in the non-blocking status bar.'
 );
 assert(
   acceptanceSource.includes('isUnavailable: true,')
@@ -309,14 +310,12 @@ assert(
 );
 assert(
   acceptanceSource.includes('function normalizeReviewRoleLabel(item = {}) {')
-    && acceptanceSource.includes('const reviewHistoryItems = computed(() =>')
-    && acceptanceSource.includes('<div v-if="!reviewHistoryItems.length" class="mini-card stack-sm">')
-    && acceptanceSource.includes('v-for="item in reviewHistoryItems"')
-    && acceptanceSource.includes('{{ item.reviewer }}')
-    && acceptanceSource.includes('{{ item.role }} · {{ item.time }}')
-    && acceptanceSource.includes("rating: String(item?.rating || '待评分').trim() || '待评分'")
-    && acceptanceSource.includes("content: String(item?.content || item?.summary || '这条反馈已经记录。').trim() || '这条反馈已经记录。'"),
-  'AcceptancePage should normalize review-history role, reviewer, rating, and content instead of rendering raw backend fields directly.'
+    && acceptanceSource.includes('function latestReviewItemForAudience(audienceKey) {')
+    && acceptanceSource.includes("const latestEnterpriseToTalentReview = computed(() => latestReviewItemForAudience('enterprise'));")
+    && acceptanceSource.includes("const latestTalentToBusinessReview = computed(() => latestReviewItemForAudience('talent'));")
+    && !acceptanceSource.includes('const reviewHistoryItems = computed(() =>')
+    && !acceptanceSource.includes('title="验收记录和反馈历史"'),
+  'AcceptancePage should remove the feedback-history panel while keeping normalized latest-review checks for gating.'
 );
 assert(
   acceptanceSource.includes('function reviewSortTimestamp(item = {}) {')
