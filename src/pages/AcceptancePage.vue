@@ -336,8 +336,6 @@
       </aside>
     </section>
 
-    <LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />
-
       <article v-if="showSCeremony" class="result-card acceptance-celebration-card">
         <span class="eyebrow">验收完成</span>
         <h3>{{ sCeremonyTitle }}</h3>
@@ -359,7 +357,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ActionErrorDialog from '../components/ActionErrorDialog.vue';
 import ContractShellHeader from '../components/ContractShellHeader.vue';
-import LiveSyncStatusBar from '../components/LiveSyncStatusBar.vue';
 import SectionTitle from '../components/SectionTitle.vue';
 import {
   getTaskClosureData,
@@ -391,8 +388,6 @@ const isTalent = computed(() => audience.value === 'talent');
 const acceptanceTradingRestriction = computed(() => tradingRestrictionMessage(authState.user, audience.value));
 const acceptanceTradingBlocked = computed(() => !hasTradingAccess(authState.user, audience.value));
 const actionErrorMessage = ref('');
-const liveSyncStatus = ref(null);
-const liveSyncError = ref('');
 let stopBusinessLiveSync = null;
 
 const gradeOptions = [
@@ -1459,15 +1454,6 @@ onMounted(() => {
     acceptsEvent(event) {
       const taskId = String(currentTaskId() || '').trim();
       return !taskId || !event?.taskId || event.taskId === taskId;
-    },
-    onStatusChange(snapshot) {
-      liveSyncStatus.value = snapshot ? { ...snapshot } : null;
-      if (snapshot?.state === 'open') {
-        liveSyncError.value = '';
-      }
-    },
-    onSyncError() {
-      liveSyncError.value = '最新同步刚刚中断，页面会自动重连，必要时再回退到轮询。';
     }
   });
 });

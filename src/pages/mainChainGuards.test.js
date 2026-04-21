@@ -254,10 +254,13 @@ assert(
 );
 assert(
   acceptanceSource.includes("const dialogErrorMessage = computed(() => actionErrorMessage.value || '');")
-    && acceptanceSource.includes('<LiveSyncStatusBar :snapshot="liveSyncStatus" :error-note="liveSyncError" />')
+    && acceptanceSource.includes('stopBusinessLiveSync = startBusinessLiveSync({')
+    && !acceptanceSource.includes('<LiveSyncStatusBar')
+    && !acceptanceSource.includes('liveSyncStatus')
+    && !acceptanceSource.includes('liveSyncError')
     && acceptanceSource.includes("if (acceptanceTradingBlocked.value) {\n    return '当前先处理账户限制，解除后再回来继续验收、评级和反馈。';")
     && !acceptanceSource.includes('当前先处理账户限制，再回来继续验收'),
-  'AcceptancePage should keep action errors single-sourced in the dialog while leaving live sync interruptions in the non-blocking status bar.'
+  'AcceptancePage should keep action errors single-sourced in the dialog while keeping live sync silent in the background.'
 );
 assert(
   acceptanceSource.includes('isUnavailable: true,')
