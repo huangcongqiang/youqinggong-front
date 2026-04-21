@@ -32,15 +32,18 @@ assert(
 
 assert(
   source.includes('ChatAttachmentPreviewModal')
-    && source.includes('@click="handleAttachmentOpen(attachment)"')
-    && source.includes('function handleAttachmentOpen(attachment)')
+    && source.includes('@click.stop.prevent="handleAttachmentOpen(attachment, $event)"')
+    && source.includes('function handleAttachmentOpen(attachment, event = null)')
+    && source.includes('event?.preventDefault?.()')
+    && source.includes('event?.stopPropagation?.()')
     && source.includes('function attachmentDownloadHref(attachment)')
     && source.includes('function resolveAttachmentHref(value)')
     && source.includes("source?.previewUrl ||")
     && source.includes("source?.href ||")
     && source.includes("source?.fileUrl ||")
     && source.includes("source?.path ||")
-    && source.includes('function downloadAttachment(attachment)')
+    && source.includes('function openAttachmentUrl(attachment)')
+    && source.includes("window.open(href, '_blank', 'noopener,noreferrer')")
     && !source.includes(':href="attachment.href"'),
   'MessagesPage should open attachments through explicit preview/download handling instead of a raw placeholder link.'
 );

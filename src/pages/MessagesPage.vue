@@ -63,7 +63,7 @@
                         :key="attachment.key"
                         type="button"
                         class="attachment-pill"
-                        @click="handleAttachmentOpen(attachment)"
+                        @click.stop.prevent="handleAttachmentOpen(attachment, $event)"
                       >
                         {{ attachment.name }}
                       </button>
@@ -241,7 +241,7 @@
                   :key="asset.key"
                   type="button"
                   class="asset-row"
-                  @click="handleAttachmentOpen(asset)"
+                  @click.stop.prevent="handleAttachmentOpen(asset, $event)"
                 >
                   <strong>{{ asset.name }}</strong>
                   <span>{{ asset.source }}</span>
@@ -895,7 +895,9 @@ function canPreviewAttachment(attachment) {
   return ['image', 'video'].includes(String(attachment?.kind || '').toLowerCase()) && Boolean(attachment?.previewUrl || attachmentDownloadHref(attachment))
 }
 
-function handleAttachmentOpen(attachment) {
+function handleAttachmentOpen(attachment, event = null) {
+  event?.preventDefault?.()
+  event?.stopPropagation?.()
   const href = attachmentDownloadHref(attachment)
   if (!href) {
     errorMessage.value = '当前附件暂时没有可用的预览或下载地址。'
@@ -910,15 +912,19 @@ function handleAttachmentOpen(attachment) {
     }
     return
   }
-  downloadAttachment(normalizedAttachment)
+  openAttachmentUrl(normalizedAttachment)
 }
 
-function downloadAttachment(attachment) {
+function openAttachmentUrl(attachment) {
   const href = attachmentDownloadHref(attachment)
-  if (!href || typeof document === 'undefined') return
+  if (!href) return
+  if (typeof window !== 'undefined' && typeof window.open === 'function') {
+    const opened = window.open(href, '_blank', 'noopener,noreferrer')
+    if (opened) return
+  }
+  if (typeof document === 'undefined') return
   const link = document.createElement('a')
   link.href = href
-  link.download = attachment?.name || '附件'
   link.target = '_blank'
   link.rel = 'noreferrer'
   document.body.appendChild(link)
