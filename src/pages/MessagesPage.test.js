@@ -15,6 +15,9 @@ assert(
 
 assert(
   source.includes('function isSelfMessage(message) {') &&
-    source.includes('return baseIsSelfMessage(message, currentActor.value);'),
-  'MessagesPage should expose isSelfMessage(message) for template rendering.'
+    source.includes('baseIsSelfMessage({ ...message, author }, currentActor.value)') &&
+    source.includes('currentUserIds.value.includes(authorUserId)') &&
+    source.includes('currentUserNames.value.includes(author)') &&
+    source.includes('isCurrentAudienceRole(role)'),
+  'MessagesPage should identify self messages by role, current user id, and current user display name.'
 );

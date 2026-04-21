@@ -432,12 +432,49 @@ const heroSubtitle = computed(() => {
 })
 const currentActor = computed(() => currentActorLabel.value)
 const currentActorLabel = computed(() => (audience.value === 'enterprise' ? '企业' : '人才'))
+const currentUserIds = computed(() => [
+  authUser?.platformUserId,
+  authUser?.userId,
+  authUser?.id,
+  authUser?.imUserId,
+].map((value) => String(value || '').trim()).filter(Boolean))
+const currentUserNames = computed(() => [
+  authUser?.displayName,
+  authUser?.name,
+  authUser?.nickname,
+  authUser?.businessName,
+  authUser?.companyName,
+  authUser?.enterpriseName,
+  authUser?.organizationName,
+].map((value) => String(value || '').trim()).filter(Boolean))
 const noRoomHint = computed(() => (
   '先选择一份进行中的合同，把消息、文件、记录和下一步都挂在同一条合同线上。'
 ))
 
+function isAffirmative(value) {
+  if (typeof value === 'boolean') return value
+  const normalized = String(value || '').trim().toLowerCase()
+  return ['1', 'true', 'yes', 'y', 'mine', 'self', 'own'].includes(normalized)
+}
+
+function isCurrentAudienceRole(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return false
+  if (['me', 'mine', 'self', 'own', '我', '我方', '自己'].includes(normalized)) return true
+  const enterpriseRoles = ['enterprise', 'business', 'company', 'client', 'employer', 'owner', 'project_owner', 'publisher', '企业', '企业方', '发布方', '甲方']
+  const talentRoles = ['talent', 'freelancer', 'worker', 'candidate', 'provider', 'service_provider', '人才', '人才方', '接单方', '乙方']
+  const roleSet = audience.value === 'enterprise' ? enterpriseRoles : talentRoles
+  return roleSet.some((role) => normalized === role || normalized.includes(role))
+}
+
 function isSelfMessage(message) {
-  return baseIsSelfMessage(message, currentActor.value);
+  const author = String(message?.author || message?.senderName || message?.displayName || '').trim()
+  const authorUserId = String(message?.authorUserId || message?.senderUserId || message?.platformUserId || message?.userId || message?.imUserId || '').trim()
+  const role = message?.authorRole || message?.senderRole || message?.role || message?.audience || message?.senderAudience || ''
+  return baseIsSelfMessage({ ...message, author }, currentActor.value)
+    || currentUserIds.value.includes(authorUserId)
+    || currentUserNames.value.includes(author)
+    || isCurrentAudienceRole(role)
 }
 
 const activeRoomHeader = computed(() => {
@@ -448,15 +485,12 @@ const activeRoomHeader = computed(() => {
 
 const visible消息 = computed(() => {
   const messages = Array.isArray(activeRoom.value?.messages) ? activeRoom.value.messages : []
-  const currentUserId = String(authUser?.platformUserId || '')
   return messages.map((message, index) => {
     const author = String(message?.author || message?.senderName || message?.displayName || '合同成员')
-    const authorUserId = String(message?.authorUserId || message?.senderUserId || message?.platformUserId || '')
     const isSystem = Boolean(message?.isSystem || message?.is系统 || message?.type === 'SYSTEM' || author.includes('系统') || author.includes('System'))
     const isOwnMessage = Boolean(
-      message?.isSelf
-      || message?.isMine
-      || (authorUserId && authorUserId === currentUserId)
+      isAffirmative(message?.isSelf)
+      || isAffirmative(message?.isMine)
       || isSelfMessage({ ...message, author })
     )
     const text = String(message?.text || message?.content || message?.summary || '').trim() || '消息内容暂时不可用。'
@@ -877,7 +911,7 @@ function buildRoute(path, query = {}) {
 .room-card strong,.context-card strong,.message-meta strong{color:#111827}.room-card p,.context-card p,.simple-list{margin:0;color:#52606d;line-height:1.65}.room-card__meta{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:#6b7280;font-size:.9rem}
 .info-banner,.empty-state{padding:18px;border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#f8faf7}.empty-state.is-compact{padding:16px}.empty-state__actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .message-feed{display:grid;align-content:start;gap:14px;min-height:440px;max-height:720px;overflow:auto;padding-right:6px}
-.message-row{display:flex}.message-row.is-self{justify-content:flex-end}
+.message-row{display:flex;justify-content:flex-start}.message-row.is-self{justify-content:flex-end}.message-row.is-self .message-bubble-wrap{justify-items:end}.message-row.is-self .message-meta{justify-content:flex-end;text-align:right}
 .message-bubble-wrap{max-width:min(640px,100%);display:grid;gap:8px}.message-meta span{color:#6b7280;font-size:.9rem}.message-bubble{padding:16px 18px;border-radius:20px;background:#f8fafb;border:1px solid rgba(17,24,39,.08)}.message-row.is-self .message-bubble{background:#f3fff0;border-color:rgba(16,138,0,.22)}
 .message-bubble p{margin:0;color:#111827;line-height:1.7}.message-attachments,.mini-chip-row{display:flex;flex-wrap:wrap;gap:10px}.message-composer{display:grid;gap:14px;padding-top:8px;border-top:1px solid rgba(17,24,39,.08)}
 .message-composer__header strong{display:block;color:#111827;font-size:1rem;margin-bottom:4px}
