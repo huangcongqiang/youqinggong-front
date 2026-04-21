@@ -414,58 +414,312 @@ onMounted(loadRecordDetail)
 </script>
 
 <style scoped>
-.record-detail-page,.stack-xl,.stack-lg,.stack-md,.stack-sm{display:grid}.stack-xl{gap:32px}.stack-lg{gap:24px}.stack-md{gap:18px}.stack-sm{gap:12px}
-.record-detail-nav{display:flex;flex-wrap:wrap;gap:12px;padding:16px 20px}
-.record-detail-nav__link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid rgba(17,24,39,.1);color:#52606d;text-decoration:none;font-weight:600;background:#fff}
-.record-detail-nav__link.is-active,.record-detail-nav__link.router-link-active,.record-detail-nav__link.router-link-exact-active{border-color:rgba(16,138,0,.2);background:#f3fff0;color:#165a0f}
-.panel{padding:24px;border-radius:28px;border:1px solid rgba(17,24,39,.08);background:rgba(255,255,255,.96);box-shadow:0 24px 60px rgba(15,23,42,.06)}
-.eyebrow{margin:0;font-size:.76rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#108a00}.muted{margin:0;color:#52606d;line-height:1.7}
-.record-detail-hero{background:radial-gradient(circle at top left, rgba(16,138,0,.08), transparent 28%), radial-gradient(circle at 88% 18%, rgba(245,196,66,.12), transparent 24%), #fffef8}
-.record-detail-hero__topline,.hero-actions,.section-header,.section-header--compact,.timeline-item,.progress-card__topline,.context-card__topline{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
-.record-detail-hero__topline h1{margin:6px 0 10px;font-size:2.4rem;line-height:1;color:#111827}
-.signal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.signal-card,.fact-card,.progress-card,.timeline-item,.context-card{border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#fff}
-.signal-card{padding:18px 20px}.signal-card span{display:block;margin-bottom:8px;color:#6b7280;font-size:.82rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.signal-card strong{font-size:1.45rem;color:#111827}
-.record-detail-shell{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start}
-.soft-pill,.status-chip,.mini-chip,.button-primary,.button-secondary{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border-radius:999px;text-decoration:none}
-.soft-pill,.mini-chip,.button-secondary{border:1px solid rgba(17,24,39,.12);background:#fff;color:#111827}.status-chip{border:1px solid rgba(16,138,0,.24);background:#f3fff0;color:#165a0f}.button-secondary{min-height:46px;padding:0 20px;font-weight:700}
-.fact-list,.timeline-list,.progress-list,.asset-list{display:grid;gap:12px}.fact-card,.progress-card,.timeline-item,.context-card{padding:18px}.fact-card p,.progress-card p,.timeline-item p,.context-card p{margin:0;color:#52606d;line-height:1.65}.fact-card strong,.progress-card strong,.timeline-item strong,.context-card strong{color:#111827}
-.review-history-list{display:grid;gap:12px}
-.review-history-card{padding:18px;border-radius:20px;border:1px solid rgba(17,24,39,.08);background:#fff}
-.activity-stream{display:grid;gap:12px}
-.activity-card{padding:18px;border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#fff}
-.activity-card__topline,.activity-card__meta{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
-.activity-card__meta{flex-direction:column;align-items:flex-end}
-.activity-card__meta small{color:#6b7280;line-height:1.5}
-.asset-item{display:grid;gap:6px;padding:14px 16px;border:1px solid rgba(17,24,39,.08);border-radius:18px;background:#fff;text-decoration:none}.asset-item strong{color:#111827}.asset-item span{color:#52606d}
-.detail-error-banner{border-left:4px solid #cd8f00;background:linear-gradient(180deg, rgba(255,250,231,.98), rgba(255,255,255,.98))}
-.empty-state.is-compact{padding:16px;border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#f8faf7}
-@media (max-width: 1240px){.record-detail-shell,.signal-grid{grid-template-columns:minmax(0,1fr)}}
-@media (max-width: 720px){.panel{padding:20px}.record-detail-hero__topline,.hero-actions,.section-header,.section-header--compact,.timeline-item,.progress-card__topline,.context-card__topline,.activity-card__topline{flex-direction:column;align-items:stretch}.activity-card__meta{align-items:flex-start}.record-detail-hero__topline h1{font-size:1.9rem}}
-</style>
+.record-detail-page {
+  display: grid;
+  gap: 22px;
+  padding-bottom: 40px;
+}
 
-<style scoped>
-/* codex visual polish */
-.record-detail-page .record-detail-shell {
-  grid-template-columns: minmax(0, 1fr) 320px;
+.stack-xl { gap: 32px; display: grid; }
+.stack-lg { gap: 24px; display: grid; }
+.stack-md { gap: 18px; display: grid; }
+.stack-sm { gap: 12px; display: grid; }
+
+.record-detail-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.record-detail-nav__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(18, 18, 18, 0.12);
+  color: #66665f;
+  text-decoration: none;
+  font-weight: 600;
+  background: #ffffff;
+}
+
+.record-detail-nav__link.is-active,
+.record-detail-nav__link.router-link-active,
+.record-detail-nav__link.router-link-exact-active {
+  border-color: rgba(16, 138, 0, 0.2);
+  background: #f3fff0;
+  color: #165a0f;
+}
+
+.panel {
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #fffef8;
+  box-shadow: 0 16px 34px rgba(18, 18, 18, 0.05);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #108a00;
+}
+
+.muted {
+  margin: 0;
+  color: #66665f;
+  line-height: 1.7;
+}
+
+.record-detail-hero {
+  padding: 28px 30px;
+  border-radius: 30px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 244, 0.98));
+  box-shadow: 0 14px 36px rgba(22, 49, 29, 0.07);
+  border: 1px solid rgba(18, 18, 18, 0.08);
+}
+
+.record-detail-hero__topline,
+.hero-actions,
+.section-header,
+.section-header--compact,
+.timeline-item,
+.progress-card__topline,
+.context-card__topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.record-detail-hero__topline h1 {
+  margin: 6px 0 10px;
+  font-size: 2.2rem;
+  line-height: 1.1;
+  color: #111111;
+  letter-spacing: -0.02em;
+}
+
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.signal-card,
+.fact-card,
+.progress-card,
+.timeline-item,
+.context-card,
+.review-history-card,
+.activity-card {
+  border-radius: 22px;
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #ffffff;
+}
+
+.signal-card {
+  padding: 18px 20px;
+}
+
+.signal-card span {
+  display: block;
+  margin-bottom: 8px;
+  color: #6f6f68;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.signal-card strong {
+  font-size: 1.6rem;
+  color: #111111;
+  line-height: 1;
+}
+
+.record-detail-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
   align-items: start;
 }
-.record-detail-page .record-detail-hero {
-  padding: 32px;
-  border-radius: 32px;
-  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.08);
+
+.soft-pill,
+.status-chip,
+.mini-chip,
+.button-primary,
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-size: 14px;
 }
-.record-detail-page .panel {
-  border-radius: 28px;
+
+.soft-pill,
+.mini-chip,
+.button-secondary {
+  border: 1px solid rgba(18, 18, 18, 0.12);
+  background: #ffffff;
+  color: #111111;
 }
+
+.status-chip {
+  border: 1px solid rgba(16, 138, 0, 0.24);
+  background: #f3fff0;
+  color: #165a0f;
+  font-weight: 600;
+}
+
+.button-secondary {
+  min-height: 44px;
+  padding: 0 20px;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
+.fact-list,
+.timeline-list,
+.progress-list,
+.asset-list,
+.review-history-list,
+.activity-stream {
+  display: grid;
+  gap: 12px;
+}
+
+.fact-card,
+.progress-card,
+.timeline-item,
+.context-card,
+.review-history-card,
+.activity-card {
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.fact-card p,
+.progress-card p,
+.timeline-item p,
+.context-card p {
+  margin: 0;
+  color: #66665f;
+  line-height: 1.65;
+}
+
+.fact-card strong,
+.progress-card strong,
+.timeline-item strong,
+.context-card strong {
+  color: #111111;
+}
+
+.activity-card__topline,
+.activity-card__meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.activity-card__meta {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.activity-card__meta small {
+  color: #6f6f68;
+  line-height: 1.5;
+}
+
+.asset-item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
+  text-decoration: none;
+}
+
+.asset-item strong {
+  color: #111111;
+}
+
+.asset-item span {
+  color: #66665f;
+}
+
+.detail-error-banner {
+  border-left: 4px solid #cd8f00;
+  background: linear-gradient(180deg, rgba(255, 250, 231, 0.98), rgba(255, 255, 255, 0.98));
+  padding: 20px;
+  border-radius: 20px;
+  border-top: 1px solid rgba(18, 18, 18, 0.06);
+  border-right: 1px solid rgba(18, 18, 18, 0.06);
+  border-bottom: 1px solid rgba(18, 18, 18, 0.06);
+}
+
+.empty-state.is-compact {
+  padding: 24px;
+  border-radius: 22px;
+  border: 1px dashed rgba(18, 18, 18, 0.16);
+  background: #f4f7ef;
+  text-align: center;
+  color: #5d6858;
+}
+
 .record-detail-page aside .panel {
   background: #fcfcf8;
   box-shadow: none;
-  border: 1px solid rgba(17, 24, 39, 0.08);
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  position: sticky;
+  top: 24px;
 }
+
+@media (max-width: 1240px) {
+  .record-detail-shell,
+  .signal-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 960px) {
-  .record-detail-page .record-detail-shell {
+  .record-detail-shell {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .panel {
+    padding: 20px;
+  }
+  .record-detail-hero__topline,
+  .hero-actions,
+  .section-header,
+  .section-header--compact,
+  .timeline-item,
+  .progress-card__topline,
+  .context-card__topline,
+  .activity-card__topline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .activity-card__meta {
+    align-items: flex-start;
+  }
+  .record-detail-hero__topline h1 {
+    font-size: 1.9rem;
   }
 }
 </style>
