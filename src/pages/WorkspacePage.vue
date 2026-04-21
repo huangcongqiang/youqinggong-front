@@ -146,14 +146,24 @@
                       <span class="workspace-pill">{{ milestoneStateLabel(node) }}</span>
                     </div>
 
-                    <button
-                      v-if="canUpdateMilestoneProgress(node)"
-                      type="button"
-                      class="button-primary button-primary--small timeline-progress-button"
-                      @click.stop="openProgressDialog(node)"
-                    >
-                      {{ node.progress ? '更新进展' : '添加进展' }}
-                    </button>
+                    <div class="timeline-actions">
+                      <button
+                        v-if="hasTalentSubmission(node)"
+                        type="button"
+                        class="button-secondary button-secondary--small timeline-view-submission-button"
+                        @click.stop="selectNode(node)"
+                      >
+                        查看提交
+                      </button>
+                      <button
+                        v-if="canUpdateMilestoneProgress(node)"
+                        type="button"
+                        class="button-primary button-primary--small timeline-progress-button"
+                        @click.stop="openProgressDialog(node)"
+                      >
+                        {{ node.progress ? '更新进展' : '添加进展' }}
+                      </button>
+                    </div>
                   </div>
 
                   <p v-if="node.aiReviewSummary" class="timeline-ai">
@@ -324,19 +334,40 @@
               </article>
             </div>
 
-            <div v-if="currentNode?.attachments?.length" class="sidebar-attachments">
-              <a
-                v-for="attachment in currentNode.attachments"
-                :key="`sidebar-${attachmentLabel(attachment)}`"
-                class="sidebar-attachment"
-                :href="attachmentHref(attachment)"
-                :download="attachmentLabel(attachment)"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {{ attachmentLabel(attachment) }}
-              </a>
-            </div>
+            <article v-if="currentTalentSubmission" class="talent-submission-card">
+              <div class="talent-submission-card__head">
+                <div>
+                  <span class="eyebrow">人才提交</span>
+                  <h3>本次进展说明</h3>
+                </div>
+                <span class="workspace-pill">{{ currentTalentSubmission.time }}</span>
+              </div>
+
+              <p>{{ currentTalentSubmission.content }}</p>
+              <p v-if="currentTalentSubmission.supportNeeded" class="talent-submission-card__support">
+                需要支持：{{ currentTalentSubmission.supportNeeded }}
+              </p>
+
+              <div v-if="currentTalentSubmission.attachments.length" class="sidebar-attachments">
+                <a
+                  v-for="attachment in currentTalentSubmission.attachments"
+                  :key="`submission-${attachmentLabel(attachment)}`"
+                  class="sidebar-attachment"
+                  :href="attachmentHref(attachment)"
+                  :download="attachmentLabel(attachment)"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ attachmentLabel(attachment) }}
+                </a>
+              </div>
+            </article>
+
+            <article v-else class="talent-submission-card talent-submission-card--empty">
+              <span class="eyebrow">人才提交</span>
+              <strong>还没有提交内容</strong>
+              <p>人才提交进展后，说明、附件和需要协助的事项会显示在这里。</p>
+            </article>
           </section>
 
           <section class="workspace-card workspace-card--assets">
@@ -619,6 +650,7 @@ const progressDialogNode = computed(() => {
   if (!milestones.value.length) return null
   return milestones.value.find((node) => node.id === progressDialogNodeId.value) || currentNode.value
 })
+const currentTalentSubmission = computed(() => normalizeTalentSubmission(currentNode.value))
 
 const currentNodeTitle = computed(() => currentNode.value?.title || taskDetail.value?.title || summary.value?.taskName || '合同概览')
 const workspaceTitle = computed(() => summary.value.taskName || taskDetail.value.title || currentNodeTitle.value || '合同概览')
@@ -931,6 +963,25 @@ function canUpdateMilestoneProgress(node) {
   if (node.isCompleted || isCompletedStatus(node.status)) return true
   if (isNotStartedStatus(node.status)) return false
   return Boolean(node.isCurrent || isActiveStatus(node.status))
+}
+
+function hasTalentSubmission(node) {
+  return Boolean(normalizeTalentSubmission(node))
+}
+
+function normalizeTalentSubmission(node) {
+  if (!node) return null
+  const submission = node.talentSubmission && typeof node.talentSubmission === 'object' ? node.talentSubmission : {}
+  const content = String(submission.content || submission.summary || node.submissionText || '').trim()
+  const supportNeeded = String(node.supportNeeded || submission.supportNeeded || '').trim()
+  const attachments = Array.isArray(node.attachments) ? node.attachments : []
+  if (!content && !supportNeeded && !attachments.length) return null
+  return {
+    content: content || '人才已提交进展，详情请查看附件或合同动态。',
+    supportNeeded,
+    attachments,
+    time: String(submission.time || node.updatedAt || '刚刚更新').trim() || '刚刚更新',
+  }
 }
 
 function isActiveStatus(value) {
@@ -1246,6 +1297,7 @@ function normalizeNodes(list) {
       expectedDeliverables: item?.expectedDeliverables || item?.deliverables || item?.deliverable || '',
       aiReviewSummary: item?.aiReview?.summary || item?.aiReviewSummary || item?.reviewSummary || '',
       supportNeeded: item?.supportNeeded || item?.talentSubmission?.supportNeeded || '',
+      submissionText: item?.talentSubmission?.content || item?.progressText || '',
       talentSubmission: item?.talentSubmission && typeof item.talentSubmission === 'object' ? item.talentSubmission : {},
       attachments: normalizeAttachmentList(item?.attachmentFiles || item?.talentSubmission?.attachmentFiles || item?.attachments || item?.files),
       isCurrent: current,
@@ -1762,7 +1814,16 @@ function buildRoute(path, query = {}) {
   gap: 12px;
 }
 
+.timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .timeline-progress-button,
+.timeline-view-submission-button,
 .button-primary--small {
   min-height: 38px;
   padding: 0 16px;
@@ -1859,6 +1920,57 @@ function buildRoute(path, query = {}) {
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
+}
+
+.talent-submission-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(16, 138, 0, 0.14);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfff7 100%);
+}
+
+.talent-submission-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.talent-submission-card h3,
+.talent-submission-card p {
+  margin: 0;
+}
+
+.talent-submission-card h3 {
+  margin-top: 4px;
+  font-size: 18px;
+  color: #111111;
+}
+
+.talent-submission-card p {
+  color: #576453;
+  line-height: 1.72;
+}
+
+.talent-submission-card__support {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(16, 138, 0, 0.12);
+  background: #f3fff0;
+  color: #165a0f !important;
+  font-weight: 700;
+}
+
+.talent-submission-card--empty {
+  border-color: rgba(18, 18, 18, 0.08);
+  background: #ffffff;
+}
+
+.talent-submission-card--empty strong {
+  color: #111111;
 }
 
 .composer-form {
@@ -2176,6 +2288,7 @@ function buildRoute(path, query = {}) {
   .timeline-meta,
   .timeline-tags,
   .timeline-footer,
+  .timeline-actions,
   .attachment-row,
   .file-list,
   .sidebar-attachments {
@@ -2190,6 +2303,10 @@ function buildRoute(path, query = {}) {
   .progress-dialog-card,
   .progress-dialog-form {
     grid-template-columns: 1fr;
+  }
+
+  .talent-submission-card__head {
+    flex-direction: column;
   }
 }
 </style>
