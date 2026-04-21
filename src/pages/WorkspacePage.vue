@@ -178,85 +178,6 @@
             </div>
           </section>
 
-          <section v-if="isEnterprise" class="workspace-card workspace-card--composer">
-            <div class="section-head">
-              <div>
-                <span class="eyebrow">{{ composerEyebrow }}</span>
-                <h2>{{ composerSectionTitle }}</h2>
-              </div>
-              <span class="workspace-count">{{ currentNode ? (showComposer ? '编辑已展开' : '编辑已收起') : '先选里程碑' }}</span>
-            </div>
-
-            <div v-if="currentNode" class="composer-grid">
-              <article class="composer-panel composer-panel--summary">
-                <h3>{{ currentNode.title }}</h3>
-                <p>{{ currentNode.summary || '合同说明还没有同步过来。' }}</p>
-                <p class="composer-panel__summary-note">{{ composerSummaryLead }}</p>
-
-                <div class="composer-metrics">
-                  <div>
-                    <span>状态</span>
-                    <strong>{{ currentNode.status }}</strong>
-                  </div>
-                  <div>
-                    <span>进度</span>
-                    <strong>{{ currentNode.progress || '等待同步' }}</strong>
-                  </div>
-                  <div>
-                    <span>更新时间</span>
-                    <strong>{{ currentNode.updatedAt || '刚刚更新' }}</strong>
-                  </div>
-                </div>
-
-                <div v-if="currentNode.attachments.length" class="attachment-row">
-                  <a
-                    v-for="attachment in currentNode.attachments"
-                    :key="`${currentNode.id}-${attachmentLabel(attachment)}`"
-                    class="attachment-pill"
-                    :href="attachmentHref(attachment)"
-                    :download="attachmentLabel(attachment)"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {{ attachmentLabel(attachment) }}
-                  </a>
-                </div>
-
-                <div class="composer-panel__summary-actions">
-                  <button class="button-secondary" type="button" @click="toggleComposer">
-                    {{ showComposer ? '收起编辑器' : composerOpenLabel }}
-                  </button>
-                </div>
-              </article>
-
-              <article v-if="showComposer" class="composer-panel composer-panel--form">
-                <p v-if="assistantDraftSeed" class="muted composer-panel__assistant-note">
-                  草稿已经带入这条合同更新，保存前请先确认。
-                </p>
-                <form class="composer-form" @submit.prevent="submitFeedbackForm">
-                  <label class="field field--full">
-                    <span>企业备注</span>
-                    <textarea
-                      v-model.trim="feedbackForm.summary"
-                      rows="5"
-                      placeholder="填写这条里程碑要附带的反馈、确认意见或下一步备注。"
-                    ></textarea>
-                  </label>
-
-                  <div class="composer-actions field--full">
-                    <button class="button-primary" type="submit" :disabled="submittingFeedback">
-                      {{ submittingFeedback ? '保存中…' : '保存备注' }}
-                    </button>
-                  </div>
-                </form>
-              </article>
-            </div>
-
-            <div v-else class="workspace-empty">
-              <p>先选一个里程碑，再打开备注编辑器或发送更新。</p>
-            </div>
-          </section>
-
         </main>
 
         <aside class="workspace-sidebar">
@@ -554,7 +475,6 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   getWorkspaceData,
   submitTaskProgress,
-  submitWorkspaceFeedback,
   uploadTaskAttachmentAsset,
   getTaskClosureData,
 } from '../services/api'
@@ -570,10 +490,8 @@ const loading = ref(false)
 const loadError = ref('')
 const actionError = ref('')
 const submittingProgress = ref(false)
-const submittingFeedback = ref(false)
 const selectedNodeId = ref('')
 const progressFiles = ref([])
-const showComposer = ref(false)
 const showTaskSwitcher = ref(false)
 const progressDialogOpen = ref(false)
 const progressDialogNodeId = ref('')
@@ -585,10 +503,6 @@ const progressForm = reactive({
   completion: '',
   supportNeeded: '',
   progressSummary: '',
-})
-
-const feedbackForm = reactive({
-  summary: '',
 })
 
 const isEnterprise = computed(() => route.path.startsWith('/enterprise'))
@@ -696,20 +610,6 @@ const workspaceLead = computed(() => {
     ? `先把 ${currentNode.value.title} 留在这里继续推进，消息、验收和助手都会继续挂在同一份合同下。`
     : '先在这里保持当前合同在视野里，消息、验收、记录和助手会随着合同一起推进。'
 })
-const composerEyebrow = computed(() => '合同备注')
-const composerSectionTitle = computed(() => {
-  if (!currentNode.value) return '先选一个里程碑'
-  return '把合同备注继续挂在这份合作下，概览先聚焦当前合同。'
-})
-const composerSummaryLead = computed(() => {
-  if (!currentNode.value) return '先选一个里程碑，再把备注、文件和下一步继续挂在这一条线上。'
-  if (assistantDraftSeed.value) {
-    return '草稿已经带到这里，需要时再打开编辑器确认或保存。'
-  }
-  return '只有这条里程碑真的需要新备注时，再把编辑器展开。'
-})
-const composerOpenLabel = computed(() => '打开备注编辑器')
-
 const dashboardRoute = computed(() => basePath.value)
 const assistantRoute = computed(() =>
   buildRoute(`${basePath.value}/assistant`, contextQuery.value)
@@ -785,17 +685,17 @@ watch(
     const applyKey = `${token || 'inline'}::${value}`
     if (!value || assistantDraftApplyKey.value === applyKey) return
     if (isEnterprise.value) {
-      if (!feedbackForm.summary.trim()) {
-        feedbackForm.summary = value
-      } else if (!feedbackForm.summary.includes(value)) {
-        feedbackForm.summary = `${feedbackForm.summary}\n\n${value}`.trim()
-      }
-    } else if (!progressForm.progressSummary.trim()) {
+      assistantDraftApplyKey.value = applyKey
+      if (token) consumeAssistantDraftHandoff(token)
+      clearAssistantDraftQuery()
+      return
+    }
+    if (!progressForm.progressSummary.trim()) {
       progressForm.progressSummary = value
     } else if (!progressForm.progressSummary.includes(value)) {
       progressForm.progressSummary = `${progressForm.progressSummary}\n\n${value}`.trim()
     }
-    if (!isEnterprise.value && currentNode.value) {
+    if (currentNode.value) {
       openProgressDialog(currentNode.value, { preserveDraft: true })
     }
     assistantDraftApplyKey.value = applyKey
@@ -818,7 +718,6 @@ watch(
   (items) => {
     if (!items.length) {
       selectedNodeId.value = ''
-      showComposer.value = false
       progressDialogOpen.value = false
       progressDialogNodeId.value = ''
       return
@@ -841,13 +740,10 @@ watch(
   [currentNode, assistantDraftSeed],
   ([node, draft]) => {
     if (!node) {
-      showComposer.value = false
       progressDialogOpen.value = false
       return
     }
-    if (draft && isEnterprise.value) {
-      showComposer.value = true
-    } else if (draft && !isEnterprise.value) {
+    if (draft && !isEnterprise.value) {
       openProgressDialog(node, { preserveDraft: true })
     }
   },
@@ -903,7 +799,6 @@ function toggleTaskSwitcher() {
 function selectNode(node) {
   const nextNodeId = String(node?.id || '')
   selectedNodeId.value = nextNodeId
-  showComposer.value = false
   router.replace({
     path: route.path,
     query: {
@@ -918,7 +813,6 @@ function openSubmissionDialog(node) {
   const nextNodeId = String(node?.id || '')
   selectedNodeId.value = nextNodeId
   submissionDialogNodeId.value = nextNodeId
-  showComposer.value = false
   submissionDialogOpen.value = true
   router.replace({
     path: route.path,
@@ -1034,11 +928,6 @@ function closeSubmissionDialog() {
   submissionDialogNodeId.value = ''
 }
 
-function toggleComposer() {
-  if (!currentNode.value) return
-  showComposer.value = !showComposer.value
-}
-
 function goToChat() {
   if (!messagesRoute.value) {
     actionError.value = '先选一份合同。'
@@ -1098,7 +987,6 @@ async function submitProgressForm(options = {}) {
     ensureProgressSubmitted(result)
 
     resetProgressForm()
-    showComposer.value = false
     progressDialogOpen.value = false
     progressDialogNodeId.value = ''
     await loadWorkspace()
@@ -1123,39 +1011,6 @@ function ensureProgressSubmitted(result) {
     || result?.nextStep
     || '当前暂时无法提交这条进展。'
   )
-}
-
-async function submitFeedbackForm() {
-  if (!currentTaskId.value) {
-    actionError.value = '先选一份合同，再发送这条备注。'
-    return
-  }
-
-  if (!currentNode.value?.id) {
-    actionError.value = '先选一个里程碑，再发送这条备注。'
-    return
-  }
-
-  if (!feedbackForm.summary.trim()) {
-    actionError.value = '先补上备注内容，再提交。'
-    return
-  }
-
-  submittingFeedback.value = true
-  actionError.value = ''
-  try {
-    await submitWorkspaceFeedback(currentTaskId.value, {
-      nodeId: currentNode.value.id,
-      summary: feedbackForm.summary.trim(),
-    })
-    feedbackForm.summary = ''
-    showComposer.value = false
-    await loadWorkspace()
-  } catch (error) {
-    actionError.value = error?.message || '当前暂时无法提交这条备注。'
-  } finally {
-    submittingFeedback.value = false
-  }
 }
 
 function handleProgressFiles(event) {
@@ -1770,17 +1625,12 @@ function buildRoute(path, query = {}) {
 }
 
 .timeline-head h3,
-.activity-top h3,
-.composer-panel h3,
 .workspace-card h2 {
   margin: 0;
 }
 
 .timeline-head p,
-.activity-summary,
-.activity-ai,
 .sidebar-lead,
-.composer-panel p,
 .workspace-empty p,
 .summary-chip-card strong,
 .asset-card span,
@@ -1793,10 +1643,7 @@ function buildRoute(path, query = {}) {
 
 .timeline-head p,
 .timeline-ai,
-.activity-summary,
-.activity-ai,
 .sidebar-lead,
-.composer-panel p,
 .asset-card span,
 .contract-switcher-copy p {
   color: #576453;
@@ -1849,44 +1696,6 @@ function buildRoute(path, query = {}) {
   white-space: nowrap;
 }
 
-.composer-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 18px;
-}
-
-.composer-panel {
-  border: 1px solid rgba(18, 18, 18, 0.08);
-  border-radius: 22px;
-  background: #ffffff;
-  padding: 20px;
-}
-
-.composer-panel--summary {
-  background: #ffffff;
-}
-
-.composer-panel__summary-note {
-  margin: 12px 0 0;
-  color: #66665f;
-  line-height: 1.7;
-}
-
-.composer-panel__summary-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.composer-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.composer-metrics div,
 .sidebar-stats article,
 .closure-grid article {
   display: grid;
@@ -1897,7 +1706,6 @@ function buildRoute(path, query = {}) {
   border: 1px solid rgba(18, 18, 18, 0.08);
 }
 
-.composer-metrics span,
 .sidebar-stats span,
 .closure-grid span {
   color: #66665f;
@@ -1907,7 +1715,6 @@ function buildRoute(path, query = {}) {
   letter-spacing: 0.06em;
 }
 
-.composer-metrics strong,
 .sidebar-stats strong,
 .closure-grid strong {
   color: #111111;
@@ -2237,8 +2044,7 @@ function buildRoute(path, query = {}) {
   }
 
   .workspace-hero,
-  .workspace-layout,
-  .composer-grid {
+  .workspace-layout {
     grid-template-columns: 1fr;
   }
 
@@ -2284,13 +2090,11 @@ function buildRoute(path, query = {}) {
   }
 
   .timeline-head,
-  .activity-top,
   .section-head {
     flex-direction: column;
   }
 
   .composer-form,
-  .composer-metrics,
   .sidebar-stats,
   .closure-grid {
     grid-template-columns: 1fr;

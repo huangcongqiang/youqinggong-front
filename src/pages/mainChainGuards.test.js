@@ -112,6 +112,16 @@ assert(
   'Workspace should remove the duplicated contract-record activity module and keep files plus milestones as the main progress trail.'
 );
 
+assert(
+  !workspaceSource.includes('workspace-card--composer')
+    && !workspaceSource.includes('submitWorkspaceFeedback')
+    && !workspaceSource.includes('submitFeedbackForm')
+    && !workspaceSource.includes('showComposer')
+    && !workspaceSource.includes('合同备注')
+    && !workspaceSource.includes('企业备注'),
+  'Workspace should remove the unclear enterprise contract-note composer from the main milestone flow.'
+);
+
 const publishSource = readSource('PublishTaskPage.vue');
 assert(
   apiSource.includes("skills: Array.isArray(payload?.skills) ? payload.skills : []")
