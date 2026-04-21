@@ -578,7 +578,7 @@ const contextQuery = computed(() => ({
 }))
 const supportOptions = computed(() => asArray(page.value?.supportOptions).map((item) => String(item).trim()).filter(Boolean))
 const taskOptions = computed(() => normalizeTaskOptions(page.value?.taskOptions))
-const milestones = computed(() => normalizeNodes(page.value?.milestones || page.value?.collaborationNodes || []))
+const milestones = computed(() => normalizeNodes(page.value?.collaborationNodes || page.value?.milestones || []))
 const progressFeed = computed(() => normalizeProgressItems(page.value?.progressFeed || []))
 const aiReviewHistory = computed(() => normalizeActivityItems(page.value?.aiReviewHistory || []))
 const reviewHistory = computed(() => normalizeReviewItems(page.value?.reviewHistory || []))
@@ -952,6 +952,19 @@ function progressDisplayText(node) {
   return node.progress || node.completion || node.completionPercent || milestoneStateLabel(node)
 }
 
+function milestoneSubmissionId(node) {
+  return node?.milestoneId || extractMilestoneId(node?.nodeId || node?.id) || null
+}
+
+function extractMilestoneId(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  const prefixed = text.match(/^milestone-(\d+)$/i)
+  if (prefixed) return prefixed[1]
+  if (/^\d+$/.test(text) && text !== '0') return text
+  return ''
+}
+
 function closeProgressDialog() {
   progressDialogOpen.value = false
   progressDialogNodeId.value = ''
@@ -1011,7 +1024,7 @@ async function submitProgressForm() {
 
     await submitTaskProgress(currentTaskId.value, {
       stage: progressForm.stageName.trim() || targetNode?.title || '',
-      milestoneId: targetNode?.id || targetNode?.milestoneId || targetNode?.nodeId || '',
+      milestoneId: milestoneSubmissionId(targetNode),
       progressText: progressForm.progressSummary.trim(),
       supportNeeded: progressForm.supportNeeded,
       completionPercent: percent,
@@ -1138,7 +1151,7 @@ function normalizeWorkspace(raw, requestedTaskId = '') {
     },
     taskDetail: source.taskDetail && typeof source.taskDetail === 'object' ? source.taskDetail : {},
     taskOptions: normalizeTaskOptions(source.taskOptions),
-    milestones: normalizeNodes(source.milestones || source.collaborationNodes || []),
+    milestones: normalizeNodes(source.collaborationNodes || source.milestones || []),
     collaborationNodes: normalizeNodes(source.collaborationNodes || source.milestones || []),
     progressFeed: normalizeProgressItems(source.progressFeed || []),
     assetLibrary: normalizeAssetItems(source.assetLibrary || []),
@@ -1216,10 +1229,14 @@ function normalizeNodes(list) {
     const statusText = String(item?.status || item?.state || item?.phase || '等待同步').trim() || '等待同步'
     const completed = Boolean(item?.isCompleted || item?.done || isCompletedStatus(statusText))
     const current = Boolean(item?.isCurrent || item?.current || isActiveStatus(statusText))
+    const rawNodeId = String(item?.nodeId || item?.id || item?.milestoneId || item?.key || index)
+    const rawMilestoneId = item?.milestoneId || extractMilestoneId(rawNodeId)
     return {
-      id: String(item?.id || item?.nodeId || item?.milestoneId || item?.key || index),
+      id: rawNodeId,
+      nodeId: rawNodeId,
+      milestoneId: rawMilestoneId,
       title: item?.title || item?.name || item?.label || `里程碑 ${index + 1}`,
-      summary: item?.summary || item?.description || item?.note || item?.progressText || '',
+      summary: item?.updateSummary || item?.summary || item?.description || item?.note || item?.progressText || '',
       status: statusText,
       progress: item?.progress || item?.completion || item?.completionPercent || item?.status || '',
       workdayLabel: item?.workdayLabel || item?.workday || '',
@@ -1227,8 +1244,10 @@ function normalizeNodes(list) {
       stageType: item?.stageType || item?.type || item?.kind || '里程碑',
       updatedAt: item?.updatedAt || item?.time || item?.submittedAt || '',
       expectedDeliverables: item?.expectedDeliverables || item?.deliverables || item?.deliverable || '',
-      aiReviewSummary: item?.aiReviewSummary || item?.aiReview?.summary || item?.reviewSummary || '',
-      attachments: normalizeAttachmentList(item?.attachments || item?.attachmentFiles || item?.files),
+      aiReviewSummary: item?.aiReview?.summary || item?.aiReviewSummary || item?.reviewSummary || '',
+      supportNeeded: item?.supportNeeded || item?.talentSubmission?.supportNeeded || '',
+      talentSubmission: item?.talentSubmission && typeof item.talentSubmission === 'object' ? item.talentSubmission : {},
+      attachments: normalizeAttachmentList(item?.attachmentFiles || item?.talentSubmission?.attachmentFiles || item?.attachments || item?.files),
       isCurrent: current,
       isCompleted: completed,
     }
@@ -1242,7 +1261,7 @@ function normalizeProgressItems(list) {
     summary: item?.summary || item?.description || item?.progressText || item?.note || '',
     time: item?.time || item?.updatedAt || item?.submittedAt || '',
     aiReviewSummary: item?.aiReviewSummary || item?.aiReview?.summary || '',
-    attachments: normalizeAttachmentList(item?.attachments || item?.attachmentFiles || item?.files),
+    attachments: normalizeAttachmentList(item?.attachmentFiles || item?.attachments || item?.files),
   }))
 }
 
