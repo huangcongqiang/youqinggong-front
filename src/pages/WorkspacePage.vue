@@ -156,7 +156,7 @@
                         查看提交
                       </button>
                       <button
-                        v-if="isAcceptanceMilestoneNode(node) && acceptanceRoute"
+                        v-if="canOpenAcceptanceMilestone(node)"
                         type="button"
                         class="button-primary button-primary--small timeline-progress-button"
                         @click.stop="goToAcceptance"
@@ -884,6 +884,20 @@ function isAcceptanceMilestoneNode(node) {
     node?.progress,
   ].map((item) => String(item || '')).join(' ')
   return /验收|评级|评价|acceptance|rating|grade/i.test(text)
+}
+
+function canOpenAcceptanceMilestone(node) {
+  return Boolean(isAcceptanceMilestoneNode(node) && acceptanceRoute.value && !hasCompletedAcceptanceRating())
+}
+
+function hasCompletedAcceptanceRating() {
+  const grade = String(closure.value?.earlyCompletion?.grade || summary.value?.deliveryGrade || '').trim()
+  const payoutRatio = String(closure.value?.earlyCompletion?.payoutRatio || summary.value?.deliveryPayoutRatio || '').trim()
+  const statusText = [
+    closure.value?.earlyCompletion?.status,
+    summary.value?.status,
+  ].map((item) => String(item || '')).join(' ')
+  return Boolean(grade && payoutRatio) || /已完成评级|待双方评分|评分已归档|已提前完成/i.test(statusText)
 }
 
 function hasTalentSubmission(node) {
