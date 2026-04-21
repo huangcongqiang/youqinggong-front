@@ -92,6 +92,16 @@ assert(
   'Workspace submission view should open a clear talent-submission dialog instead of silently only selecting the milestone.'
 );
 
+assert(
+  workspaceSource.includes("submitProgressForm({ completeMilestone: true })")
+    && workspaceSource.includes("{{ submittingProgress ? '推进中…' : '完成并进入下一里程碑' }}")
+    && workspaceSource.includes('function canCompleteMilestoneProgress(node)')
+    && workspaceSource.includes('const shouldCompleteMilestone = options?.completeMilestone === true')
+    && workspaceSource.includes('const percent = shouldCompleteMilestone ? 100 : resolveProgressSubmissionPercent(targetNode)')
+    && workspaceSource.includes('button-primary--finish'),
+  'Workspace progress dialog should expose an explicit complete-and-advance action that submits 100% completion to move to the next milestone.'
+);
+
 const publishSource = readSource('PublishTaskPage.vue');
 assert(
   apiSource.includes("skills: Array.isArray(payload?.skills) ? payload.skills : []")

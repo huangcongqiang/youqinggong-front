@@ -519,6 +519,15 @@
               <button class="button-primary" type="submit" :disabled="submittingProgress">
                 {{ submittingProgress ? '保存中…' : '保存进展' }}
               </button>
+              <button
+                v-if="canCompleteMilestoneProgress(progressDialogNode)"
+                class="button-primary button-primary--finish"
+                type="button"
+                :disabled="submittingProgress"
+                @click="submitProgressForm({ completeMilestone: true })"
+              >
+                {{ submittingProgress ? '推进中…' : '完成并进入下一里程碑' }}
+              </button>
               <button class="button-secondary" type="button" @click="closeProgressDialog">取消</button>
             </div>
           </form>
@@ -1045,6 +1054,13 @@ function canUpdateMilestoneProgress(node) {
   return Boolean(node.isCurrent || isActiveStatus(node.status))
 }
 
+function canCompleteMilestoneProgress(node) {
+  if (isEnterprise.value || !node) return false
+  if (node.isCompleted || isCompletedStatus(node.status) || isCompletedStatus(node.progress)) return false
+  if (isNotStartedStatus(node.status)) return false
+  return Boolean(node.isCurrent || isActiveStatus(node.status) || isActiveStatus(node.progress))
+}
+
 function hasTalentSubmission(node) {
   return Boolean(normalizeTalentSubmission(node))
 }
@@ -1128,14 +1144,15 @@ function goToAcceptance() {
   router.push(acceptanceRoute.value)
 }
 
-async function submitProgressForm() {
+async function submitProgressForm(options = {}) {
   if (!currentTaskId.value) {
     actionError.value = '先选一份合同。'
     return
   }
 
   const targetNode = progressDialogNode.value || currentNode.value
-  const percent = resolveProgressSubmissionPercent(targetNode)
+  const shouldCompleteMilestone = options?.completeMilestone === true
+  const percent = shouldCompleteMilestone ? 100 : resolveProgressSubmissionPercent(targetNode)
   if (percent === null) {
     actionError.value = '当前进度暂时没有同步，请刷新后再提交。'
     return
@@ -2192,6 +2209,10 @@ function buildRoute(path, query = {}) {
 
 .progress-dialog-actions {
   justify-content: flex-end;
+}
+
+.button-primary--finish {
+  background: linear-gradient(135deg, #174b13 0%, #108a00 100%);
 }
 
 .submission-dialog-card {
