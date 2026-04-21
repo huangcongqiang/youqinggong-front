@@ -151,7 +151,7 @@
                         v-if="hasTalentSubmission(node)"
                         type="button"
                         class="button-secondary button-secondary--small timeline-view-submission-button"
-                        @click.stop="selectNode(node)"
+                        @click.stop="openSubmissionDialog(node)"
                       >
                         查看提交
                       </button>
@@ -524,6 +524,63 @@
           </form>
         </article>
       </div>
+
+      <div
+        v-if="submissionDialogOpen && submissionDialogNode && submissionDialogData"
+        class="progress-dialog-backdrop"
+        @click.self="closeSubmissionDialog"
+      >
+        <article class="progress-dialog-card submission-dialog-card" role="dialog" aria-modal="true" aria-labelledby="submission-dialog-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">人才提交</span>
+              <h2 id="submission-dialog-title">{{ submissionDialogNode.title }}</h2>
+              <p class="muted">这条内容来自人才对当前里程碑提交的进展说明。</p>
+            </div>
+            <button class="button-secondary button-secondary--small" type="button" @click="closeSubmissionDialog">关闭</button>
+          </div>
+
+          <div class="submission-dialog-body">
+            <div class="submission-dialog-meta">
+              <span class="workspace-pill">{{ submissionDialogNode.status }}</span>
+              <span class="workspace-pill">{{ submissionDialogNode.progress || '等待同步' }}</span>
+              <span class="workspace-pill">{{ submissionDialogData.time }}</span>
+            </div>
+
+            <article class="talent-submission-card submission-dialog-copy">
+              <span class="eyebrow">进展说明</span>
+              <p>{{ submissionDialogData.content }}</p>
+              <p v-if="submissionDialogData.supportNeeded" class="talent-submission-card__support">
+                需要支持：{{ submissionDialogData.supportNeeded }}
+              </p>
+            </article>
+
+            <article class="submission-dialog-files">
+              <div class="section-head section-head--tight">
+                <div>
+                  <span class="eyebrow">附件</span>
+                  <h3>{{ submissionDialogData.attachments.length ? `${submissionDialogData.attachments.length} 个附件` : '没有附件' }}</h3>
+                </div>
+              </div>
+
+              <div v-if="submissionDialogData.attachments.length" class="sidebar-attachments">
+                <a
+                  v-for="attachment in submissionDialogData.attachments"
+                  :key="`dialog-submission-${attachmentLabel(attachment)}`"
+                  class="sidebar-attachment"
+                  :href="attachmentHref(attachment)"
+                  :download="attachmentLabel(attachment)"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ attachmentLabel(attachment) }}
+                </a>
+              </div>
+              <p v-else class="muted">这次提交只有文字说明，没有额外附件。</p>
+            </article>
+          </div>
+        </article>
+      </div>
     </div>
   </section>
 </template>
@@ -557,6 +614,8 @@ const showComposer = ref(false)
 const showTaskSwitcher = ref(false)
 const progressDialogOpen = ref(false)
 const progressDialogNodeId = ref('')
+const submissionDialogOpen = ref(false)
+const submissionDialogNodeId = ref('')
 
 const progressForm = reactive({
   stageName: '',
@@ -650,6 +709,11 @@ const progressDialogNode = computed(() => {
   if (!milestones.value.length) return null
   return milestones.value.find((node) => node.id === progressDialogNodeId.value) || currentNode.value
 })
+const submissionDialogNode = computed(() => {
+  if (!milestones.value.length) return null
+  return milestones.value.find((node) => node.id === submissionDialogNodeId.value) || currentNode.value
+})
+const submissionDialogData = computed(() => normalizeTalentSubmission(submissionDialogNode.value))
 const currentTalentSubmission = computed(() => normalizeTalentSubmission(currentNode.value))
 
 const currentNodeTitle = computed(() => currentNode.value?.title || taskDetail.value?.title || summary.value?.taskName || '合同概览')
@@ -929,6 +993,22 @@ function selectNode(node) {
   })
 }
 
+function openSubmissionDialog(node) {
+  if (!hasTalentSubmission(node)) return
+  const nextNodeId = String(node?.id || '')
+  selectedNodeId.value = nextNodeId
+  submissionDialogNodeId.value = nextNodeId
+  showComposer.value = false
+  submissionDialogOpen.value = true
+  router.replace({
+    path: route.path,
+    query: {
+      ...contextQuery.value,
+      ...(nextNodeId ? { node: nextNodeId } : {}),
+    },
+  })
+}
+
 function resetProgressForm({ keepSummary = false } = {}) {
   progressForm.stageName = ''
   progressForm.completion = ''
@@ -1020,6 +1100,11 @@ function closeProgressDialog() {
   progressDialogOpen.value = false
   progressDialogNodeId.value = ''
   resetProgressForm()
+}
+
+function closeSubmissionDialog() {
+  submissionDialogOpen.value = false
+  submissionDialogNodeId.value = ''
 }
 
 function toggleComposer() {
@@ -2107,6 +2192,39 @@ function buildRoute(path, query = {}) {
 
 .progress-dialog-actions {
   justify-content: flex-end;
+}
+
+.submission-dialog-card {
+  width: min(680px, 100%);
+}
+
+.submission-dialog-body {
+  display: grid;
+  gap: 18px;
+}
+
+.submission-dialog-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.submission-dialog-copy {
+  margin-top: 0;
+}
+
+.submission-dialog-files {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #ffffff;
+}
+
+.submission-dialog-files h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
 }
 
 .section-head__actions {

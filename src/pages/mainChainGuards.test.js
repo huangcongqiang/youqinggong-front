@@ -82,6 +82,16 @@ assert(
   'Workspace progress submit should send legacy files as string references, send rich metadata through attachmentFiles, and keep the dialog open with a visible error when the mutation is rejected.'
 );
 
+assert(
+  workspaceSource.includes('@click.stop="openSubmissionDialog(node)"')
+    && workspaceSource.includes('const submissionDialogOpen = ref(false)')
+    && workspaceSource.includes('const submissionDialogData = computed(() => normalizeTalentSubmission(submissionDialogNode.value))')
+    && workspaceSource.includes('function openSubmissionDialog(node)')
+    && workspaceSource.includes('function closeSubmissionDialog()')
+    && workspaceSource.includes('submission-dialog-card'),
+  'Workspace submission view should open a clear talent-submission dialog instead of silently only selecting the milestone.'
+);
+
 const publishSource = readSource('PublishTaskPage.vue');
 assert(
   apiSource.includes("skills: Array.isArray(payload?.skills) ? payload.skills : []")
