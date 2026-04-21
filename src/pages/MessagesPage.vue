@@ -876,7 +876,7 @@ function buildRoute(path, query = {}) {
 .room-list,.simple-list,.asset-list{display:grid;gap:12px}.room-card{padding:18px;text-align:left;cursor:pointer}.room-card.is-active{border-color:rgba(16,138,0,.36);box-shadow:0 20px 40px rgba(16,138,0,.08)}
 .room-card strong,.context-card strong,.message-meta strong{color:#111827}.room-card p,.context-card p,.simple-list{margin:0;color:#52606d;line-height:1.65}.room-card__meta{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:#6b7280;font-size:.9rem}
 .info-banner,.empty-state{padding:18px;border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#f8faf7}.empty-state.is-compact{padding:16px}.empty-state__actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-.message-feed{display:grid;gap:14px;min-height:440px;max-height:720px;overflow:auto;padding-right:6px}
+.message-feed{display:grid;align-content:start;gap:14px;min-height:440px;max-height:720px;overflow:auto;padding-right:6px}
 .message-row{display:flex}.message-row.is-self{justify-content:flex-end}
 .message-bubble-wrap{max-width:min(640px,100%);display:grid;gap:8px}.message-meta span{color:#6b7280;font-size:.9rem}.message-bubble{padding:16px 18px;border-radius:20px;background:#f8fafb;border:1px solid rgba(17,24,39,.08)}.message-row.is-self .message-bubble{background:#f3fff0;border-color:rgba(16,138,0,.22)}
 .message-bubble p{margin:0;color:#111827;line-height:1.7}.message-attachments,.mini-chip-row{display:flex;flex-wrap:wrap;gap:10px}.message-composer{display:grid;gap:14px;padding-top:8px;border-top:1px solid rgba(17,24,39,.08)}
