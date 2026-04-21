@@ -104,16 +104,19 @@
             </div>
 
             <div v-if="milestones.length" class="timeline-list">
-              <button
+              <article
                 v-for="(node, index) in milestones"
                 :key="node.id"
-                type="button"
+                role="button"
+                tabindex="0"
                 class="timeline-card"
                 :class="{
                   'is-current': node.id === currentNode?.id,
                   'is-complete': node.isCompleted,
                 }"
                 @click="selectNode(node)"
+                @keydown.enter.prevent="selectNode(node)"
+                @keydown.space.prevent="selectNode(node)"
               >
                 <div class="timeline-rail">
                   <span class="timeline-index">{{ String(index + 1).padStart(2, '0') }}</span>
@@ -136,17 +139,28 @@
                     <span>{{ node.updatedAt || '刚刚更新' }}</span>
                   </div>
 
-                  <div class="timeline-tags">
-                    <span class="workspace-pill">{{ node.stageType || '里程碑' }}</span>
-                    <span class="workspace-pill">{{ node.attachments.length ? `${node.attachments.length} 个文件` : '还没有文件' }}</span>
-                    <span class="workspace-pill">{{ node.isCurrent ? '当前里程碑' : node.isCompleted ? '已完成' : '待开始' }}</span>
+                  <div class="timeline-footer">
+                    <div class="timeline-tags">
+                      <span class="workspace-pill">{{ node.stageType || '里程碑' }}</span>
+                      <span class="workspace-pill">{{ node.attachments.length ? `${node.attachments.length} 个文件` : '还没有文件' }}</span>
+                      <span class="workspace-pill">{{ node.isCurrent ? '当前里程碑' : node.isCompleted ? '已完成' : '待开始' }}</span>
+                    </div>
+
+                    <button
+                      v-if="!isEnterprise"
+                      type="button"
+                      class="button-primary button-primary--small timeline-progress-button"
+                      @click.stop="openProgressDialog(node)"
+                    >
+                      {{ node.progress ? '更新进展' : '添加进展' }}
+                    </button>
                   </div>
 
                   <p v-if="node.aiReviewSummary" class="timeline-ai">
                     助手摘要：{{ node.aiReviewSummary }}
                   </p>
                 </div>
-              </button>
+              </article>
             </div>
 
             <div v-else class="workspace-empty">
@@ -154,7 +168,7 @@
             </div>
           </section>
 
-          <section class="workspace-card workspace-card--composer">
+          <section v-if="isEnterprise" class="workspace-card workspace-card--composer">
             <div class="section-head">
               <div>
                 <span class="eyebrow">{{ composerEyebrow }}</span>
@@ -209,51 +223,7 @@
                 <p v-if="assistantDraftSeed" class="muted composer-panel__assistant-note">
                   草稿已经带入这条合同更新，保存前请先确认。
                 </p>
-                <form v-if="!isEnterprise" class="composer-form" @submit.prevent="submitProgressForm">
-                  <label class="field">
-                    <span>里程碑名称</span>
-                    <input v-model.trim="progressForm.stageName" type="text" placeholder="例如：第一轮交付" />
-                  </label>
-
-                  <label class="field">
-                    <span>当前进度</span>
-                    <input v-model.trim="progressForm.completion" type="text" placeholder="例如：68%" />
-                  </label>
-
-                  <label class="field">
-                    <span>需要支持</span>
-                    <select v-model="progressForm.supportNeeded">
-                      <option value="">当前不需要支持</option>
-                      <option v-for="option in supportOptions" :key="option" :value="option">{{ option }}</option>
-                    </select>
-                  </label>
-
-                  <label class="field field--full">
-                    <span>进展说明</span>
-                    <textarea
-                      v-model.trim="progressForm.progressSummary"
-                      rows="5"
-                      placeholder="说明已经完成了什么、哪里被卡住、下一步准备怎么推进。"
-                    ></textarea>
-                  </label>
-
-                  <label class="field field--full">
-                    <span>补充文件</span>
-                    <input type="file" multiple @change="handleProgressFiles" />
-                  </label>
-
-                  <div v-if="progressFiles.length" class="file-list">
-                    <span v-for="file in progressFiles" :key="file.name" class="file-pill">{{ file.name }}</span>
-                  </div>
-
-                  <div class="composer-actions field--full">
-                    <button class="button-primary" type="submit" :disabled="submittingProgress">
-                      {{ submittingProgress ? '保存中…' : '保存进展' }}
-                    </button>
-                  </div>
-                </form>
-
-                <form v-else class="composer-form" @submit.prevent="submitFeedbackForm">
+                <form class="composer-form" @submit.prevent="submitFeedbackForm">
                   <label class="field field--full">
                     <span>企业备注</span>
                     <textarea
@@ -455,6 +425,68 @@
           </section>
         </aside>
       </div>
+
+      <div
+        v-if="progressDialogOpen && progressDialogNode && !isEnterprise"
+        class="progress-dialog-backdrop"
+        @click.self="closeProgressDialog"
+      >
+        <article class="progress-dialog-card" role="dialog" aria-modal="true" aria-labelledby="progress-dialog-title">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">里程碑进展</span>
+              <h2 id="progress-dialog-title">{{ progressDialogNode.title }}</h2>
+              <p class="muted">这条进展会直接挂到当前里程碑下，提交后再回到合同动态里留痕。</p>
+            </div>
+            <button class="button-secondary button-secondary--small" type="button" @click="closeProgressDialog">关闭</button>
+          </div>
+
+          <form class="composer-form progress-dialog-form" @submit.prevent="submitProgressForm">
+            <label class="field">
+              <span>里程碑名称</span>
+              <input v-model.trim="progressForm.stageName" type="text" placeholder="例如：第一轮交付" />
+            </label>
+
+            <label class="field">
+              <span>当前进度</span>
+              <input v-model.trim="progressForm.completion" type="text" placeholder="例如：68%" />
+            </label>
+
+            <label class="field">
+              <span>需要支持</span>
+              <select v-model="progressForm.supportNeeded">
+                <option value="">当前不需要支持</option>
+                <option v-for="option in supportOptions" :key="option" :value="option">{{ option }}</option>
+              </select>
+            </label>
+
+            <label class="field field--full">
+              <span>进展说明</span>
+              <textarea
+                v-model.trim="progressForm.progressSummary"
+                rows="5"
+                placeholder="说明已经完成了什么、哪里被卡住、下一步准备怎么推进。"
+              ></textarea>
+            </label>
+
+            <label class="field field--full">
+              <span>补充文件</span>
+              <input type="file" multiple @change="handleProgressFiles" />
+            </label>
+
+            <div v-if="progressFiles.length" class="file-list field--full">
+              <span v-for="file in progressFiles" :key="file.name" class="file-pill">{{ file.name }}</span>
+            </div>
+
+            <div class="composer-actions field--full progress-dialog-actions">
+              <button class="button-primary" type="submit" :disabled="submittingProgress">
+                {{ submittingProgress ? '保存中…' : '保存进展' }}
+              </button>
+              <button class="button-secondary" type="button" @click="closeProgressDialog">取消</button>
+            </div>
+          </form>
+        </article>
+      </div>
     </div>
   </section>
 </template>
@@ -486,6 +518,8 @@ const selectedNodeId = ref('')
 const progressFiles = ref([])
 const showComposer = ref(false)
 const showTaskSwitcher = ref(false)
+const progressDialogOpen = ref(false)
+const progressDialogNodeId = ref('')
 
 const progressForm = reactive({
   stageName: '',
@@ -575,8 +609,11 @@ const currentNodeIndex = computed(() => {
   if (!currentNode.value) return -1
   return milestones.value.findIndex((node) => node.id === currentNode.value.id)
 })
+const progressDialogNode = computed(() => {
+  if (!milestones.value.length) return null
+  return milestones.value.find((node) => node.id === progressDialogNodeId.value) || currentNode.value
+})
 
-const currentNodeProgress = computed(() => currentNode.value?.progress || currentNode.value?.completion || currentNode.value?.status || '等待同步')
 const currentNodeTitle = computed(() => currentNode.value?.title || taskDetail.value?.title || summary.value?.taskName || '合同概览')
 const workspaceTitle = computed(() => summary.value.taskName || taskDetail.value.title || currentNodeTitle.value || '合同概览')
 const workspaceStatusLabel = computed(() => {
@@ -595,24 +632,19 @@ const workspaceLead = computed(() => {
     ? `先把 ${currentNode.value.title} 留在这里继续推进，消息、验收和助手都会继续挂在同一份合同下。`
     : '先在这里保持当前合同在视野里，消息、验收、记录和助手会随着合同一起推进。'
 })
-const composerHeading = computed(() => (isEnterprise.value ? '补一条合同备注' : '提交一条里程碑进展'))
-const composerEyebrow = computed(() => (isEnterprise.value ? '合同备注' : '里程碑进展'))
+const composerEyebrow = computed(() => '合同备注')
 const composerSectionTitle = computed(() => {
   if (!currentNode.value) return '先选一个里程碑'
-  return isEnterprise.value
-    ? '把合同备注继续挂在这份合作下，概览先聚焦当前合同。'
-    : '把里程碑进展继续挂在这份合作下，概览先聚焦当前合同。'
+  return '把合同备注继续挂在这份合作下，概览先聚焦当前合同。'
 })
 const composerSummaryLead = computed(() => {
   if (!currentNode.value) return '先选一个里程碑，再把备注、文件和下一步继续挂在这一条线上。'
   if (assistantDraftSeed.value) {
     return '草稿已经带到这里，需要时再打开编辑器确认或保存。'
   }
-  return isEnterprise.value
-    ? '只有这条里程碑真的需要新备注时，再把编辑器展开。'
-    : '只有这条里程碑真的需要保存新进展时，再把编辑器展开。'
+  return '只有这条里程碑真的需要新备注时，再把编辑器展开。'
 })
-const composerOpenLabel = computed(() => (isEnterprise.value ? '打开备注编辑器' : '打开进展编辑器'))
+const composerOpenLabel = computed(() => '打开备注编辑器')
 
 const dashboardRoute = computed(() => basePath.value)
 const assistantRoute = computed(() =>
@@ -741,6 +773,9 @@ watch(
     } else if (!progressForm.progressSummary.includes(value)) {
       progressForm.progressSummary = `${progressForm.progressSummary}\n\n${value}`.trim()
     }
+    if (!isEnterprise.value && currentNode.value) {
+      openProgressDialog(currentNode.value, { preserveDraft: true })
+    }
     assistantDraftApplyKey.value = applyKey
     if (token) consumeAssistantDraftHandoff(token)
     clearAssistantDraftQuery()
@@ -762,6 +797,8 @@ watch(
     if (!items.length) {
       selectedNodeId.value = ''
       showComposer.value = false
+      progressDialogOpen.value = false
+      progressDialogNodeId.value = ''
       return
     }
 
@@ -783,10 +820,13 @@ watch(
   ([node, draft]) => {
     if (!node) {
       showComposer.value = false
+      progressDialogOpen.value = false
       return
     }
-    if (draft) {
+    if (draft && isEnterprise.value) {
       showComposer.value = true
+    } else if (draft && !isEnterprise.value) {
+      openProgressDialog(node, { preserveDraft: true })
     }
   },
   { immediate: true }
@@ -851,6 +891,35 @@ function selectNode(node) {
   })
 }
 
+function resetProgressForm({ keepSummary = false } = {}) {
+  progressForm.stageName = ''
+  progressForm.completion = ''
+  progressForm.supportNeeded = ''
+  if (!keepSummary) {
+    progressForm.progressSummary = ''
+  }
+  progressFiles.value = []
+}
+
+function openProgressDialog(node, options = {}) {
+  if (isEnterprise.value || !node) return
+  const nextNodeId = String(node.id || '')
+  selectedNodeId.value = nextNodeId
+  progressDialogNodeId.value = nextNodeId
+  if (!options.preserveDraft) {
+    resetProgressForm()
+  }
+  progressForm.stageName = node.title || ''
+  progressForm.completion = node.progress || ''
+  progressDialogOpen.value = true
+}
+
+function closeProgressDialog() {
+  progressDialogOpen.value = false
+  progressDialogNodeId.value = ''
+  resetProgressForm()
+}
+
 function toggleComposer() {
   if (!currentNode.value) return
   showComposer.value = !showComposer.value
@@ -878,6 +947,7 @@ async function submitProgressForm() {
     return
   }
 
+  const targetNode = progressDialogNode.value || currentNode.value
   const percent = normalizePercent(progressForm.completion)
   if (percent === null) {
     actionError.value = '请输入有效进度，例如 68% 或 68。'
@@ -902,8 +972,8 @@ async function submitProgressForm() {
     }
 
     await submitTaskProgress(currentTaskId.value, {
-      stage: progressForm.stageName.trim() || currentNode.value?.title || '',
-      milestoneId: currentNode.value?.id || currentNode.value?.milestoneId || currentNode.value?.nodeId || '',
+      stage: progressForm.stageName.trim() || targetNode?.title || '',
+      milestoneId: targetNode?.id || targetNode?.milestoneId || targetNode?.nodeId || '',
       progressText: progressForm.progressSummary.trim(),
       supportNeeded: progressForm.supportNeeded,
       completionPercent: percent,
@@ -911,12 +981,10 @@ async function submitProgressForm() {
       attachmentFiles: uploadedFiles,
     })
 
-    progressForm.stageName = ''
-    progressForm.completion = ''
-    progressForm.supportNeeded = ''
-    progressForm.progressSummary = ''
-    progressFiles.value = []
+    resetProgressForm()
     showComposer.value = false
+    progressDialogOpen.value = false
+    progressDialogNodeId.value = ''
     await loadWorkspace()
   } catch (error) {
     actionError.value = error?.message || '当前暂时无法提交这条进展。'
@@ -1514,6 +1582,11 @@ function buildRoute(path, query = {}) {
   box-shadow: 0 16px 32px rgba(16, 138, 0, 0.05);
 }
 
+.timeline-card:focus-visible {
+  outline: 3px solid rgba(16, 138, 0, 0.18);
+  outline-offset: 3px;
+}
+
 .timeline-card.is-complete {
   opacity: 0.95;
 }
@@ -1613,6 +1686,21 @@ function buildRoute(path, query = {}) {
 .timeline-ai {
   color: #405239;
   font-weight: 600;
+}
+
+.timeline-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timeline-progress-button,
+.button-primary--small {
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .composer-grid {
@@ -1757,6 +1845,38 @@ function buildRoute(path, query = {}) {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.progress-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(17, 24, 39, 0.34);
+  backdrop-filter: blur(10px);
+}
+
+.progress-dialog-card {
+  width: min(760px, 100%);
+  max-height: min(86vh, 760px);
+  overflow: auto;
+  display: grid;
+  gap: 22px;
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid rgba(18, 18, 18, 0.1);
+  background: #fffef8;
+  box-shadow: 0 30px 90px rgba(17, 24, 39, 0.2);
+}
+
+.progress-dialog-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.progress-dialog-actions {
+  justify-content: flex-end;
 }
 
 .section-head__actions {
@@ -1954,10 +2074,21 @@ function buildRoute(path, query = {}) {
   .workspace-pills,
   .timeline-meta,
   .timeline-tags,
+  .timeline-footer,
   .attachment-row,
   .file-list,
   .sidebar-attachments {
     flex-wrap: wrap;
+  }
+
+  .progress-dialog-backdrop {
+    align-items: end;
+    padding: 16px;
+  }
+
+  .progress-dialog-card,
+  .progress-dialog-form {
+    grid-template-columns: 1fr;
   }
 }
 </style>
