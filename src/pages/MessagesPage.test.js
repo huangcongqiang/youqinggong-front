@@ -29,3 +29,24 @@ assert(
     && !source.includes("|| '消息内容暂时不可用。'"),
   'MessagesPage should not render an unavailable-content fallback for attachment-only messages.'
 );
+
+assert(
+  source.includes('ChatAttachmentPreviewModal')
+    && source.includes('@click="handleAttachmentOpen(attachment)"')
+    && source.includes('function handleAttachmentOpen(attachment)')
+    && source.includes('function attachmentDownloadHref(attachment)')
+    && source.includes('function resolveAttachmentHref(value)')
+    && source.includes("source?.previewUrl ||")
+    && source.includes("source?.href ||")
+    && source.includes("source?.fileUrl ||")
+    && source.includes("source?.path ||")
+    && source.includes('function downloadAttachment(attachment)')
+    && !source.includes(':href="attachment.href"'),
+  'MessagesPage should open attachments through explicit preview/download handling instead of a raw placeholder link.'
+);
+
+assert(
+  source.includes("kind: inferAttachmentKind(type, name)")
+    && source.includes("!['attachment', 'file', 'other'].includes(rawKind.toLowerCase()) ? rawKind : inferredKind"),
+  'MessagesPage should infer image/video attachment kinds instead of preserving generic file kinds.'
+);

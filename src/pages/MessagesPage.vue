@@ -58,17 +58,15 @@
                     <p v-if="message.text">{{ message.text }}</p>
                     <p v-else-if="message.attachments.length" class="muted message-attachment-note">发送了 {{ message.attachments.length }} 个附件</p>
                     <div v-if="message.attachments.length" class="message-attachments">
-                      <a
+                      <button
                         v-for="attachment in message.attachments"
                         :key="attachment.key"
+                        type="button"
                         class="attachment-pill"
-                        :href="attachment.href"
-                        :download="attachment.name"
-                        target="_blank"
-                        rel="noreferrer"
+                        @click="handleAttachmentOpen(attachment)"
                       >
                         {{ attachment.name }}
-                      </a>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -238,17 +236,16 @@
             <span class="eyebrow">文件</span>
             <template v-if="roomFilesAndAttachments.length">
               <div class="asset-list">
-                <a
+                <button
                   v-for="asset in roomFilesAndAttachments"
                   :key="asset.key"
+                  type="button"
                   class="asset-row"
-                  :href="asset.href"
-                  target="_blank"
-                  rel="noreferrer"
+                  @click="handleAttachmentOpen(asset)"
                 >
                   <strong>{{ asset.name }}</strong>
                   <span>{{ asset.source }}</span>
-                </a>
+                </button>
               </div>
             </template>
             <template v-else>
@@ -279,6 +276,13 @@
       </aside>
     </section>
 
+    <ChatAttachmentPreviewModal
+      :open="Boolean(previewAttachment)"
+      :attachment="previewAttachment"
+      :attachment-meta-text="attachmentMetaText"
+      :attachment-download-href="attachmentDownloadHref"
+      @close="previewAttachment = null"
+    />
     <ActionErrorDialog :message="errorMessage" title="当前消息暂时不可用" eyebrow="消息" />
   </section>
 </template>
@@ -287,10 +291,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ActionErrorDialog from '../components/ActionErrorDialog.vue'
+import ChatAttachmentPreviewModal from '../components/chat/ChatAttachmentPreviewModal.vue'
 import ContractShellHeader from '../components/ContractShellHeader.vue'
 import { getStoredAuthUser, getTaskRoom, getTaskRooms, initiateTaskRoom, sendTaskRoomMessage, uploadTaskAttachmentAsset } from '../services/api'
 import { consumeAssistantDraftHandoff, peekAssistantDraftHandoff } from '../utils/assistantDraftHandoff'
-import { composerAttachmentPayload, isSelfMessage as baseIsSelfMessage } from './messageDetailHelpers'
+import { attachmentMetaText, composerAttachmentPayload, inferAttachmentKind, isSelfMessage as baseIsSelfMessage } from './messageDetailHelpers'
 
 const route = useRoute()
 const router = useRouter()
@@ -309,6 +314,7 @@ const sendingMessage = ref(false)
 const loadingRooms = ref(false)
 const loadingRoomDetail = ref(false)
 const errorMessage = ref('')
+const previewAttachment = ref(null)
 
 const roomSummary = computed(() => roomPayload.value?.summary || {})
 const currentTaskId = computed(() => String(activeRoom.value?.taskId || route.query.taskId || ''))
@@ -503,11 +509,7 @@ const visible消息 = computed(() => {
       text,
       isSystem,
       isSelf: !isSystem && isOwnMessage,
-      attachments: rawAttachments.map((attachment, attachmentIndex) => ({
-        key: String(attachment?.id || `${index}-${attachmentIndex}`),
-        name: attachment?.name || attachment?.filename || '附件',
-        href: attachment?.downloadHref || attachment?.downloadUrl || attachment?.url || '#',
-      })),
+      attachments: rawAttachments.map((attachment, attachmentIndex) => normalizeDisplayAttachment(attachment, `${index}-${attachmentIndex}`)),
     }
   })
 })
@@ -578,15 +580,13 @@ const roomFilesAndAttachments = computed(() => {
     const list = Array.isArray(bucket) ? bucket : bucket ? [bucket] : []
     list.forEach((asset, assetIndex) => {
       if (!asset) return
-      const href = asset.downloadHref || asset.downloadUrl || asset.url || asset.path || '#'
-      const name = asset.name || asset.filename || asset.title || `附件 ${assetIndex + 1}`
-      const key = `${href}-${name}`
+      const normalizedAsset = normalizeDisplayAttachment(asset, `${bucketIndex}-${assetIndex}`)
+      const key = `${normalizedAsset.href}-${normalizedAsset.name}`
       if (seen.has(key)) return
       seen.add(key)
       normalized.push({
+        ...normalizedAsset,
         key: String(asset.id || `${bucketIndex}-${assetIndex}-${key}`),
-        name,
-        href,
         source: normalizeAssetSource(asset.source || asset.type || 'attachment'),
       })
     })
@@ -801,6 +801,131 @@ function removeMessageFile(index) {
   messageFiles.value = messageFiles.value.filter((_, fileIndex) => fileIndex !== index)
 }
 
+function normalizeAttachmentName(source, fallback = '附件') {
+  if (typeof source === 'string') {
+    const raw = source.trim()
+    if (!raw) return fallback
+    try {
+      const url = new URL(raw, typeof window !== 'undefined' ? window.location.origin : 'https://app.cyxss.xyz')
+      return decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || fallback)
+    } catch {
+      return raw
+    }
+  }
+  return String(
+    source?.name ||
+    source?.filename ||
+    source?.fileName ||
+    source?.label ||
+    source?.title ||
+    fallback
+  ).trim()
+}
+
+function looksLikeUploadId(value) {
+  return /^upload[-_]/i.test(String(value || '').trim())
+}
+
+function resolveAttachmentHref(value) {
+  const raw = String(value || '').trim()
+  if (!raw || raw === '#') return ''
+  if (/^(https?:|blob:|data:)/i.test(raw)) return raw
+  if (typeof window === 'undefined') return raw
+  try {
+    return new URL(raw.startsWith('/') ? raw : `/${raw}`, window.location.origin).toString()
+  } catch {
+    return raw
+  }
+}
+
+function rawAttachmentHref(source) {
+  if (typeof source === 'string') {
+    return /^https?:\/\//i.test(source) || source.startsWith('/') || source.startsWith('blob:') || source.startsWith('data:') ? source : ''
+  }
+  const uploadId = String(source?.uploadId || '').trim()
+  const id = String(source?.id || '').trim()
+  return String(
+    source?.downloadHref ||
+    source?.downloadUrl ||
+    source?.previewUrl ||
+    source?.url ||
+    source?.href ||
+    source?.fileUrl ||
+    source?.path ||
+    (uploadId ? `/api/uploads/${encodeURIComponent(uploadId)}/content` : '') ||
+    (looksLikeUploadId(id) ? `/api/uploads/${encodeURIComponent(id)}/content` : '')
+  ).trim()
+}
+
+function normalizeDisplayAttachment(source, fallbackKey = 'attachment') {
+  const name = normalizeAttachmentName(source)
+  const type = String(source?.type || source?.mimeType || source?.fileType || 'application/octet-stream').trim()
+  const rawKind = String(source?.kind || '').trim()
+  const inferredKind = inferAttachmentKind(type, name)
+  const kind = rawKind && !['attachment', 'file', 'other'].includes(rawKind.toLowerCase()) ? rawKind : inferredKind
+  const href = resolveAttachmentHref(rawAttachmentHref(source))
+  const previewUrl = resolveAttachmentHref(source?.previewUrl || (['image', 'video'].includes(kind) ? href : ''))
+  return {
+    key: String(source?.id || source?.uploadId || `${fallbackKey}-${name}`),
+    id: String(source?.id || source?.uploadId || ''),
+    name,
+    type,
+    kind,
+    size: Number(source?.size || source?.fileSize || 0),
+    previewUrl,
+    downloadUrl: href,
+    href,
+  }
+}
+
+function attachmentDownloadHref(attachment) {
+  return resolveAttachmentHref(
+    attachment?.href ||
+    attachment?.downloadUrl ||
+    attachment?.downloadHref ||
+    attachment?.url ||
+    attachment?.fileUrl ||
+    attachment?.path ||
+    attachment?.previewUrl ||
+    rawAttachmentHref(attachment)
+  )
+}
+
+function canPreviewAttachment(attachment) {
+  return ['image', 'video'].includes(String(attachment?.kind || '').toLowerCase()) && Boolean(attachment?.previewUrl || attachmentDownloadHref(attachment))
+}
+
+function handleAttachmentOpen(attachment) {
+  const href = attachmentDownloadHref(attachment)
+  if (!href) {
+    errorMessage.value = '当前附件暂时没有可用的预览或下载地址。'
+    return
+  }
+  const normalizedAttachment = normalizeDisplayAttachment({ ...attachment, downloadUrl: href }, attachment?.key || 'attachment')
+  if (canPreviewAttachment(normalizedAttachment)) {
+    previewAttachment.value = {
+      ...normalizedAttachment,
+      previewUrl: normalizedAttachment.previewUrl || href,
+      downloadUrl: href,
+    }
+    return
+  }
+  downloadAttachment(normalizedAttachment)
+}
+
+function downloadAttachment(attachment) {
+  const href = attachmentDownloadHref(attachment)
+  if (!href || typeof document === 'undefined') return
+  const link = document.createElement('a')
+  link.href = href
+  link.download = attachment?.name || '附件'
+  link.target = '_blank'
+  link.rel = 'noreferrer'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}
+
 function clear助手DraftQuery() {
   if (!route.query.assistantDraftToken && !route.query.assistantDraft && !route.query.assistantSurface) return
   const query = { ...route.query }
@@ -814,11 +939,12 @@ function normalizeComposerAttachment(item, fallbackFile = null) {
   const source = item && typeof item === 'object' ? item : {}
   const name = fallbackFile?.name || source.name || source.filename || source.fileName || '附件'
   const downloadUrl = source.downloadUrl || source.downloadHref || source.url || ''
+  const type = source.mimeType || source.type || fallbackFile?.type || 'application/octet-stream'
   return {
     id: source.uploadId || source.id || '',
     name,
-    type: source.mimeType || source.type || fallbackFile?.type || 'application/octet-stream',
-    kind: 'file',
+    type,
+    kind: inferAttachmentKind(type, name),
     size: source.size || fallbackFile?.size || 0,
     previewUrl: downloadUrl,
     downloadUrl,
@@ -907,6 +1033,7 @@ function buildRoute(path, query = {}) {
 .section-header--compact h2,.section-header h2{margin:6px 0 0;color:#111827}
 .soft-pill,.status-chip,.mini-chip,.button-primary,.button-secondary,.attachment-pill{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border-radius:999px;text-decoration:none}
 .soft-pill,.mini-chip,.attachment-pill,.button-secondary{border:1px solid rgba(17,24,39,.12);background:#fff;color:#111827}.status-chip{border:1px solid rgba(16,138,0,.24);background:#f3fff0;color:#165a0f}.button-primary{min-height:46px;padding:0 20px;border:1px solid #108a00;background:#108a00;color:#fff;font-weight:700}.button-secondary{min-height:46px;padding:0 20px;font-weight:700}.button-secondary--small{min-height:38px;padding:0 16px;font-size:.92rem}
+.attachment-pill{font:inherit;cursor:pointer}
 .text-input,.message-composer__input{width:100%;border:1px solid rgba(17,24,39,.12);border-radius:18px;padding:14px 16px;background:#fff;color:#111827}
 .room-list,.simple-list,.asset-list{display:grid;gap:12px}.room-card{padding:18px;text-align:left;cursor:pointer}.room-card.is-active{border-color:rgba(16,138,0,.36);box-shadow:0 20px 40px rgba(16,138,0,.08)}
 .room-card strong,.context-card strong,.message-meta strong{color:#111827}.room-card p,.context-card p,.simple-list{margin:0;color:#52606d;line-height:1.65}.room-card__meta{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:#6b7280;font-size:.9rem}
@@ -925,7 +1052,7 @@ function buildRoute(path, query = {}) {
 .file-pill__remove{border:0;background:transparent;color:#4b5563;font-weight:700;cursor:pointer;padding:0}
 .context-card{padding:18px;display:grid;gap:10px}.simple-list{margin:0;padding-left:18px}.workroom-thread-empty{min-height:520px;display:grid;place-items:center;text-align:center}
 .context-kv-list{display:grid;gap:10px;padding-top:2px}.context-kv{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid rgba(17,24,39,.06)}.context-kv:first-child{border-top:0;padding-top:0}.context-kv span{color:#6b7280}.context-kv strong{color:#111827;text-align:right}
-.asset-row{display:grid;gap:4px;padding:12px 14px;border:1px solid rgba(17,24,39,.08);border-radius:18px;background:#fff;text-decoration:none}.asset-row strong{font-size:.95rem}.asset-row span{color:#6b7280;font-size:.88rem}
+.asset-row{display:grid;gap:4px;padding:12px 14px;border:1px solid rgba(17,24,39,.08);border-radius:18px;background:#fff;text-decoration:none;text-align:left;font:inherit;cursor:pointer}.asset-row strong{font-size:.95rem}.asset-row span{color:#6b7280;font-size:.88rem}
 .section-head__actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .workroom-sidebar__hint{padding-right:8px}
 .workroom-sidebar__compact-note{margin:0;color:#5f6c59;line-height:1.65}
