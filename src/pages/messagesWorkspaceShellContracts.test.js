@@ -12,15 +12,18 @@ const workspace = fs.readFileSync('/Users/huangcongqiang/Desktop/products/youqin
   '当前消息暂时不可用',
   '请先选择一份合同，再发送消息。',
   '当前暂时无法发送这条消息。',
-  '文件与下一步',
-  '选择一条合同会话，在上下文里查看消息。'
+  '选择一条合同会话，继续查看消息。'
 ].forEach((snippet) => assert.ok(messages.includes(snippet), 'Messages shell should include: ' + snippet))
 
 ;[
   'No contract messages yet',
   'Next message',
   'Messages unavailable',
-  'Could not open a contract room right now.'
+  'Could not open a contract room right now.',
+  '文件与下一步',
+  '切换合同',
+  '还有 {{ sidebarRooms.length }} 份合同已收起',
+  '选择一条合同会话，在上下文里查看消息。'
 ].forEach((snippet) => assert.ok(!messages.includes(snippet), 'Messages shell should not keep older English copy: ' + snippet))
 
 ;[

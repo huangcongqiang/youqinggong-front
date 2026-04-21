@@ -138,142 +138,6 @@
         </article>
       </main>
 
-      <aside class="panel workroom-sidebar stack-md">
-        <div class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">{{ activeRoom ? '上下文' : '合同' }}</p>
-            <h2>{{ activeRoom ? (hasShellContext ? '文件与下一步' : '合同上下文') : '选择合同' }}</h2>
-          </div>
-          <div class="section-head__actions">
-            <span class="soft-pill">{{ sidebarRooms.length }}</span>
-            <button
-              v-if="activeRoom && sidebarRooms.length"
-              type="button"
-              class="button-secondary button-secondary--small"
-              @click="toggleRoomSwitcher"
-            >
-              {{ showRoomSwitcher ? '收起其他合同' : '切换合同' }}
-            </button>
-          </div>
-        </div>
-
-        <p class="muted workroom-sidebar__hint">
-          先把当前合同放在手边，文件、里程碑和下一步都会继续挂在这里。
-        </p>
-
-        <div v-if="loadingRooms && !rooms.length" class="info-banner stack-sm">
-          <strong>正在加载消息…</strong>
-          <p>正在同步当前会话、里程碑和文件。</p>
-        </div>
-
-        <div v-if="showRoomSwitcherPanel && sidebarRooms.length" class="section-header section-header--compact workroom-sidebar__subhead">
-          <div>
-            <p class="eyebrow">{{ activeRoom ? '其他合同' : '合同' }}</p>
-            <h2>{{ activeRoom ? '切换合同' : '合同列表' }}</h2>
-          </div>
-          <span class="soft-pill">{{ sidebarRooms.length }}</span>
-        </div>
-
-        <input
-          v-if="showRoomSwitcherPanel && (sidebarRooms.length > 4 || roomSearch)"
-          v-model.trim="roomSearch"
-          class="text-input"
-          type="search"
-          placeholder="搜索合同、联系人或消息内容"
-        />
-
-        <div v-if="showRoomSwitcherPanel" class="room-list">
-          <button
-            v-for="item in sidebarRooms"
-            :key="item.roomKey"
-            type="button"
-            class="room-card"
-            :class="{ 'is-active': item.roomKey === activeRoomKey }"
-            @click="selectRoom(item.roomKey)"
-          >
-            <div class="room-card__topline">
-              <div>
-                <strong>{{ item.title }}</strong>
-                <p>{{ item.counterpart }}</p>
-              </div>
-              <span class="status-chip">{{ item.stage }}</span>
-            </div>
-            <p class="room-card__summary">{{ item.summary }}</p>
-            <div class="room-card__meta">
-              <span>{{ item.time }}</span>
-              <span v-if="item.taskId">合同 {{ item.taskId }}</span>
-            </div>
-          </button>
-        </div>
-
-        <p v-else-if="activeRoom && sidebarRooms.length" class="muted workroom-sidebar__compact-note">
-          还有 {{ sidebarRooms.length }} 份合同已收起，先保持当前会话在焦点里。
-        </p>
-
-        <div v-if="showRoomSwitcherPanel && !sidebarRooms.length && !loadingRooms" class="empty-state is-compact">
-          <strong>这里还没有其他合同会话</strong>
-          <p>{{ noRoomHint }}</p>
-          <div v-if="!hasShellContext" class="empty-state__actions">
-            <router-link class="button-link" :to="workspaceRoute">打开合同</router-link>
-          </div>
-        </div>
-
-        <div v-if="!hasShellContext" class="section-header section-header--compact">
-          <div>
-            <p class="eyebrow">合同上下文</p>
-            <h2>文件与下一步</h2>
-          </div>
-        </div>
-
-        <template v-if="activeRoom">
-          <article v-if="currentMilestoneLabel && !hasShellContext" class="context-card">
-            <span class="eyebrow">里程碑</span>
-            <strong>{{ currentMilestoneLabel }}</strong>
-            <p>只要这份合同还在进行中，消息、验收、记录和助手都会继续挂在这条里程碑下。</p>
-          </article>
-
-          <article class="context-card">
-            <span class="eyebrow">文件</span>
-            <template v-if="roomFilesAndAttachments.length">
-              <div class="asset-list">
-                <button
-                  v-for="asset in roomFilesAndAttachments"
-                  :key="asset.key"
-                  type="button"
-                  class="asset-row"
-                  @click.stop.prevent="handleAttachmentOpen(asset, $event)"
-                >
-                  <strong>{{ asset.name }}</strong>
-                  <span>{{ asset.source }}</span>
-                </button>
-              </div>
-            </template>
-            <template v-else>
-              <strong>还没有文件</strong>
-              <p>文件挂到这份合同后，会继续显示在这里。</p>
-            </template>
-          </article>
-
-      <article class="context-card">
-            <span class="eyebrow">下一步</span>
-            <template v-if="pendingActions.length">
-              <ul class="simple-list">
-                <li v-for="item in pendingActions" :key="item">{{ item }}</li>
-              </ul>
-            </template>
-            <template v-else>
-              <strong>下一步还没同步过来</strong>
-            <p>先在这里继续推进合同，下一步的验收、里程碑或结算会回挂到这条会话里。</p>
-          </template>
-        </article>
-
-        </template>
-
-        <article v-else class="empty-state is-compact">
-          <strong>这里会把合同上下文放在手边</strong>
-          <p>先选择一条合同会话，把文件、记录和下一步继续放在这里。</p>
-        </article>
-      </aside>
     </section>
 
     <ChatAttachmentPreviewModal
@@ -305,8 +169,6 @@ const authUser = getStoredAuthUser()
 const roomPayload = ref(null)
 const roomDetail = ref(null)
 const activeRoomKey = ref('')
-const roomSearch = ref('')
-const showRoomSwitcher = ref(false)
 const composer = ref('')
 const messageFiles = ref([])
 const messageFilePickerKey = ref(0)
@@ -316,7 +178,6 @@ const loadingRoomDetail = ref(false)
 const errorMessage = ref('')
 const previewAttachment = ref(null)
 
-const roomSummary = computed(() => roomPayload.value?.summary || {})
 const currentTaskId = computed(() => String(activeRoom.value?.taskId || route.query.taskId || ''))
 const currentRoomQuery = computed(() => String(activeRoom.value?.roomKey || activeRoomKey.value || route.query.roomKey || route.query.room || ''))
 const hasShellContext = computed(() => Boolean(activeRoom.value?.taskId || currentTaskId.value))
@@ -368,21 +229,6 @@ const rooms = computed(() => {
     unreadCount: String(item?.unreadCount || '0'),
   }))
 })
-
-const unreadRoomCount = computed(() => rooms.value.filter((item) => item.unreadCount !== '0').length)
-
-const filteredRooms = computed(() => {
-  const keyword = roomSearch.value.trim().toLowerCase()
-  if (!keyword) return rooms.value
-  return rooms.value.filter((item) => [item.title, item.counterpart, item.summary, item.stage, item.taskId].join(' ').toLowerCase().includes(keyword))
-})
-
-const sidebarRooms = computed(() => {
-  if (!activeRoomKey.value) return filteredRooms.value
-  const others = filteredRooms.value.filter((item) => item.roomKey !== activeRoomKey.value)
-  return others.length ? others : filteredRooms.value
-})
-const showRoomSwitcherPanel = computed(() => !activeRoom.value || !hasShellContext.value || showRoomSwitcher.value)
 
 const activeRoom = computed(() => {
   const detail = roomDetail.value
@@ -454,10 +300,6 @@ const currentUserNames = computed(() => [
   authUser?.enterpriseName,
   authUser?.organizationName,
 ].map((value) => String(value || '').trim()).filter(Boolean))
-const noRoomHint = computed(() => (
-  '先选择一份进行中的合同，把消息、文件、记录和下一步都挂在同一条合同线上。'
-))
-
 function isAffirmative(value) {
   if (typeof value === 'boolean') return value
   const normalized = String(value || '').trim().toLowerCase()
@@ -514,95 +356,6 @@ const visible消息 = computed(() => {
   })
 })
 
-const contextSummary = computed(() => {
-  const detail = activeRoom.value?.taskDetail
-  return detail?.summary || detail?.brief || activeRoom.value?.focus || '这条会话已经绑定到合同，消息、里程碑、验收和结算都会继续在这里保持关联。'
-})
-
-const aiSummaryTitle = computed(() => {
-  const detail = activeRoom.value?.taskDetail || {}
-  const confirmation = activeRoom.value?.taskConfirmation || {}
-  return detail?.ai验收Title || confirmation?.ai验收Title || '助手摘要'
-})
-
-const aiSummaryText = computed(() => {
-  const detail = activeRoom.value?.taskDetail || {}
-  const confirmation = activeRoom.value?.taskConfirmation || {}
-  return detail?.ai验收Summary || confirmation?.ai验收Summary || contextSummary.value
-})
-
-const pendingActions = computed(() => {
-  const items = Array.isArray(activeRoom.value?.pendingActions) ? activeRoom.value.pendingActions : []
-  const normalized = items.map((item) => (typeof item === 'string' ? item : item?.label || item?.title || '')).filter(Boolean)
-  if (normalized.length) return normalized
-
-  const confirmation = activeRoom.value?.taskConfirmation || {}
-  const changeReview = confirmation?.changeReview && typeof confirmation.changeReview === 'object' ? confirmation.changeReview : {}
-  const suggestionItems = Array.isArray(changeReview?.suggestions)
-    ? changeReview.suggestions.map((item) => String(item || '').trim()).filter(Boolean)
-    : []
-  if (suggestionItems.length) return suggestionItems
-
-  const stage = String(activeRoom.value?.stage || activeRoom.value?.taskDetail?.status || '').trim()
-  if (stage.includes('执行')) {
-    return [
-      '继续同步交付进展、风险和下一次回传时间。',
-      '需要验收时，再把当前结果带到验收页继续处理。',
-    ]
-  }
-  if (stage.includes('验收')) {
-    return ['继续补齐验收结论，确认是否进入最终评分和结算。']
-  }
-  if (stage.includes('已完成')) {
-    return ['回看记录、验收和结算摘要，补齐最后的收尾信息。']
-  }
-  return []
-})
-
-const roomFilesAndAttachments = computed(() => {
-  const detail = activeRoom.value?.taskDetail || {}
-  const confirmation = activeRoom.value?.taskConfirmation || {}
-  const buckets = [
-    detail.assets,
-    detail.files,
-    detail.attachments,
-    detail.assetFiles,
-    confirmation.assets,
-    confirmation.files,
-    confirmation.attachments,
-    activeRoom.value?.taskRoom?.assets,
-    activeRoom.value?.taskRoom?.files,
-  ]
-  const seen = new Set()
-  const normalized = []
-
-  buckets.forEach((bucket, bucketIndex) => {
-    const list = Array.isArray(bucket) ? bucket : bucket ? [bucket] : []
-    list.forEach((asset, assetIndex) => {
-      if (!asset) return
-      const normalizedAsset = normalizeDisplayAttachment(asset, `${bucketIndex}-${assetIndex}`)
-      const key = `${normalizedAsset.href}-${normalizedAsset.name}`
-      if (seen.has(key)) return
-      seen.add(key)
-      normalized.push({
-        ...normalizedAsset,
-        key: String(asset.id || `${bucketIndex}-${assetIndex}-${key}`),
-        source: normalizeAssetSource(asset.source || asset.type || 'attachment'),
-      })
-    })
-  })
-
-  return normalized
-})
-
-function normalizeAssetSource(value) {
-  const normalized = String(value || '').trim().toUpperCase()
-  if (!normalized || normalized === 'ATTACHMENT') return '附件'
-  if (normalized === 'TASK_PROGRESS' || normalized === 'CONTRACT_MESSAGE') return '附件'
-  if (normalized === 'TEXT') return '消息'
-  return String(value || '附件')
-}
-
 const workspaceRoute = computed(() => {
   return buildRoute(audience.value === 'enterprise' ? '/enterprise/workspace' : '/talent/workspace', contextQuery.value)
 })
@@ -626,7 +379,7 @@ const shellSupportCopy = computed(() => (
     ? currentRoomStageLabel.value === '执行中'
       ? '当前合作已经进入执行中，消息、文件、记录和下一步会继续挂在这份合同下推进。'
       : '消息、文件、记录和下一步会继续挂在这份合同下推进。'
-    : '选择一条合同会话，在上下文里查看消息。'
+    : '选择一条合同会话，继续查看消息。'
 ))
 const shellTabs = computed(() => {
   if (!hasShellContext.value) return []
@@ -688,7 +441,6 @@ async function ensureRoomFromTaskContext() {
 async function selectRoom(roomKey, updateRoute = true) {
   if (!roomKey) return
   activeRoomKey.value = roomKey
-  showRoomSwitcher.value = false
   loadingRoomDetail.value = true
   try {
     const payload = await getTaskRoom(roomKey)
@@ -722,11 +474,6 @@ async function selectRoom(roomKey, updateRoute = true) {
   } finally {
     loadingRoomDetail.value = false
   }
-}
-
-function toggleRoomSwitcher() {
-  if (!sidebarRooms.value.length) return
-  showRoomSwitcher.value = !showRoomSwitcher.value
 }
 
 async function handleSendMessage() {
@@ -1000,20 +747,19 @@ function buildRoute(path, query = {}) {
 .eyebrow{margin:0;font-size:.76rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#108a00}
 .muted{margin:0;color:#52606d;line-height:1.7}
 .workroom-hero{background:radial-gradient(circle at top left, rgba(16,138,0,.08), transparent 28%), radial-gradient(circle at 88% 18%, rgba(245,196,66,.12), transparent 24%), #fffef8}
-.workroom-hero__topline,.workroom-hero__actions,.section-header,.thread-header-actions,.room-card__topline,.message-meta,.message-composer__actions,.info-banner__topline{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.workroom-hero__topline,.workroom-hero__actions,.section-header,.thread-header-actions,.message-meta,.message-composer__actions,.info-banner__topline{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .workroom-hero__titleblock h1{margin:6px 0 10px;font-size:2.4rem;line-height:1;color:#111827}
-.context-card,.room-card{border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#fff}
 .workroom-nav{display:flex;flex-wrap:wrap;gap:12px;padding:16px 20px}
 .workroom-nav__link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid rgba(17,24,39,.1);color:#52606d;text-decoration:none;font-weight:600;background:#fff}
 .workroom-nav__link.is-active,.workroom-nav__link.router-link-active,.workroom-nav__link.router-link-exact-active{border-color:rgba(16,138,0,.2);background:#f3fff0;color:#165a0f}
-.workroom-shell{display:grid;grid-template-columns:minmax(0,1fr) 332px;gap:24px;align-items:start}
+.workroom-shell{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+.workroom-thread{width:min(100%,980px);margin:0 auto}
 .section-header--compact h2,.section-header h2{margin:6px 0 0;color:#111827}
 .soft-pill,.status-chip,.mini-chip,.button-primary,.button-secondary,.attachment-pill{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border-radius:999px;text-decoration:none}
 .soft-pill,.mini-chip,.attachment-pill,.button-secondary{border:1px solid rgba(17,24,39,.12);background:#fff;color:#111827}.status-chip{border:1px solid rgba(16,138,0,.24);background:#f3fff0;color:#165a0f}.button-primary{min-height:46px;padding:0 20px;border:1px solid #108a00;background:#108a00;color:#fff;font-weight:700}.button-secondary{min-height:46px;padding:0 20px;font-weight:700}.button-secondary--small{min-height:38px;padding:0 16px;font-size:.92rem}
 .attachment-pill{font:inherit;cursor:pointer}
 .text-input,.message-composer__input{width:100%;border:1px solid rgba(17,24,39,.12);border-radius:18px;padding:14px 16px;background:#fff;color:#111827}
-.room-list,.simple-list,.asset-list{display:grid;gap:12px}.room-card{padding:18px;text-align:left;cursor:pointer}.room-card.is-active{border-color:rgba(16,138,0,.36);box-shadow:0 20px 40px rgba(16,138,0,.08)}
-.room-card strong,.context-card strong,.message-meta strong{color:#111827}.room-card p,.context-card p,.simple-list{margin:0;color:#52606d;line-height:1.65}.room-card__meta{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:#6b7280;font-size:.9rem}
+.message-meta strong{color:#111827}
 .info-banner,.empty-state{padding:18px;border-radius:22px;border:1px solid rgba(17,24,39,.08);background:#f8faf7}.empty-state.is-compact{padding:16px}.empty-state__actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 .message-feed{display:grid;align-content:start;gap:14px;min-height:440px;max-height:720px;overflow:auto;padding-right:6px}
 .message-row{display:flex;justify-content:flex-start}.message-row.is-self{justify-content:flex-end}.message-row.is-self .message-bubble-wrap{justify-items:end}.message-row.is-self .message-meta{justify-content:flex-end;text-align:right}
@@ -1027,13 +773,9 @@ function buildRoute(path, query = {}) {
 .file-list{display:flex;flex-wrap:wrap;gap:10px}
 .file-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid rgba(17,24,39,.12);background:#f7f9fb;color:#111827;font-size:.92rem}
 .file-pill__remove{border:0;background:transparent;color:#4b5563;font-weight:700;cursor:pointer;padding:0}
-.context-card{padding:18px;display:grid;gap:10px}.simple-list{margin:0;padding-left:18px}.workroom-thread-empty{min-height:520px;display:grid;place-items:center;text-align:center}
+.workroom-thread-empty{min-height:520px;display:grid;place-items:center;text-align:center}
 .context-kv-list{display:grid;gap:10px;padding-top:2px}.context-kv{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:10px 0;border-top:1px solid rgba(17,24,39,.06)}.context-kv:first-child{border-top:0;padding-top:0}.context-kv span{color:#6b7280}.context-kv strong{color:#111827;text-align:right}
-.asset-row{display:grid;gap:4px;padding:12px 14px;border:1px solid rgba(17,24,39,.08);border-radius:18px;background:#fff;text-decoration:none;text-align:left;font:inherit;cursor:pointer}.asset-row strong{font-size:.95rem}.asset-row span{color:#6b7280;font-size:.88rem}
 .section-head__actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.workroom-sidebar__hint{padding-right:8px}
-.workroom-sidebar__compact-note{margin:0;color:#5f6c59;line-height:1.65}
 .workroom-thread__chips{margin-top:-2px}
-@media (max-width: 1240px){.workroom-shell{grid-template-columns:minmax(0,1fr)}.workroom-sidebar,.workroom-thread{order:unset}}
 @media (max-width: 720px){.panel{padding:20px}.workroom-hero__topline,.workroom-hero__actions,.section-header,.thread-header-actions,.message-composer__actions{flex-direction:column;align-items:stretch}.workroom-hero__titleblock h1{font-size:1.9rem}}
 </style>
