@@ -103,6 +103,15 @@ assert(
   'Workspace progress dialog should expose an explicit complete-and-advance action that submits 100% completion to move to the next milestone.'
 );
 
+assert(
+  workspaceSource.includes('<span>文件与交付物</span>')
+    && !workspaceSource.includes('workspace-card--activity')
+    && !workspaceSource.includes('<span class="eyebrow">合同记录</span>')
+    && !workspaceSource.includes('const activityFeed = computed(() =>')
+    && !workspaceSource.includes('function normalizeReviewItems'),
+  'Workspace should remove the duplicated contract-record activity module and keep files plus milestones as the main progress trail.'
+);
+
 const publishSource = readSource('PublishTaskPage.vue');
 assert(
   apiSource.includes("skills: Array.isArray(payload?.skills) ? payload.skills : []")

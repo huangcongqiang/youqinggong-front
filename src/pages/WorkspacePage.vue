@@ -41,9 +41,9 @@
                 <p>先在概览里继续推进合同，消息、结算、记录和助手会继续挂在同一份合同下。</p>
               </article>
               <article class="summary-chip-card">
-                <span>合同动态</span>
-                <strong>{{ activityFeed.length }} 条更新</strong>
-                <p>{{ assetItems.length ? `已挂接 ${assetItems.length} 个文件` : '合同推进后，文件和动态会继续汇总到这里。' }}</p>
+                <span>文件与交付物</span>
+                <strong>{{ assetItems.length }} 个文件</strong>
+                <p>{{ assetItems.length ? '交付文件已汇总到右侧文件区。' : '里程碑推进后，文件和交付物会继续汇总到这里。' }}</p>
               </article>
             </div>
 
@@ -257,52 +257,6 @@
             </div>
           </section>
 
-          <section class="workspace-card workspace-card--activity">
-            <div class="section-head">
-              <div>
-                <span class="eyebrow">合同记录</span>
-                <h2>合同动态</h2>
-              </div>
-              <span class="workspace-count">{{ activityFeed.length }} 条记录</span>
-            </div>
-
-            <div v-if="activityFeed.length" class="activity-list">
-              <article
-                v-for="item in activityFeed"
-                :key="item.key"
-                class="activity-card"
-              >
-                <div class="activity-top">
-                  <div>
-                    <span class="activity-type">{{ item.kindLabel }}</span>
-                    <h3>{{ item.title }}</h3>
-                  </div>
-                  <span class="workspace-pill">{{ item.time || '刚刚更新' }}</span>
-                </div>
-
-                <p class="activity-summary">{{ item.summary }}</p>
-                    <p v-if="item.aiReviewSummary" class="activity-ai">助手摘要：{{ item.aiReviewSummary }}</p>
-
-                <div v-if="item.attachments.length" class="attachment-row">
-                  <a
-                    v-for="attachment in item.attachments"
-                    :key="`${item.key}-${attachmentLabel(attachment)}`"
-                    class="attachment-pill"
-                    :href="attachmentHref(attachment)"
-                    :download="attachmentLabel(attachment)"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {{ attachmentLabel(attachment) }}
-                  </a>
-                </div>
-              </article>
-            </div>
-
-            <div v-else class="workspace-empty">
-              <p>当前还没有合同记录。更新、备注和文件会按时间顺序出现在这里。</p>
-            </div>
-          </section>
         </main>
 
         <aside class="workspace-sidebar">
@@ -467,7 +421,7 @@
             <div>
               <span class="eyebrow">里程碑进展</span>
               <h2 id="progress-dialog-title">{{ progressDialogNode.title }}</h2>
-              <p class="muted">这条进展会直接挂到当前里程碑下，提交后再回到合同动态里留痕。</p>
+              <p class="muted">这条进展会直接挂到当前里程碑下，提交后会同步到当前里程碑和文件区。</p>
             </div>
             <button class="button-secondary button-secondary--small" type="button" @click="closeProgressDialog">关闭</button>
           </div>
@@ -680,7 +634,6 @@ const taskOptions = computed(() => normalizeTaskOptions(page.value?.taskOptions)
 const milestones = computed(() => normalizeNodes(page.value?.collaborationNodes || page.value?.milestones || []))
 const progressFeed = computed(() => normalizeProgressItems(page.value?.progressFeed || []))
 const aiReviewHistory = computed(() => normalizeActivityItems(page.value?.aiReviewHistory || []))
-const reviewHistory = computed(() => normalizeReviewItems(page.value?.reviewHistory || []))
 const closure = computed(() => page.value || createEmptyWorkspace(currentTaskId.value))
 const assetItems = computed(() => {
   const fromLibrary = normalizeAssetItems(page.value?.assetLibrary || [])
@@ -815,48 +768,6 @@ const latestAiReviewSummary = computed(() => {
     aiReviewHistory.value[0]?.summary ||
     '当前还没有摘要。'
   )
-})
-
-const activityFeed = computed(() => {
-  const feed = []
-
-  progressFeed.value.forEach((item, index) => {
-    feed.push({
-      key: `progress-${item.key || index}`,
-      kindLabel: '进展更新',
-      title: item.title || item.stage || item.status || `更新 ${index + 1}`,
-      summary: item.summary || item.description || item.progressText || '当前还没有摘要。',
-      time: item.time || item.updatedAt || item.submittedAt || '刚刚更新',
-      aiReviewSummary: item.aiReviewSummary || item.aiReview?.summary || '',
-      attachments: item.attachments || [],
-    })
-  })
-
-  aiReviewHistory.value.forEach((item, index) => {
-    feed.push({
-      key: `ai-${item.key || index}`,
-      kindLabel: '助手摘要',
-      title: item.title || '助手摘要',
-      summary: item.summary || '当前还没有摘要。',
-      time: item.time || item.updatedAt || '刚刚更新',
-      aiReviewSummary: item.aiReviewSummary || '',
-      attachments: item.attachments || [],
-    })
-  })
-
-  reviewHistory.value.forEach((item, index) => {
-    feed.push({
-      key: `review-${item.key || index}`,
-      kindLabel: '反馈',
-      title: item.reviewer || '反馈记录',
-      summary: item.content || item.summary || '暂时还没有反馈。',
-      time: item.time || item.updatedAt || '刚刚更新',
-      aiReviewSummary: '',
-      attachments: item.attachments || [],
-    })
-  })
-
-  return feed.slice(0, 10)
 })
 
 function clearAssistantDraftQuery() {
@@ -1073,7 +984,7 @@ function normalizeTalentSubmission(node) {
   const attachments = Array.isArray(node.attachments) ? node.attachments : []
   if (!content && !supportNeeded && !attachments.length) return null
   return {
-    content: content || '人才已提交进展，详情请查看附件或合同动态。',
+    content: content || '人才已提交进展，详情请查看附件或当前里程碑。',
     supportNeeded,
     attachments,
     time: String(submission.time || node.updatedAt || '刚刚更新').trim() || '刚刚更新',
@@ -1326,7 +1237,6 @@ function normalizeWorkspace(raw, requestedTaskId = '') {
     progressFeed: normalizeProgressItems(source.progressFeed || []),
     assetLibrary: normalizeAssetItems(source.assetLibrary || []),
     aiReviewHistory: normalizeActivityItems(source.aiReviewHistory || []),
-    reviewHistory: normalizeReviewItems(source.reviewHistory || []),
     executionChecklist: asArray(source.executionChecklist),
     supportOptions: asArray(source.supportOptions).map((item) => String(item).trim()).filter(Boolean),
     earlyCompletion: source.earlyCompletion && typeof source.earlyCompletion === 'object' ? source.earlyCompletion : {},
@@ -1374,7 +1284,6 @@ function createEmptyWorkspace(taskId = '') {
     progressFeed: [],
     assetLibrary: [],
     aiReviewHistory: [],
-    reviewHistory: [],
     executionChecklist: [],
     supportOptions: [],
     earlyCompletion: {},
@@ -1443,16 +1352,6 @@ function normalizeActivityItems(list) {
     summary: item?.summary || item?.note || item?.content || '',
     time: item?.time || item?.updatedAt || item?.submittedAt || '',
     attachments: normalizeAttachmentList(item?.attachments || item?.attachmentFiles || item?.files),
-  }))
-}
-
-function normalizeReviewItems(list) {
-  return asArray(list).map((item, index) => ({
-    key: String(item?.key || item?.id || item?.time || index),
-    reviewer: item?.reviewer || item?.role || '反馈记录',
-    content: item?.content || item?.summary || '',
-    time: item?.time || item?.updatedAt || '',
-    attachments: normalizeAttachmentList(item?.attachments || item?.files),
   }))
 }
 
@@ -2253,47 +2152,6 @@ function buildRoute(path, query = {}) {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.activity-card {
-  display: grid;
-  gap: 12px;
-  padding: 20px;
-  border-radius: 22px;
-  border: 1px solid rgba(18, 18, 18, 0.08);
-  background: #ffffff;
-}
-
-.activity-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: flex-start;
-}
-
-.activity-type {
-  display: inline-flex;
-  margin-bottom: 8px;
-  color: #108a00;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.activity-top h3 {
-  font-size: 18px;
-  line-height: 1.4;
-}
-
-.activity-summary,
-.activity-ai {
-  line-height: 1.76;
-}
-
-.activity-ai {
-  color: #111111;
-  font-weight: 600;
 }
 
 .workspace-sidebar {
