@@ -553,6 +553,15 @@ assert(
   'RecordDetailPage should use the real confirmationHistory field and clearly separate application, interview, and confirmed collaboration states.'
 );
 
+assert(
+  recordDetailSource.includes('ChatAttachmentPreviewModal')
+    && recordDetailSource.includes('@click.stop.prevent="openRecordAttachment(asset, $event)"')
+    && recordDetailSource.includes('function openRecordAttachment(asset, event = null)')
+    && recordDetailSource.includes('function attachmentDownloadHref(attachment)')
+    && !recordDetailSource.includes(':href="asset.downloadHref"'),
+  'RecordDetailPage saved contract files should open the attachment preview/download modal instead of behaving like a file picker or raw anchor.'
+);
+
 const recordDetailViewModelSource = readSource('recordDetailViewModel.js');
 assert(
   !recordDetailViewModelSource.includes("amountNote: 'Contract value'")

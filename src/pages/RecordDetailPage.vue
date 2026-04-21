@@ -67,18 +67,16 @@
               <p v-if="item.detail" class="muted">{{ item.detail }}</p>
               <p v-if="item.aiReviewSummary" class="muted">助手摘要： {{ item.aiReviewSummary }}</p>
               <div v-if="item.attachments.length" class="asset-list">
-                <a
+                <button
                   v-for="asset in item.attachments"
                   :key="`${item.key}-${asset.name}`"
+                  type="button"
                   class="asset-item"
-                  :href="asset.downloadHref"
-                  :download="asset.name"
-                  target="_blank"
-                  rel="noreferrer"
+                  @click.stop.prevent="openRecordAttachment(asset, $event)"
                 >
                   <strong>{{ asset.name }}</strong>
                   <span>{{ asset.type || '附件' }}</span>
-                </a>
+                </button>
               </div>
             </article>
           </div>
@@ -151,18 +149,16 @@
           <article class="context-card stack-sm">
             <span class="eyebrow">附件</span>
             <div v-if="viewModel.assetFiles.length" class="asset-list">
-              <a
+              <button
                 v-for="asset in viewModel.assetFiles"
                 :key="asset.name"
+                type="button"
                 class="asset-item"
-                :href="asset.downloadHref"
-                :download="asset.name"
-                target="_blank"
-                rel="noreferrer"
+                @click.stop.prevent="openRecordAttachment(asset, $event)"
               >
                 <strong>{{ asset.name }}</strong>
                 <span>{{ asset.type || '附件' }}</span>
-              </a>
+              </button>
             </div>
             <p v-else class="muted">还没有保存的文件。</p>
           </article>
@@ -170,6 +166,13 @@
       </aside>
     </section>
 
+    <ChatAttachmentPreviewModal
+      :open="Boolean(previewAttachment)"
+      :attachment="previewAttachment"
+      :attachment-meta-text="attachmentMetaText"
+      :attachment-download-href="attachmentDownloadHref"
+      @close="previewAttachment = null"
+    />
     <ActionErrorDialog :message="errorMessage" title="申请与合作记录暂时不可用" eyebrow="记录" />
   </section>
 </template>
@@ -178,8 +181,10 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ActionErrorDialog from '../components/ActionErrorDialog.vue'
+import ChatAttachmentPreviewModal from '../components/chat/ChatAttachmentPreviewModal.vue'
 import ContractShellHeader from '../components/ContractShellHeader.vue'
 import { buildRecordDetailViewModel } from './recordDetailViewModel.js'
+import { attachmentMetaText, inferAttachmentKind } from './messageDetailHelpers.js'
 import { buildSettlementRoute } from './settlementHelpers.js'
 import { getOrderRecordDetail } from '../services/api'
 
@@ -188,6 +193,7 @@ const audience = computed(() => (route.meta?.audience === 'talent' ? 'talent' : 
 const recordId = computed(() => String(route.params.recordId || ''))
 const page = ref(null)
 const errorMessage = ref('')
+const previewAttachment = ref(null)
 
 const record = computed(() => page.value?.record || page.value || null)
 const defaultLead = computed(() => (audience.value === 'talent'
@@ -276,6 +282,116 @@ const activityStream = computed(() => {
       return right.stamp - left.stamp
     })
 })
+
+function looksLikeUploadId(value) {
+  return /^upload[-_]/i.test(String(value || '').trim())
+}
+
+function resolveAttachmentHref(value) {
+  const raw = String(value || '').trim()
+  if (!raw || raw === '#') return ''
+  if (/^(https?:|blob:|data:)/i.test(raw)) return raw
+  if (looksLikeUploadId(raw)) {
+    return resolveAttachmentHref(`/api/uploads/${encodeURIComponent(raw)}/content`)
+  }
+  if (!raw.startsWith('/') && !/^(api|uploads|files)\//i.test(raw)) return ''
+  if (typeof window === 'undefined') return raw.startsWith('/') ? raw : `/${raw}`
+  try {
+    return new URL(raw.startsWith('/') ? raw : `/${raw}`, window.location.origin).toString()
+  } catch {
+    return raw
+  }
+}
+
+function rawAttachmentHref(source) {
+  if (typeof source === 'string') return source
+  const uploadId = String(source?.uploadId || '').trim()
+  const id = String(source?.id || '').trim()
+  return String(
+    source?.downloadHref ||
+    source?.downloadUrl ||
+    source?.previewUrl ||
+    source?.url ||
+    source?.href ||
+    source?.fileUrl ||
+    source?.path ||
+    (uploadId ? `/api/uploads/${encodeURIComponent(uploadId)}/content` : '') ||
+    (looksLikeUploadId(id) ? `/api/uploads/${encodeURIComponent(id)}/content` : '')
+  ).trim()
+}
+
+function normalizeAttachmentName(source, fallback = '附件') {
+  if (typeof source === 'string') {
+    const raw = source.trim()
+    if (!raw) return fallback
+    try {
+      const url = new URL(raw, typeof window !== 'undefined' ? window.location.origin : 'https://app.cyxss.xyz')
+      return decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || fallback)
+    } catch {
+      return raw
+    }
+  }
+  return String(
+    source?.name ||
+      source?.filename ||
+      source?.fileName ||
+      source?.label ||
+      source?.title ||
+      fallback
+  ).trim()
+}
+
+function normalizeRecordAttachmentKind(type, name) {
+  const text = `${type || ''} ${name || ''}`.toLowerCase()
+  if (/image|图片|\.png|\.jpe?g|\.gif|\.webp|\.svg/.test(text)) return 'image'
+  return inferAttachmentKind(type, name)
+}
+
+function normalizeRecordAttachment(source, fallbackKey = 'record-attachment') {
+  const name = normalizeAttachmentName(source)
+  const type = String(source?.type || source?.mimeType || source?.fileType || 'application/octet-stream').trim()
+  const href = resolveAttachmentHref(rawAttachmentHref(source))
+  const kind = normalizeRecordAttachmentKind(type, name)
+  const previewUrl = resolveAttachmentHref(source?.previewUrl || (kind === 'image' ? href : ''))
+  return {
+    key: String(source?.id || source?.uploadId || `${fallbackKey}-${name}`),
+    id: String(source?.id || source?.uploadId || ''),
+    name,
+    type,
+    kind,
+    size: Number(source?.size || source?.fileSize || 0),
+    previewUrl,
+    downloadUrl: href,
+    href,
+  }
+}
+
+function attachmentDownloadHref(attachment) {
+  return resolveAttachmentHref(
+    attachment?.href ||
+    attachment?.downloadUrl ||
+    attachment?.downloadHref ||
+    attachment?.url ||
+    attachment?.fileUrl ||
+    attachment?.path ||
+    attachment?.previewUrl ||
+    rawAttachmentHref(attachment)
+  )
+}
+
+function openRecordAttachment(asset, event = null) {
+  event?.preventDefault?.()
+  event?.stopPropagation?.()
+  const normalized = normalizeRecordAttachment(asset, asset?.key || 'record-attachment')
+  const href = attachmentDownloadHref(normalized)
+  previewAttachment.value = {
+    ...normalized,
+    previewUrl: normalized.kind === 'image' ? (normalized.previewUrl || href) : '',
+    downloadUrl: href,
+    href,
+  }
+}
+
 const recordShellTaskId = computed(() => String(viewModel.value.anchor.taskId || route.query.taskId || '').trim())
 const recordShellRoomKey = computed(() => String(viewModel.value.anchor.roomKey || route.query.roomKey || route.query.room || '').trim())
 const recordShellCounterpartName = computed(() => String(
@@ -649,7 +765,16 @@ onMounted(loadRecordDetail)
   border: 1px solid rgba(18, 18, 18, 0.08);
   border-radius: 18px;
   background: #ffffff;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+}
+
+.asset-item:hover {
+  border-color: rgba(47, 125, 36, 0.32);
+  box-shadow: 0 10px 26px rgba(39, 55, 27, 0.08);
 }
 
 .asset-item strong {
