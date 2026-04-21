@@ -263,6 +263,12 @@ assert(
   'AcceptancePage should keep action errors single-sourced in the dialog while keeping live sync silent in the background.'
 );
 assert(
+  !acceptanceSource.includes('验收完成后再打开结算')
+    && !acceptanceSource.includes('结算衔接')
+    && !acceptanceSource.includes('acceptance-finance-panel'),
+  'AcceptancePage should not render the redundant settlement handoff panel inside the acceptance flow.'
+);
+assert(
   acceptanceSource.includes('isUnavailable: true,')
     && acceptanceSource.includes('<template v-if="page?.isUnavailable">')
     && acceptanceSource.includes('当前验收内容暂时不可用')
@@ -289,17 +295,7 @@ assert(
       || acceptanceSource.includes('const isAcceptanceExecutionPhase = computed(() => {')
       || acceptanceSource.includes("? '执行中'"))
     && !acceptanceSource.includes("value: normalizeAcceptanceStatusLabel(String(source.status || '未开始').trim() || '未开始')"),
-  'AcceptancePage should normalize backend status strings before showing them in pills, summary cards, and billing cards.'
-);
-assert(
-  acceptanceSource.includes('function normalizeClosureStatusLabel(value) {')
-    && acceptanceSource.includes("CLAIM_REQUESTED: '待提交请款'")
-    && acceptanceSource.includes("INVOICE_SUBMITTED: '已提交发票'")
-    && acceptanceSource.includes("RECONCILIATION_PENDING: '待确认对账'")
-    && acceptanceSource.includes("DISPUTE_OPENED: '争议处理中'")
-    && acceptanceSource.includes("value: normalizeClosureStatusLabel(String(source.status || '未开始').trim() || '未开始')")
-    && acceptanceSource.includes("['riskTicketId', '工单 ']"),
-  'AcceptancePage should normalize finance/closure statuses separately from acceptance statuses and keep dispute ticket labels localized.'
+  'AcceptancePage should normalize backend status strings before showing them in pills and summary cards.'
 );
 assert(
   acceptanceSource.includes("function normalizeAcceptanceMutationStatusLabel(value, fallback = '处理中') {")

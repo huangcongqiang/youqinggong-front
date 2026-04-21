@@ -248,45 +248,6 @@
           </div>
         </article>
 
-        <article class="result-card stack-md acceptance-finance-panel">
-          <div class="stack-sm">
-            <div>
-              <span class="eyebrow">结算衔接</span>
-              <h3>{{ billingUnlocked ? '验收完成后继续去结算' : '验收完成后再打开结算' }}</h3>
-            </div>
-          </div>
-
-          <article v-if="!billingUnlocked" class="result-card stack-sm">
-            <span class="eyebrow">结算摘要</span>
-            <h3>{{ deferredBillingTitle }}</h3>
-            <p class="muted">{{ deferredBillingBody }}</p>
-            <div class="tag-row">
-              <span class="soft-pill">{{ acceptanceSummaryStatusLabel }}</span>
-              <span v-if="deliveryGrade" class="soft-pill">{{ deliveryGrade }} 级</span>
-              <span v-if="deliveryPayoutRatio" class="soft-pill">{{ deliveryPayoutRatio }}</span>
-            </div>
-          </article>
-
-          <article v-else-if="showClosureEmptyState" class="result-card stack-sm">
-            <span class="eyebrow">结算摘要</span>
-            <h3>当前还没有结算动作</h3>
-            <p class="muted">验收、评级和双方反馈完成后，结算步骤会显示在这里。</p>
-          </article>
-
-          <article v-else class="result-card stack-sm acceptance-billing-preview">
-            <span class="eyebrow">结算摘要</span>
-            <h3>{{ billingPreviewTitle }}</h3>
-            <p class="muted">{{ billingPreviewBody }}</p>
-            <p class="muted">{{ billingActionCountLabel }}</p>
-            <div class="toolbar">
-              <router-link v-if="billingUnlocked && settlementRoute" class="button-link" :to="settlementRoute">
-                继续去结算
-              </router-link>
-              <p v-else class="muted">验收完成后再打开结算。</p>
-            </div>
-          </article>
-        </article>
-
       </main>
 
       <aside class="stack-lg acceptance-side">
@@ -376,7 +337,7 @@ import {
   resolveImmediateOriginContext
 } from '../utils/objectPageContext';
 import { resolveAudience, roleRouteMap } from '../utils/roleRoutes';
-import { buildSettlementRoute, financeActionLabel, normalizeFinanceActionCode } from './settlementHelpers.js';
+import { buildSettlementRoute, normalizeFinanceActionCode } from './settlementHelpers.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -384,7 +345,6 @@ const page = ref(null);
 const authState = useAuthState();
 const audience = computed(() => resolveAudience(route));
 const isEnterprise = computed(() => audience.value === 'enterprise');
-const isTalent = computed(() => audience.value === 'talent');
 const acceptanceTradingRestriction = computed(() => tradingRestrictionMessage(authState.user, audience.value));
 const acceptanceTradingBlocked = computed(() => !hasTradingAccess(authState.user, audience.value));
 const actionErrorMessage = ref('');
@@ -472,11 +432,7 @@ function buildEmptyClosurePage(taskId = '', reason = '') {
       acceptedAt: '',
       accepterUserId: ''
     },
-    claimSummary: {},
-    invoiceSummary: {},
-    reconciliationSummary: {},
     settlementSummary: {},
-    disputeSummary: {},
     availableActions: [],
     metrics: [],
     timeline: [],
@@ -555,11 +511,7 @@ const deliveryGrade = computed(() => page.value?.summary?.deliveryGrade || early
 const deliveryPayoutRatio = computed(() =>
   normalizeSettlementRatioCopy(page.value?.summary?.deliveryPayoutRatio || earlyCompletion.value?.payoutRatio || '')
 );
-const claimSummary = computed(() => page.value?.claimSummary || {});
-const invoiceSummary = computed(() => page.value?.invoiceSummary || {});
-const reconciliationSummary = computed(() => page.value?.reconciliationSummary || {});
 const settlementSummary = computed(() => page.value?.settlementSummary || {});
-const disputeSummary = computed(() => page.value?.disputeSummary || {});
 const settlementStatusCode = computed(() => String(
   settlementSummary.value?.status
   || page.value?.summary?.settlementStatus
@@ -614,9 +566,6 @@ const showAcceptanceForm = computed(() =>
 const latestEnterpriseToTalentReview = computed(() => latestReviewItemForAudience('enterprise'));
 const latestTalentToBusinessReview = computed(() => latestReviewItemForAudience('talent'));
 const latestCurrentActorReview = computed(() => (isEnterprise.value ? latestEnterpriseToTalentReview.value : latestTalentToBusinessReview.value));
-const hasBothReviewFeedback = computed(() => Boolean(
-  latestEnterpriseToTalentReview.value && latestTalentToBusinessReview.value
-));
 const showReviewForm = computed(() =>
   !acceptanceTradingBlocked.value
   &&
@@ -724,36 +673,6 @@ const acceptanceActionBody = computed(() => {
   }
   return '当前已经没有额外动作，直接在这里查看验收结果。';
 });
-const hasActiveReviewDecision = computed(() => (
-  showGradeForm.value || showAcceptanceForm.value || showReviewForm.value
-));
-const billingUnlocked = computed(() => (
-  hasAccepted.value
-  && !isGradePending.value
-  && hasBothReviewFeedback.value
-));
-const deferredBillingTitle = computed(() => {
-  if (showGradeForm.value) return '先完成最终评级，再打开结算动作'
-  if (showAcceptanceForm.value) return '先确认验收结果，再打开结算动作'
-  if (showReviewForm.value) return '先提交剩余反馈，再打开结算动作'
-  if (!billingUnlocked.value) return '等双方都完成反馈后，再打开结算动作'
-  return '验收完成后再打开结算'
-});
-const deferredBillingBody = computed(() => {
-  if (showGradeForm.value) {
-    return '结算时间线会继续挂在这里，但在最终合同评级提交前，结算步骤不会打开。'
-  }
-  if (showAcceptanceForm.value) {
-    return '先完成当前验收确认。等交付被验收并进入评级或结算步骤后，结算动作才会出现。'
-  }
-  if (showReviewForm.value) {
-    return '先完成剩余协作反馈。结算动作继续下沉，保证这页当前只有一个主任务。'
-  }
-  if (!billingUnlocked.value) {
-    return '当前验收任务可能已经完成，但在双方都结束反馈阶段前，结算仍然保持关闭。'
-  }
-  return '验收完成后再打开结算。'
-});
 const reviewTargetLabel = computed(() => {
   if (!page.value?.summary) {
     return '待识别';
@@ -791,126 +710,13 @@ const acceptanceMetricCards = computed(() => listOf(page.value?.metrics).slice(0
 const acceptanceResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(acceptanceResult.value?.status, '已同步'));
 const gradeResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(gradeResult.value?.status, '已同步'));
 const reviewResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(reviewResult.value?.status, '已同步'));
-const closureActionSources = computed(() => [
-  page.value?.summary?.availableActions,
-  claimSummary.value?.availableActions,
-  invoiceSummary.value?.availableActions,
-  reconciliationSummary.value?.availableActions,
-  settlementSummary.value?.availableActions,
-  disputeSummary.value?.availableActions
-]);
-const closureAvailableActionCodes = computed(() =>
-  collectClosureActionCodes(...closureActionSources.value)
-);
-const closureActionChips = computed(() => {
-  const labels = {
-    CLAIM_REQUEST: '提交请款',
-    CLAIM_APPROVE: '审批请款',
-    CLAIM_REJECT: '退回请款',
-    INVOICE_SUBMIT: '提交发票',
-    RECONCILIATION_CONFIRM: '确认对账',
-    RECONCILIATION_DISPUTE: '发起争议',
-    SETTLEMENT_EXECUTE: '执行结算',
-    SETTLEMENT_FAIL: '标记失败'
-  };
-  return Array.from(closureAvailableActionCodes.value)
-    .map((code) => labels[code] || '')
-    .filter(Boolean)
-    .slice(0, 6);
-});
 const requestedFinanceAction = computed(() => normalizeFinanceActionCode(route.query.financeAction));
-const highlightedFinanceSection = computed(() =>
-  requestedFinanceAction.value
-    ? { title: financeActionLabel(requestedFinanceAction.value) }
-    : null
-);
-const highlightedFinanceActionLabel = computed(() => (
-  requestedFinanceAction.value ? financeActionLabel(requestedFinanceAction.value) : '当前动作'
-));
 
 watch([requestedFinanceAction, settlementRoute], () => {
   if (requestedFinanceAction.value && settlementRoute.value) {
     router.replace(settlementRoute.value)
   }
 }, { immediate: true });
-const showClosureEmptyState = computed(() =>
-  !closureActionChips.value.length
-  && billingStatusCards.value.every((item) =>
-    item.value === '未开始' && !item.meta.length
-  )
-);
-const billingActionCountLabel = computed(() => {
-  if (closureActionChips.value.length) return `已关联 ${closureActionChips.value.length} 条结算动作`;
-  const activeStepCount = billingStatusCards.value.filter((item) => item.value !== '未开始' || item.meta.length).length;
-  if (activeStepCount) return `已有 ${activeStepCount} 个结算步骤在推进`;
-  return '结算时间线会继续挂在这里';
-});
-const billingPreviewTitle = computed(() => {
-  if (highlightedFinanceSection.value) return `继续处理${highlightedFinanceSection.value.title}`;
-  if (closureActionChips.value.length) return '打开结算继续处理';
-  return '有结算动作后再打开结算';
-});
-const billingPreviewBody = computed(() => {
-  if (highlightedFinanceSection.value) {
-    return `${highlightedFinanceActionLabel.value}已经转到结算页继续，这里先专注验收。`;
-  }
-  if (closureActionChips.value.length) {
-    return '请款、发票、对账、争议和结算动作都已经转到结算页继续，不再留在验收页。';
-  }
-  return '结算步骤会继续挂在这里，等验收、评级和双方反馈都完成后再打开。';
-});
-const billingStatusCards = computed(() => [
-  buildClosureSummaryCard(
-    '请款',
-    claimSummary.value,
-    '验收完成后就可以继续提交请款。',
-    [
-      ['amount', '金额 '],
-      ['requestedAt', '提交于 '],
-      ['payoutRatio', '比例 ']
-    ]
-  ),
-  buildClosureSummaryCard(
-    '发票',
-    invoiceSummary.value,
-    '请款通过后，下一步就是发票。',
-    [
-      ['amount', '金额 '],
-      ['submittedAt', '提交于 '],
-      ['invoiceType', '类型 ']
-    ]
-  ),
-  buildClosureSummaryCard(
-    '对账',
-    reconciliationSummary.value,
-    '发票提交后，就会进入对账。',
-    [
-      ['amount', '金额 '],
-      ['submittedAt', '提交于 '],
-      ['updatedAt', '更新于 ']
-    ]
-  ),
-  buildClosureSummaryCard(
-    '结算',
-    settlementSummary.value,
-    '对账完成后，就可以继续结算。',
-    [
-      ['amount', '金额 '],
-      ['payoutRatio', '比例 '],
-      ['settledAt', '结算于 ']
-    ]
-  ),
-  buildClosureSummaryCard(
-    '争议',
-    disputeSummary.value,
-    '如果对账有争议，平台会继续发起争议和风险工单。',
-    [
-      ['amount', '金额 '],
-      ['submittedAt', '发起于 '],
-      ['riskTicketId', '工单 ']
-    ]
-  )
-]);
 const acceptanceContextQuery = computed(() =>
   buildChildObjectPageContext({
     current: pageContext.value,
@@ -1000,41 +806,6 @@ watch(
   { immediate: true }
 );
 
-function normalizeClosureActionCode(value) {
-  const raw = String(value || '').trim().toUpperCase();
-  if (!raw) {
-    return '';
-  }
-
-  const aliases = {
-    REQUEST_CLAIM: 'CLAIM_REQUEST',
-    CLAIM_REQUEST: 'CLAIM_REQUEST',
-    CLAIM: 'CLAIM_REQUEST',
-    APPROVE_CLAIM: 'CLAIM_APPROVE',
-    CLAIM_APPROVE: 'CLAIM_APPROVE',
-    REJECT_CLAIM: 'CLAIM_REJECT',
-    CLAIM_REJECT: 'CLAIM_REJECT',
-    SUBMIT_INVOICE: 'INVOICE_SUBMIT',
-    INVOICE_SUBMIT: 'INVOICE_SUBMIT',
-    CONFIRM_RECONCILIATION: 'RECONCILIATION_CONFIRM',
-    RECONCILIATION_CONFIRM: 'RECONCILIATION_CONFIRM',
-    DISPUTE_RECONCILIATION: 'RECONCILIATION_DISPUTE',
-    RECONCILIATION_DISPUTE: 'RECONCILIATION_DISPUTE',
-    EXECUTE_SETTLEMENT: 'SETTLEMENT_EXECUTE',
-    SETTLEMENT_EXECUTE: 'SETTLEMENT_EXECUTE',
-    FAIL_SETTLEMENT: 'SETTLEMENT_FAIL',
-    SETTLEMENT_FAIL: 'SETTLEMENT_FAIL'
-  };
-
-  return aliases[raw] || raw;
-}
-
-function collectClosureActionCodes(...sources) {
-  return new Set(
-    sources.flatMap((source) => listOf(source).map((item) => normalizeClosureActionCode(item)).filter(Boolean))
-  );
-}
-
 function summaryStatusMatches(summary, candidates = []) {
   const status = String(summary?.status || summary?.statusCode || '').trim();
   const normalizedStatus = status.toUpperCase();
@@ -1069,29 +840,6 @@ function normalizeAcceptanceStatusLabel(value) {
     COMPLETED: '已完成',
   };
   return aliases[normalized] || aliases[normalized.toUpperCase()] || normalized;
-}
-
-function normalizeClosureStatusLabel(value) {
-  const normalized = String(value || '').trim();
-  if (!normalized) {
-    return '';
-  }
-  const aliases = {
-    CLAIM_REQUESTED: '待提交请款',
-    CLAIM_PENDING: '待提交请款',
-    CLAIM_APPROVED: '已审批请款',
-    CLAIM_REJECTED: '已退回请款',
-    INVOICE_SUBMITTED: '已提交发票',
-    INVOICE_PENDING: '待提交发票',
-    RECONCILIATION_PENDING: '待确认对账',
-    RECONCILIATION_CONFIRMED: '已确认对账',
-    SETTLEMENT_PENDING: '待执行结算',
-    SETTLEMENT_EXECUTED: '已执行结算',
-    SETTLEMENT_SUCCESS: '已完成结算',
-    DISPUTE_OPENED: '争议处理中',
-    DISPUTE_PENDING: '争议处理中',
-  };
-  return aliases[normalized.toUpperCase()] || normalizeAcceptanceStatusLabel(normalized);
 }
 
 function normalizeAcceptanceMutationStatusLabel(value, fallback = '处理中') {
@@ -1412,28 +1160,6 @@ async function handleReview() {
   }
 }
 
-function summaryMeta(summary, fields) {
-  const source = summary && typeof summary === 'object' ? summary : {};
-  return listOf(fields)
-    .map(([key, prefix]) => {
-      const value = String(source?.[key] || '').trim();
-      return value ? `${prefix || ''}${value}` : '';
-    })
-    .filter(Boolean)
-    .slice(0, 3);
-}
-
-function buildClosureSummaryCard(label, summary, fallbackNote, fields = [], actions = []) {
-  const source = summary && typeof summary === 'object' ? summary : {};
-  return {
-    label,
-    value: normalizeClosureStatusLabel(String(source.status || '未开始').trim() || '未开始'),
-    note: compactText(source.nextStep || source.decisionNote || source.note || fallbackNote, 64),
-    meta: summaryMeta(source, fields),
-    actions
-  };
-}
-
 onMounted(refreshPage);
 
 watch(
@@ -1627,7 +1353,6 @@ onBeforeUnmount(() => {
 }
 
 .acceptance-action-panel,
-.acceptance-finance-panel,
 .acceptance-sidebar-card {
   border-radius: 24px;
 }
@@ -1655,8 +1380,7 @@ onBeforeUnmount(() => {
 }
 
 .acceptance-option-card,
-.acceptance-summary-card,
-.acceptance-finance-card {
+.acceptance-summary-card {
   border-radius: 16px;
   background: #ffffff;
   border: 1px solid var(--acceptance-border);
@@ -1694,11 +1418,6 @@ onBeforeUnmount(() => {
   border-color: var(--acceptance-accent);
   box-shadow: 0 0 0 1px rgba(16, 138, 0, 0.1);
   background: #f0f7ef;
-}
-
-.acceptance-finance-card.is-highlighted {
-  border-color: var(--acceptance-accent);
-  box-shadow: 0 0 0 1px rgba(16, 138, 0, 0.12);
 }
 
 .acceptance-grade-group {
