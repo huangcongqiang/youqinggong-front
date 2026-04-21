@@ -559,7 +559,10 @@ assert(
     && recordDetailSource.includes("recordShellRoomKey.value ? { label: '验收', to: acceptanceRoute.value } : null")
     && recordDetailSource.includes('这条记录当前还是申请阶段。先看申请摘要和任务进展，再决定是否约面试、继续沟通或确认合作。')
     && recordDetailSource.includes('这条记录已经进入面试阶段，后续可以继续沟通、判断是否通过面试并确认合作。')
-    && recordDetailSource.includes('当前缺少记录编号，暂时无法加载合作记录。'),
+    && recordDetailSource.includes('当前缺少记录编号，暂时无法加载合作记录。')
+    && recordDetailSource.includes('record-archive-cover')
+    && recordDetailSource.includes('record-timeline-panel')
+    && recordDetailSource.includes('record-side-rail'),
   'RecordDetailPage should use the real confirmationHistory field and clearly separate application, interview, and confirmed collaboration states.'
 );
 

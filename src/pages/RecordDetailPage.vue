@@ -21,29 +21,40 @@
 
     <section class="record-detail-shell">
       <main class="stack-md">
-        <article class="panel stack-md">
-          <div class="section-header">
-            <div>
+        <article class="record-archive-cover stack-lg">
+          <div class="record-archive-cover__halo" aria-hidden="true"></div>
+          <div class="record-archive-cover__topline">
+            <div class="record-archive-cover__copy stack-sm">
               <p class="eyebrow">记录概览</p>
-              <h2>先看这条记录的关键信息</h2>
+              <h2>把这次合作沉淀成一份清晰档案</h2>
+              <p class="muted">{{ viewModel.overviewText || recordShellLead }}</p>
+              <div class="mini-chip-row">
+                <span class="mini-chip">时间线 {{ viewModel.dateRangeLabel }}</span>
+                <span class="mini-chip">{{ gradeLabel }} {{ viewModel.ratingValue }}</span>
+                <span v-for="tag in viewModel.summaryTags" :key="tag" class="mini-chip">{{ tag }}</span>
+              </div>
+            </div>
+            <div class="record-archive-cover__stamp">
+              <span>{{ recordShellLifecycleLabel }}</span>
+              <strong>{{ viewModel.ratingValue }}</strong>
+              <small>{{ viewModel.dateRangeLabel }}</small>
             </div>
           </div>
 
-          <div class="mini-chip-row">
-            <span class="mini-chip">时间线 {{ viewModel.dateRangeLabel }}</span>
-            <span class="mini-chip">{{ gradeLabel }} {{ viewModel.ratingValue }}</span>
-            <span v-for="tag in viewModel.summaryTags" :key="tag" class="mini-chip">{{ tag }}</span>
-          </div>
-
-          <div v-if="viewModel.keyResults.length" class="fact-list">
-            <article v-for="item in viewModel.keyResults" :key="`${item.label}-${item.text}`" class="fact-card">
+          <div v-if="viewModel.keyResults.length" class="fact-list record-fact-grid">
+            <article
+              v-for="(item, index) in viewModel.keyResults"
+              :key="`${item.label}-${item.text}`"
+              class="fact-card"
+              :class="{ 'fact-card--feature': index === 0 }"
+            >
               <span class="eyebrow">{{ item.label }}</span>
               <p>{{ item.text }}</p>
             </article>
           </div>
         </article>
 
-        <article class="panel stack-md">
+        <article class="panel stack-md record-timeline-panel">
           <div class="section-header">
             <div>
               <p class="eyebrow">记录时间线</p>
@@ -87,8 +98,8 @@
         </article>
       </main>
 
-      <aside class="stack-md">
-        <article class="panel stack-md">
+      <aside class="stack-md record-side-rail">
+        <article class="panel stack-md finance-command-panel">
             <div class="section-header section-header--compact">
             <div>
               <p class="eyebrow">财务跟进</p>
@@ -138,7 +149,7 @@
           </article>
         </article>
 
-        <article class="panel stack-md">
+        <article class="panel stack-md file-vault-panel">
           <div class="section-header section-header--compact">
             <div>
               <p class="eyebrow">文件</p>
@@ -531,9 +542,35 @@ onMounted(loadRecordDetail)
 
 <style scoped>
 .record-detail-page {
+  --record-ink: #1d2517;
+  --record-muted: #687260;
+  --record-soft: #f5f2e6;
+  --record-paper: rgba(255, 254, 247, 0.96);
+  --record-panel: rgba(255, 255, 251, 0.9);
+  --record-line: rgba(49, 68, 35, 0.12);
+  --record-green: #2f7d24;
+  --record-green-deep: #1f5f18;
+  --record-gold: #c39b3c;
+  --record-shadow: 0 24px 70px rgba(40, 52, 28, 0.12);
   display: grid;
-  gap: 22px;
-  padding-bottom: 40px;
+  gap: 24px;
+  position: relative;
+  isolation: isolate;
+  padding-bottom: 48px;
+}
+
+.record-detail-page::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 120px -48px auto;
+  height: 520px;
+  border-radius: 48px;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(47, 125, 36, 0.16), transparent 32%),
+    radial-gradient(circle at 88% 12%, rgba(195, 155, 60, 0.14), transparent 28%),
+    linear-gradient(135deg, rgba(247, 244, 229, 0.86), rgba(255, 255, 250, 0.28));
+  pointer-events: none;
 }
 
 .stack-xl { gap: 32px; display: grid; }
@@ -541,203 +578,281 @@ onMounted(loadRecordDetail)
 .stack-md { gap: 18px; display: grid; }
 .stack-sm { gap: 12px; display: grid; }
 
-.record-detail-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 16px 20px;
-}
-
-.record-detail-nav__link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(18, 18, 18, 0.12);
-  color: #66665f;
-  text-decoration: none;
-  font-weight: 600;
-  background: #ffffff;
-}
-
-.record-detail-nav__link.is-active,
-.record-detail-nav__link.router-link-active,
-.record-detail-nav__link.router-link-exact-active {
-  border-color: rgba(16, 138, 0, 0.2);
-  background: #f3fff0;
-  color: #165a0f;
-}
-
 .panel {
-  padding: 24px;
-  border-radius: 28px;
-  border: 1px solid rgba(18, 18, 18, 0.08);
-  background: #fffef8;
-  box-shadow: 0 16px 34px rgba(18, 18, 18, 0.05);
+  padding: 26px;
+  border-radius: 30px;
+  border: 1px solid var(--record-line);
+  background: var(--record-panel);
+  box-shadow: 0 18px 46px rgba(40, 52, 28, 0.08);
+  backdrop-filter: blur(18px);
 }
 
 .eyebrow {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #108a00;
+  color: var(--record-green);
 }
 
 .muted {
   margin: 0;
-  color: #66665f;
+  color: var(--record-muted);
   line-height: 1.7;
-}
-
-.record-detail-hero {
-  padding: 28px 30px;
-  border-radius: 30px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 244, 0.98));
-  box-shadow: 0 14px 36px rgba(22, 49, 29, 0.07);
-  border: 1px solid rgba(18, 18, 18, 0.08);
-}
-
-.record-detail-hero__topline,
-.hero-actions,
-.section-header,
-.section-header--compact,
-.timeline-item,
-.progress-card__topline,
-.context-card__topline {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.record-detail-hero__topline h1 {
-  margin: 6px 0 10px;
-  font-size: 2.2rem;
-  line-height: 1.1;
-  color: #111111;
-  letter-spacing: -0.02em;
-}
-
-.signal-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.signal-card,
-.fact-card,
-.progress-card,
-.timeline-item,
-.context-card,
-.review-history-card,
-.activity-card {
-  border-radius: 22px;
-  border: 1px solid rgba(18, 18, 18, 0.08);
-  background: #ffffff;
-}
-
-.signal-card {
-  padding: 18px 20px;
-}
-
-.signal-card span {
-  display: block;
-  margin-bottom: 8px;
-  color: #6f6f68;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.signal-card strong {
-  font-size: 1.6rem;
-  color: #111111;
-  line-height: 1;
 }
 
 .record-detail-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 26px;
   align-items: start;
+}
+
+.record-archive-cover {
+  position: relative;
+  overflow: hidden;
+  padding: 30px;
+  border: 1px solid rgba(47, 125, 36, 0.14);
+  border-radius: 34px;
+  background:
+    linear-gradient(120deg, rgba(255, 254, 246, 0.98), rgba(247, 250, 238, 0.92)),
+    repeating-linear-gradient(90deg, rgba(47, 125, 36, 0.06) 0 1px, transparent 1px 18px);
+  box-shadow: var(--record-shadow);
+}
+
+.record-archive-cover::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  top: -120px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  border: 42px solid rgba(47, 125, 36, 0.07);
+  pointer-events: none;
+}
+
+.record-archive-cover__halo {
+  position: absolute;
+  inset: auto 24px 20px auto;
+  width: 160px;
+  height: 160px;
+  border-radius: 42px;
+  background:
+    linear-gradient(135deg, rgba(47, 125, 36, 0.14), transparent 62%),
+    linear-gradient(45deg, rgba(195, 155, 60, 0.12), transparent 60%);
+  transform: rotate(10deg);
+  opacity: 0.85;
+}
+
+.record-archive-cover__topline,
+.hero-actions,
+.section-header,
+.section-header--compact,
+.context-card__topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.record-archive-cover__copy {
+  position: relative;
+  z-index: 1;
+  max-width: 700px;
+}
+
+.record-archive-cover__copy h2 {
+  margin: 0;
+  max-width: 680px;
+  color: var(--record-ink);
+  font-size: clamp(2rem, 4vw, 4.7rem);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
+}
+
+.record-archive-cover__stamp {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+  min-width: 170px;
+  padding: 18px;
+  border: 1px solid rgba(47, 125, 36, 0.18);
+  border-radius: 26px;
+  background: rgba(255, 255, 252, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.record-archive-cover__stamp span,
+.record-archive-cover__stamp small {
+  color: var(--record-muted);
+  font-weight: 700;
+}
+
+.record-archive-cover__stamp strong {
+  color: var(--record-green-deep);
+  font-size: 2.8rem;
+  line-height: 1;
+  letter-spacing: -0.08em;
+}
+
+.mini-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .soft-pill,
 .status-chip,
 .mini-chip,
 .button-primary,
-.button-secondary {
+.button-secondary,
+.button-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 34px;
   padding: 0 14px;
   border-radius: 999px;
+  border: 1px solid var(--record-line);
   text-decoration: none;
   font-size: 14px;
+  font-weight: 700;
 }
 
 .soft-pill,
 .mini-chip,
 .button-secondary {
-  border: 1px solid rgba(18, 18, 18, 0.12);
-  background: #ffffff;
-  color: #111111;
+  background: rgba(255, 255, 252, 0.86);
+  color: var(--record-ink);
 }
 
-.status-chip {
-  border: 1px solid rgba(16, 138, 0, 0.24);
-  background: #f3fff0;
-  color: #165a0f;
-  font-weight: 600;
+.status-chip,
+.button-link,
+.button-primary {
+  border-color: rgba(47, 125, 36, 0.24);
+  background: linear-gradient(180deg, #f3fff0, #e7f2db);
+  color: var(--record-green-deep);
 }
 
 .button-secondary {
   min-height: 44px;
   padding: 0 20px;
-  font-weight: 600;
-  border-radius: 12px;
+  border-radius: 16px;
 }
 
 .fact-list,
-.timeline-list,
-.progress-list,
 .asset-list,
-.review-history-list,
 .activity-stream {
   display: grid;
-  gap: 12px;
+  gap: 14px;
+}
+
+.record-fact-grid {
+  position: relative;
+  z-index: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .fact-card,
-.progress-card,
-.timeline-item,
 .context-card,
-.review-history-card,
+.mini-card,
+.activity-card {
+  position: relative;
+  border: 1px solid var(--record-line);
+  border-radius: 24px;
+  background: rgba(255, 255, 252, 0.88);
+}
+
+.fact-card,
+.context-card,
+.mini-card,
 .activity-card {
   padding: 20px;
-  border-radius: 20px;
+}
+
+.fact-card--feature {
+  grid-column: span 2;
+  background:
+    linear-gradient(135deg, rgba(47, 125, 36, 0.1), rgba(255, 255, 252, 0.9)),
+    rgba(255, 255, 252, 0.92);
 }
 
 .fact-card p,
-.progress-card p,
-.timeline-item p,
-.context-card p {
+.context-card p,
+.mini-card p,
+.activity-card p {
   margin: 0;
-  color: #66665f;
-  line-height: 1.65;
+  color: var(--record-muted);
+  line-height: 1.68;
 }
 
-.fact-card strong,
-.progress-card strong,
-.timeline-item strong,
-.context-card strong {
-  color: #111111;
+.fact-card p {
+  color: var(--record-ink);
+  font-size: 1.02rem;
+}
+
+.context-card strong,
+.mini-card strong,
+.activity-card strong {
+  color: var(--record-ink);
+}
+
+.record-timeline-panel {
+  overflow: hidden;
+}
+
+.record-timeline-panel .section-header h2,
+.finance-command-panel h2,
+.file-vault-panel h2 {
+  margin: 4px 0 0;
+  color: var(--record-ink);
+  letter-spacing: -0.04em;
+}
+
+.activity-stream {
+  position: relative;
+  padding-left: 30px;
+}
+
+.activity-stream::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(47, 125, 36, 0.6), rgba(195, 155, 60, 0.18));
+}
+
+.activity-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 252, 0.96), rgba(250, 249, 240, 0.9));
+  box-shadow: 0 14px 34px rgba(40, 52, 28, 0.06);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.activity-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(47, 125, 36, 0.28);
+  box-shadow: 0 18px 42px rgba(40, 52, 28, 0.1);
+}
+
+.activity-card::before {
+  content: "";
+  position: absolute;
+  left: -31px;
+  top: 24px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--record-green);
+  box-shadow:
+    0 0 0 5px rgba(47, 125, 36, 0.12),
+    0 0 0 1px #ffffff;
 }
 
 .activity-card__topline,
@@ -745,7 +860,7 @@ onMounted(loadRecordDetail)
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 16px;
 }
 
 .activity-card__meta {
@@ -754,35 +869,83 @@ onMounted(loadRecordDetail)
 }
 
 .activity-card__meta small {
-  color: #6f6f68;
+  color: var(--record-muted);
   line-height: 1.5;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.record-side-rail {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+
+.record-side-rail .panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 252, 0.94), rgba(247, 247, 238, 0.9));
+  box-shadow: none;
+}
+
+.finance-command-panel {
+  border-color: rgba(47, 125, 36, 0.16);
+}
+
+.finance-command-panel .mini-card {
+  background:
+    linear-gradient(135deg, rgba(47, 125, 36, 0.12), rgba(255, 255, 252, 0.92)),
+    rgba(255, 255, 252, 0.92);
+}
+
+.file-vault-panel {
+  border-color: rgba(195, 155, 60, 0.18);
 }
 
 .asset-item {
   display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1px solid rgba(18, 18, 18, 0.08);
-  border-radius: 18px;
-  background: #ffffff;
+  gap: 8px;
+  position: relative;
+  width: 100%;
+  padding: 16px 18px 16px 52px;
+  border: 1px solid var(--record-line);
+  border-radius: 20px;
+  background: rgba(255, 255, 252, 0.88);
   color: inherit;
   cursor: pointer;
   font: inherit;
   text-align: left;
   text-decoration: none;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.asset-item::before {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  width: 18px;
+  height: 22px;
+  border: 2px solid rgba(47, 125, 36, 0.34);
+  border-radius: 5px 8px 5px 5px;
+  background: linear-gradient(180deg, rgba(47, 125, 36, 0.08), rgba(255, 255, 252, 0.85));
 }
 
 .asset-item:hover {
-  border-color: rgba(47, 125, 36, 0.32);
-  box-shadow: 0 10px 26px rgba(39, 55, 27, 0.08);
+  transform: translateY(-1px);
+  border-color: rgba(47, 125, 36, 0.3);
+  box-shadow: 0 12px 28px rgba(39, 55, 27, 0.09);
 }
 
 .asset-item strong {
-  color: #111111;
+  color: var(--record-ink);
 }
 
 .asset-item span {
-  color: #66665f;
+  color: var(--record-muted);
 }
 
 .detail-error-banner {
@@ -798,24 +961,19 @@ onMounted(loadRecordDetail)
 .empty-state.is-compact {
   padding: 24px;
   border-radius: 22px;
-  border: 1px dashed rgba(18, 18, 18, 0.16);
-  background: #f4f7ef;
+  border: 1px dashed rgba(49, 68, 35, 0.18);
+  background: rgba(244, 247, 239, 0.76);
   text-align: center;
   color: #5d6858;
 }
 
-.record-detail-page aside .panel {
-  background: #fcfcf8;
-  box-shadow: none;
-  border: 1px solid rgba(18, 18, 18, 0.08);
-  position: sticky;
-  top: 24px;
-}
-
 @media (max-width: 1240px) {
-  .record-detail-shell,
-  .signal-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .record-detail-shell {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  }
+
+  .record-fact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -823,28 +981,56 @@ onMounted(loadRecordDetail)
   .record-detail-shell {
     grid-template-columns: 1fr;
   }
+
+  .record-side-rail {
+    position: static;
+  }
 }
 
 @media (max-width: 720px) {
+  .record-detail-page::before {
+    inset-inline: -20px;
+  }
+
   .panel {
     padding: 20px;
   }
-  .record-detail-hero__topline,
+
+  .record-archive-cover {
+    padding: 24px;
+    border-radius: 28px;
+  }
+
+  .record-archive-cover__topline,
   .hero-actions,
   .section-header,
   .section-header--compact,
-  .timeline-item,
-  .progress-card__topline,
   .context-card__topline,
   .activity-card__topline {
     flex-direction: column;
     align-items: stretch;
   }
+
+  .record-archive-cover__copy h2 {
+    font-size: 2.35rem;
+  }
+
+  .record-archive-cover__stamp {
+    min-width: 0;
+  }
+
+  .record-fact-grid,
+  .fact-card--feature {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+  }
+
   .activity-card__meta {
     align-items: flex-start;
   }
-  .record-detail-hero__topline h1 {
-    font-size: 1.9rem;
+
+  .activity-stream {
+    padding-left: 22px;
   }
 }
 </style>
