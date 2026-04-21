@@ -541,13 +541,32 @@ const sCeremonyPayoutPill = computed(() => (
 const sCeremonyResultPill = computed(() => (
   isSettlementComplete.value ? '案例素材已就绪' : '顶级交付结果'
 ));
-const isGradePending = computed(() => earlyCompletion.value?.status === 'Waiting on client rating');
+const deliveryCompletionPercent = computed(() => {
+  const completionCard = listOf(page.value?.metrics).find((item) => String(item?.label || '').includes('交付完成度'));
+  const rawValue = String(
+    completionCard?.value
+    || page.value?.summary?.completionPercent
+    || page.value?.summary?.completion
+    || ''
+  );
+  const match = rawValue.match(/\d+/);
+  return match ? Number(match[0]) : 0;
+});
+const isGradePending = computed(() => normalizeAcceptanceStatusLabel(earlyCompletion.value?.status || '') === '待企业评级');
 const acceptanceStatusCode = computed(() => String(page.value?.acceptance?.status || '').trim().toUpperCase());
 const isAcceptancePending = computed(() => {
-  if (acceptanceStatusCode.value === 'PENDING_CONFIRM') {
+  const normalizedAcceptanceStatus = normalizeAcceptanceStatusLabel(page.value?.acceptance?.status || '');
+  if (['待验收', '待企业确认'].includes(normalizedAcceptanceStatus) || acceptanceStatusCode.value === 'PENDING_CONFIRM') {
     return true;
   }
-  return summaryStatusMatches(page.value?.summary, ['PENDING_ACCEPTANCE', '待验收', '待企业确认', 'PENDING_CONFIRM']);
+  if (summaryStatusMatches(page.value?.summary, ['PENDING_ACCEPTANCE', '待验收', '待企业确认', 'PENDING_CONFIRM'])) {
+    return true;
+  }
+  const acceptedAt = String(page.value?.summary?.acceptedAt || '').trim();
+  const alreadyAccepted = acceptanceStatusCode.value === 'ACCEPTED'
+    || normalizedAcceptanceStatus === '已验收'
+    || Boolean(acceptedAt && acceptedAt !== 'Pending confirmation' && acceptedAt !== '待验收');
+  return deliveryCompletionPercent.value >= 100 && !alreadyAccepted && !deliveryGrade.value && !isGradePending.value;
 });
 const hasAccepted = computed(() => {
   const acceptedAt = String(page.value?.summary?.acceptedAt || '').trim();

@@ -353,6 +353,16 @@ assert(
   'AcceptancePage should normalize backend status strings before showing them in pills and summary cards.'
 );
 assert(
+  acceptanceSource.includes('const deliveryCompletionPercent = computed(() => {')
+    && acceptanceSource.includes("String(item?.label || '').includes('交付完成度')")
+    && acceptanceSource.includes("return deliveryCompletionPercent.value >= 100 && !alreadyAccepted && !deliveryGrade.value && !isGradePending.value;")
+    && taskLifecycleServiceSource.includes('repairLegacyExecutionStateIfNeeded(context.task());\n        if (!"PENDING_ACCEPTANCE".equalsIgnoreCase')
+    && taskLifecycleServiceSource.includes('private void syncAcceptanceStatusFromActiveMilestone(TaskEntity task, TaskMilestoneEntity activeMilestone) {')
+    && taskLifecycleServiceSource.includes('task.setTaskStatus("PENDING_ACCEPTANCE");')
+    && taskLifecycleServiceSource.includes('task.setAcceptanceStatus("PENDING_CONFIRM");'),
+  'Acceptance flow should surface the confirm-acceptance action when delivery is 100%, and backend should repair active acceptance milestones into pending acceptance before submission.'
+);
+assert(
   acceptanceSource.includes("function normalizeAcceptanceMutationStatusLabel(value, fallback = '处理中') {")
     && acceptanceSource.includes("const acceptanceResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(acceptanceResult.value?.status, '已同步'));")
     && acceptanceSource.includes("const gradeResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(gradeResult.value?.status, '已同步'));")
