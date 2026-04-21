@@ -156,6 +156,14 @@
                         查看提交
                       </button>
                       <button
+                        v-if="isAcceptanceMilestoneNode(node) && acceptanceRoute"
+                        type="button"
+                        class="button-primary button-primary--small timeline-progress-button"
+                        @click.stop="goToAcceptance"
+                      >
+                        前往验收
+                      </button>
+                      <button
                         v-if="canUpdateMilestoneProgress(node)"
                         type="button"
                         class="button-primary button-primary--small timeline-progress-button"
@@ -854,6 +862,7 @@ function milestoneStateLabel(node) {
 
 function canUpdateMilestoneProgress(node) {
   if (isEnterprise.value || !node) return false
+  if (isAcceptanceMilestoneNode(node)) return false
   if (node.isCompleted || isCompletedStatus(node.status)) return true
   if (isNotStartedStatus(node.status)) return false
   return Boolean(node.isCurrent || isActiveStatus(node.status))
@@ -861,9 +870,20 @@ function canUpdateMilestoneProgress(node) {
 
 function canCompleteMilestoneProgress(node) {
   if (isEnterprise.value || !node) return false
+  if (isAcceptanceMilestoneNode(node)) return false
   if (node.isCompleted || isCompletedStatus(node.status) || isCompletedStatus(node.progress)) return false
   if (isNotStartedStatus(node.status)) return false
   return Boolean(node.isCurrent || isActiveStatus(node.status) || isActiveStatus(node.progress))
+}
+
+function isAcceptanceMilestoneNode(node) {
+  const text = [
+    node?.title,
+    node?.stageType,
+    node?.status,
+    node?.progress,
+  ].map((item) => String(item || '')).join(' ')
+  return /验收|评级|评价|acceptance|rating|grade/i.test(text)
 }
 
 function hasTalentSubmission(node) {
@@ -984,6 +1004,14 @@ async function submitProgressForm(options = {}) {
       files: uploadedFiles.map(progressFileReference).filter(Boolean),
       attachmentFiles: uploadedFiles,
     })
+    if (isAcceptanceHandoffResult(result)) {
+      resetProgressForm()
+      progressDialogOpen.value = false
+      progressDialogNodeId.value = ''
+      await loadWorkspace()
+      goToAcceptance()
+      return
+    }
     ensureProgressSubmitted(result)
 
     resetProgressForm()
@@ -1010,6 +1038,15 @@ function ensureProgressSubmitted(result) {
     || result?.message
     || result?.nextStep
     || '当前暂时无法提交这条进展。'
+  )
+}
+
+function isAcceptanceHandoffResult(result) {
+  const message = String(result?.actionMessage || result?.requestError || result?.nextStep || result?.message || '')
+  return Boolean(
+    result?.actionBlocked
+      && /验收|评级|评价|acceptance|rating|grade/i.test(message)
+      && /前往|继续处理|已进入|已切换|节点/i.test(message)
   )
 }
 

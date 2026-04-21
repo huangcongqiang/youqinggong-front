@@ -96,11 +96,15 @@ assert(
   workspaceSource.includes("submitProgressForm({ completeMilestone: true })")
     && workspaceSource.includes("{{ submittingProgress ? '推进中…' : '完成并进入下一里程碑' }}")
     && workspaceSource.includes('function canCompleteMilestoneProgress(node)')
+    && workspaceSource.includes('function isAcceptanceMilestoneNode(node)')
+    && workspaceSource.includes('v-if="isAcceptanceMilestoneNode(node) && acceptanceRoute"')
+    && workspaceSource.includes('前往验收')
     && workspaceSource.includes('const shouldCompleteMilestone = options?.completeMilestone === true')
     && workspaceSource.includes('const percent = shouldCompleteMilestone ? 100 : resolveProgressSubmissionPercent(targetNode)')
+    && workspaceSource.includes('if (isAcceptanceHandoffResult(result))')
     && !workspaceSource.includes('field-help')
     && workspaceSource.includes('button-primary--finish'),
-  'Workspace progress dialog should expose an explicit complete-and-advance action that submits 100% completion to move to the next milestone.'
+  'Workspace progress dialog should expose an explicit complete-and-advance action, and the final acceptance milestone should hand off to the acceptance page instead of accepting more progress.'
 );
 
 assert(
