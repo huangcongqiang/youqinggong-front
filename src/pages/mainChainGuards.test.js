@@ -110,6 +110,16 @@ assert(
 );
 
 assert(
+  workspaceSource.includes('function mergeClosureIntoWorkspace(workspace, closureData)')
+    && workspaceSource.includes('claimSummary: closureData.claimSummary || workspace.claimSummary')
+    && workspaceSource.includes('invoiceSummary: closureData.invoiceSummary || workspace.invoiceSummary')
+    && workspaceSource.includes('reconciliationSummary: closureData.reconciliationSummary || workspace.reconciliationSummary')
+    && workspaceSource.includes('settlementSummary: closureData.settlementSummary || workspace.settlementSummary')
+    && workspaceSource.includes('disputeSummary: closureData.disputeSummary || workspace.disputeSummary'),
+  'Workspace overview should merge the closure finance summaries so the acceptance-and-settlement card stays in sync with record and settlement pages.'
+);
+
+assert(
   workspaceSource.includes('<span>文件与交付物</span>')
     && !workspaceSource.includes('workspace-card--activity')
     && !workspaceSource.includes('<span class="eyebrow">合同记录</span>')

@@ -1148,6 +1148,11 @@ function normalizeWorkspace(raw, requestedTaskId = '') {
     earlyCompletion: source.earlyCompletion && typeof source.earlyCompletion === 'object' ? source.earlyCompletion : {},
     cancellationRequest: source.cancellationRequest && typeof source.cancellationRequest === 'object' ? source.cancellationRequest : {},
     acceptance: source.acceptance && typeof source.acceptance === 'object' ? source.acceptance : {},
+    claimSummary: source.claimSummary && typeof source.claimSummary === 'object' ? source.claimSummary : {},
+    invoiceSummary: source.invoiceSummary && typeof source.invoiceSummary === 'object' ? source.invoiceSummary : {},
+    reconciliationSummary: source.reconciliationSummary && typeof source.reconciliationSummary === 'object' ? source.reconciliationSummary : {},
+    settlementSummary: source.settlementSummary && typeof source.settlementSummary === 'object' ? source.settlementSummary : {},
+    disputeSummary: source.disputeSummary && typeof source.disputeSummary === 'object' ? source.disputeSummary : {},
     celebrationBanner: source.celebrationBanner && typeof source.celebrationBanner === 'object' ? source.celebrationBanner : {},
   }
 }
@@ -1158,6 +1163,11 @@ function mergeClosureIntoWorkspace(workspace, closureData) {
     ...workspace,
     acceptance: closureData.acceptance || workspace.acceptance,
     earlyCompletion: closureData.earlyCompletion || workspace.earlyCompletion,
+    claimSummary: closureData.claimSummary || workspace.claimSummary,
+    invoiceSummary: closureData.invoiceSummary || workspace.invoiceSummary,
+    reconciliationSummary: closureData.reconciliationSummary || workspace.reconciliationSummary,
+    settlementSummary: closureData.settlementSummary || workspace.settlementSummary,
+    disputeSummary: closureData.disputeSummary || workspace.disputeSummary,
     summary: {
       ...workspace.summary,
       ...(closureData.summary || {}),
@@ -1195,6 +1205,11 @@ function createEmptyWorkspace(taskId = '') {
     earlyCompletion: {},
     cancellationRequest: {},
     acceptance: {},
+    claimSummary: {},
+    invoiceSummary: {},
+    reconciliationSummary: {},
+    settlementSummary: {},
+    disputeSummary: {},
     celebrationBanner: {},
   }
 }
