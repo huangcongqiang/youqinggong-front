@@ -55,7 +55,8 @@
                     <span>{{ message.time }}</span>
                   </div>
                   <div class="message-bubble">
-                    <p>{{ message.text }}</p>
+                    <p v-if="message.text">{{ message.text }}</p>
+                    <p v-else-if="message.attachments.length" class="muted message-attachment-note">发送了 {{ message.attachments.length }} 个附件</p>
                     <div v-if="message.attachments.length" class="message-attachments">
                       <a
                         v-for="attachment in message.attachments"
@@ -493,8 +494,8 @@ const visible消息 = computed(() => {
       || isAffirmative(message?.isMine)
       || isSelfMessage({ ...message, author })
     )
-    const text = String(message?.text || message?.content || message?.summary || '').trim() || '消息内容暂时不可用。'
     const rawAttachments = Array.isArray(message?.attachments) ? message.attachments : []
+    const text = String(message?.text || message?.content || message?.summary || '').trim()
     return {
       key: String(message?.id || `${author}-${message?.time || index}`),
       author,
@@ -913,7 +914,7 @@ function buildRoute(path, query = {}) {
 .message-feed{display:grid;align-content:start;gap:14px;min-height:440px;max-height:720px;overflow:auto;padding-right:6px}
 .message-row{display:flex;justify-content:flex-start}.message-row.is-self{justify-content:flex-end}.message-row.is-self .message-bubble-wrap{justify-items:end}.message-row.is-self .message-meta{justify-content:flex-end;text-align:right}
 .message-bubble-wrap{max-width:min(640px,100%);display:grid;gap:8px}.message-meta span{color:#6b7280;font-size:.9rem}.message-bubble{padding:16px 18px;border-radius:20px;background:#f8fafb;border:1px solid rgba(17,24,39,.08)}.message-row.is-self .message-bubble{background:#f3fff0;border-color:rgba(16,138,0,.22)}
-.message-bubble p{margin:0;color:#111827;line-height:1.7}.message-attachments,.mini-chip-row{display:flex;flex-wrap:wrap;gap:10px}.message-composer{display:grid;gap:14px;padding-top:8px;border-top:1px solid rgba(17,24,39,.08)}
+.message-bubble p{margin:0;color:#111827;line-height:1.7}.message-attachment-note{font-size:.92rem}.message-attachments,.mini-chip-row{display:flex;flex-wrap:wrap;gap:10px}.message-composer{display:grid;gap:14px;padding-top:8px;border-top:1px solid rgba(17,24,39,.08)}
 .message-composer__header strong{display:block;color:#111827;font-size:1rem;margin-bottom:4px}
 .message-composer__header p{margin:0}
 .message-composer__attachments{display:grid;gap:10px}

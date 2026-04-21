@@ -21,3 +21,11 @@ assert(
     source.includes('isCurrentAudienceRole(role)'),
   'MessagesPage should identify self messages by role, current user id, and current user display name.'
 );
+
+assert(
+  source.includes('v-else-if="message.attachments.length" class="muted message-attachment-note"')
+    && source.includes('发送了 {{ message.attachments.length }} 个附件')
+    && source.includes("const text = String(message?.text || message?.content || message?.summary || '').trim()")
+    && !source.includes("|| '消息内容暂时不可用。'"),
+  'MessagesPage should not render an unavailable-content fallback for attachment-only messages.'
+);
