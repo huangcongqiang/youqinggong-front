@@ -1206,18 +1206,12 @@ function buildRoute(path, query = {}) {
 
 <style scoped>
 .workspace-page {
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(237, 245, 232, 0.95), transparent 30%),
-    radial-gradient(circle at top right, rgba(240, 245, 238, 0.75), transparent 24%),
-    linear-gradient(180deg, #f8faf7 0%, #ffffff 42%, #fbfcfa 100%);
-  color: #1a1f16;
+  padding-bottom: 40px;
 }
 
 .workspace-shell {
   width: min(1440px, calc(100vw - 48px));
   margin: 0 auto;
-  padding: 32px 0 48px;
 }
 
 .workspace-tabs {
@@ -1226,8 +1220,8 @@ function buildRoute(path, query = {}) {
   gap: 12px;
   padding: 14px 18px;
   border-radius: 22px;
-  border: 1px solid rgba(24, 36, 19, 0.08);
-  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #ffffff;
 }
 
 .workspace-tab {
@@ -1237,16 +1231,16 @@ function buildRoute(path, query = {}) {
   min-height: 38px;
   padding: 0 16px;
   border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(18, 18, 18, 0.12);
   background: #fff;
-  color: #0f172a;
+  color: #111111;
   font-weight: 600;
 }
 
 .workspace-tab.is-active {
   border-color: rgba(16, 138, 0, 0.22);
-  background: #f4fbf2;
-  color: #0f5132;
+  background: #f3fff0;
+  color: #165a0f;
 }
 
 .workspace-hero {
@@ -1254,11 +1248,11 @@ function buildRoute(path, query = {}) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  border: 1px solid rgba(24, 36, 19, 0.08);
+  border: 1px solid rgba(18, 18, 18, 0.08);
   border-radius: 28px;
   padding: 28px 30px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 24px 80px rgba(35, 53, 28, 0.08);
+  background: #fffef8;
+  box-shadow: 0 16px 34px rgba(18, 18, 18, 0.05);
 }
 
 .workspace-hero-copy {
@@ -1271,10 +1265,10 @@ function buildRoute(path, query = {}) {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #5d6b52;
+  color: #108a00;
   font-weight: 700;
 }
 
@@ -1283,11 +1277,12 @@ function buildRoute(path, query = {}) {
   font-size: clamp(30px, 3.8vw, 52px);
   line-height: 1.05;
   letter-spacing: -0.04em;
+  color: #111111;
 }
 
 .workspace-lead {
   margin: 0;
-  color: #51604a;
+  color: #66665f;
   font-size: 16px;
   line-height: 1.8;
   max-width: 760px;
@@ -1304,9 +1299,9 @@ function buildRoute(path, query = {}) {
   align-items: center;
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(41, 61, 29, 0.12);
-  background: #f7faf4;
-  color: #33442d;
+  border: 1px solid rgba(18, 18, 18, 0.12);
+  background: #ffffff;
+  color: #111111;
   font-size: 13px;
   font-weight: 600;
 }
@@ -1319,52 +1314,7 @@ function buildRoute(path, query = {}) {
   justify-content: flex-end;
 }
 
-.button-primary,
-.button-secondary,
-.button-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 46px;
-  padding: 0 18px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
 
-.button-primary:hover,
-.button-secondary:hover,
-.button-ghost:hover {
-  transform: translateY(-1px);
-}
-
-.button-primary {
-  color: #fff;
-  background: linear-gradient(135deg, #3f911f, #5faa2b);
-  box-shadow: 0 12px 28px rgba(76, 148, 39, 0.25);
-}
-
-.button-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.button-secondary {
-  color: #1f2b1a;
-  border-color: rgba(53, 76, 43, 0.14);
-  background: #fff;
-}
-
-.button-ghost {
-  color: #3f4f36;
-  border-color: rgba(53, 76, 43, 0.08);
-  background: rgba(255, 255, 255, 0.72);
-}
 
 .workspace-banner {
   display: flex;
@@ -1429,10 +1379,10 @@ function buildRoute(path, query = {}) {
 }
 
 .workspace-card {
-  border: 1px solid rgba(28, 43, 20, 0.08);
+  border: 1px solid rgba(18, 18, 18, 0.08);
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 42px rgba(32, 49, 24, 0.06);
+  background: #fffef8;
+  box-shadow: 0 16px 34px rgba(18, 18, 18, 0.05);
   padding: 24px;
 }
 
@@ -1480,14 +1430,15 @@ function buildRoute(path, query = {}) {
   text-align: left;
   padding: 18px 18px 18px 20px;
   border-radius: 22px;
-  border: 1px solid rgba(46, 62, 37, 0.1);
-  background: linear-gradient(180deg, #ffffff, #fbfcf8);
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #ffffff;
   cursor: pointer;
 }
 
 .contract-switcher-card.is-active {
-  border-color: rgba(76, 148, 39, 0.45);
-  box-shadow: 0 16px 32px rgba(77, 140, 46, 0.11);
+  border-color: rgba(16, 138, 0, 0.2);
+  background: #f3fff0;
+  box-shadow: 0 16px 32px rgba(16, 138, 0, 0.05);
 }
 
 .contract-switcher-copy strong,
@@ -1552,15 +1503,15 @@ function buildRoute(path, query = {}) {
   width: 100%;
   padding: 20px;
   border-radius: 24px;
-  border: 1px solid rgba(30, 43, 20, 0.08);
-  background: linear-gradient(180deg, #fff, #fbfcf8);
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #ffffff;
   text-align: left;
   cursor: pointer;
 }
 
 .timeline-card.is-current {
-  border-color: rgba(76, 148, 39, 0.38);
-  box-shadow: 0 18px 36px rgba(77, 140, 46, 0.1);
+  border-color: rgba(16, 138, 0, 0.2);
+  box-shadow: 0 16px 32px rgba(16, 138, 0, 0.05);
 }
 
 .timeline-card.is-complete {
@@ -1582,8 +1533,8 @@ function buildRoute(path, query = {}) {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: #f4f8ef;
-  color: #314225;
+  background: #f3fff0;
+  color: #165a0f;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
@@ -1593,7 +1544,7 @@ function buildRoute(path, query = {}) {
   flex: 1;
   min-height: 52px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(81, 122, 40, 0.22), rgba(81, 122, 40, 0.06));
+  background: rgba(16, 138, 0, 0.1);
 }
 
 .timeline-copy {
@@ -1671,19 +1622,19 @@ function buildRoute(path, query = {}) {
 }
 
 .composer-panel {
-  border: 1px solid rgba(39, 58, 27, 0.08);
+  border: 1px solid rgba(18, 18, 18, 0.08);
   border-radius: 22px;
-  background: #fbfcf8;
+  background: #ffffff;
   padding: 20px;
 }
 
 .composer-panel--summary {
-  background: linear-gradient(180deg, #ffffff, #f8fbf5);
+  background: #ffffff;
 }
 
 .composer-panel__summary-note {
   margin: 12px 0 0;
-  color: #4e5f47;
+  color: #66665f;
   line-height: 1.7;
 }
 
@@ -1709,13 +1660,13 @@ function buildRoute(path, query = {}) {
   padding: 14px 15px;
   border-radius: 18px;
   background: #fff;
-  border: 1px solid rgba(39, 58, 27, 0.08);
+  border: 1px solid rgba(18, 18, 18, 0.08);
 }
 
 .composer-metrics span,
 .sidebar-stats span,
 .closure-grid span {
-  color: #71806b;
+  color: #66665f;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1725,7 +1676,7 @@ function buildRoute(path, query = {}) {
 .composer-metrics strong,
 .sidebar-stats strong,
 .closure-grid strong {
-  color: #1d2618;
+  color: #111111;
   font-size: 15px;
   line-height: 1.45;
 }
@@ -1747,9 +1698,9 @@ function buildRoute(path, query = {}) {
   gap: 8px;
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(46, 62, 37, 0.1);
+  border: 1px solid rgba(18, 18, 18, 0.12);
   background: #fff;
-  color: #304225;
+  color: #111111;
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
@@ -1780,10 +1731,10 @@ function buildRoute(path, query = {}) {
 .field select,
 .field textarea {
   width: 100%;
-  border: 1px solid rgba(44, 61, 31, 0.16);
+  border: 1px solid rgba(18, 18, 18, 0.16);
   border-radius: 16px;
   background: #fff;
-  color: #1a2015;
+  color: #111111;
   padding: 14px 15px;
   font: inherit;
   outline: none;
@@ -1798,8 +1749,8 @@ function buildRoute(path, query = {}) {
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
-  border-color: rgba(76, 148, 39, 0.62);
-  box-shadow: 0 0 0 4px rgba(76, 148, 39, 0.08);
+  border-color: rgba(16, 138, 0, 0.62);
+  box-shadow: 0 0 0 4px rgba(16, 138, 0, 0.08);
 }
 
 .composer-actions {
@@ -1820,8 +1771,8 @@ function buildRoute(path, query = {}) {
   gap: 12px;
   padding: 20px;
   border-radius: 22px;
-  border: 1px solid rgba(40, 56, 28, 0.08);
-  background: linear-gradient(180deg, #ffffff, #fafcf7);
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #ffffff;
 }
 
 .activity-top {
@@ -1834,7 +1785,7 @@ function buildRoute(path, query = {}) {
 .activity-type {
   display: inline-flex;
   margin-bottom: 8px;
-  color: #5d6b52;
+  color: #108a00;
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
@@ -1852,7 +1803,7 @@ function buildRoute(path, query = {}) {
 }
 
 .activity-ai {
-  color: #445344;
+  color: #111111;
   font-weight: 600;
 }
 
@@ -1861,12 +1812,12 @@ function buildRoute(path, query = {}) {
 }
 
 .workspace-card--assistant {
-  background: rgba(248, 250, 247, 0.92);
-  border-color: rgba(24, 36, 19, 0.06);
+  background: #fbfbf8;
+  border-color: rgba(18, 18, 18, 0.08);
 }
 
 .workspace-card--assistant .sidebar-lead {
-  color: #5d6b52;
+  color: #66665f;
 }
 
 .sidebar-stats {
@@ -1881,12 +1832,12 @@ function buildRoute(path, query = {}) {
   gap: 8px;
   padding: 16px 18px;
   border-radius: 18px;
-  border: 1px solid rgba(43, 61, 29, 0.08);
-  background: #f8fbf6;
+  border: 1px solid rgba(18, 18, 18, 0.08);
+  background: #fff;
 }
 
 .summary-chip-card span {
-  color: #6f7c67;
+  color: #66665f;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1894,7 +1845,7 @@ function buildRoute(path, query = {}) {
 }
 
 .summary-chip-card strong {
-  color: #1d2618;
+  color: #111111;
   font-size: 15px;
   line-height: 1.55;
 }
@@ -1911,11 +1862,11 @@ function buildRoute(path, query = {}) {
   padding: 14px 16px;
   border-radius: 16px;
   background: #fff;
-  border: 1px solid rgba(40, 56, 28, 0.08);
+  border: 1px solid rgba(18, 18, 18, 0.08);
 }
 
 .assistant-log-item span {
-  color: #7b8872;
+  color: #66665f;
   font-size: 12px;
   font-weight: 700;
 }
@@ -1923,7 +1874,7 @@ function buildRoute(path, query = {}) {
 .assistant-log-item p {
   margin: 0;
   line-height: 1.65;
-  color: #3f4d38;
+  color: #111111;
 }
 
 .closure-grid {
@@ -2007,45 +1958,6 @@ function buildRoute(path, query = {}) {
   .file-list,
   .sidebar-attachments {
     flex-wrap: wrap;
-  }
-}
-</style>
-
-<style scoped>
-/* codex visual polish */
-.workspace-page .workspace-layout {
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 24px;
-  align-items: start;
-}
-.workspace-page .workspace-card {
-  border-radius: 28px;
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.05);
-}
-.workspace-page .workspace-card--overview {
-  border-radius: 32px;
-  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.08);
-}
-.workspace-page .summary-chip-card {
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background: #fafbf7;
-}
-.workspace-page .workspace-sidebar .workspace-card {
-  background: #fcfcf8;
-  box-shadow: none;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-}
-.workspace-page .timeline-card,
-.workspace-page .composer-panel--summary,
-.workspace-page .composer-panel--form {
-  border-radius: 24px;
-}
-.workspace-page .composer-panel--summary {
-  background: #fbfcf8;
-}
-@media (max-width: 1040px) {
-  .workspace-page .workspace-layout {
-    grid-template-columns: 1fr;
   }
 }
 </style>
