@@ -143,11 +143,11 @@
                     <div class="timeline-tags">
                       <span class="workspace-pill">{{ node.stageType || '里程碑' }}</span>
                       <span class="workspace-pill">{{ node.attachments.length ? `${node.attachments.length} 个文件` : '还没有文件' }}</span>
-                      <span class="workspace-pill">{{ node.isCurrent ? '当前里程碑' : node.isCompleted ? '已完成' : '待开始' }}</span>
+                      <span class="workspace-pill">{{ milestoneStateLabel(node) }}</span>
                     </div>
 
                     <button
-                      v-if="!isEnterprise"
+                      v-if="canUpdateMilestoneProgress(node)"
                       type="button"
                       class="button-primary button-primary--small timeline-progress-button"
                       @click.stop="openProgressDialog(node)"
@@ -902,7 +902,7 @@ function resetProgressForm({ keepSummary = false } = {}) {
 }
 
 function openProgressDialog(node, options = {}) {
-  if (isEnterprise.value || !node) return
+  if (!canUpdateMilestoneProgress(node)) return
   const nextNodeId = String(node.id || '')
   selectedNodeId.value = nextNodeId
   progressDialogNodeId.value = nextNodeId
@@ -912,6 +912,33 @@ function openProgressDialog(node, options = {}) {
   progressForm.stageName = node.title || ''
   progressForm.completion = node.progress || ''
   progressDialogOpen.value = true
+}
+
+function milestoneStateLabel(node) {
+  if (node?.isCompleted || isCompletedStatus(node?.status)) return '已完成'
+  if (node?.isCurrent || isActiveStatus(node?.status)) return '进行中'
+  return '待开始'
+}
+
+function canUpdateMilestoneProgress(node) {
+  if (isEnterprise.value || !node) return false
+  if (node.isCompleted || isCompletedStatus(node.status)) return true
+  if (isNotStartedStatus(node.status)) return false
+  return Boolean(node.isCurrent || isActiveStatus(node.status))
+}
+
+function isActiveStatus(value) {
+  return /进行中|执行中|协作中|推进中|当前|active|in progress/i.test(String(value || ''))
+}
+
+function isCompletedStatus(value) {
+  const text = String(value || '')
+  if (/未完成|待完成/.test(text)) return false
+  return /已完成|完成$|完成[，。,.]|已交付|completed|done/i.test(text)
+}
+
+function isNotStartedStatus(value) {
+  return /待开始|未开始|排期待确认|等待同步|待同步|待处理|待确认|not started|pending|upcoming|todo/i.test(String(value || ''))
 }
 
 function closeProgressDialog() {
@@ -1166,8 +1193,8 @@ function normalizeTaskOptions(list) {
 function normalizeNodes(list) {
   return asArray(list).map((item, index) => {
     const statusText = String(item?.status || item?.state || item?.phase || '等待同步').trim() || '等待同步'
-    const completed = Boolean(item?.isCompleted || item?.done || /Completed|done|完成/.test(statusText))
-    const current = Boolean(item?.isCurrent || item?.current || /进行中|当前|active/.test(statusText))
+    const completed = Boolean(item?.isCompleted || item?.done || isCompletedStatus(statusText))
+    const current = Boolean(item?.isCurrent || item?.current || isActiveStatus(statusText))
     return {
       id: String(item?.id || item?.nodeId || item?.milestoneId || item?.key || index),
       title: item?.title || item?.name || item?.label || `里程碑 ${index + 1}`,
