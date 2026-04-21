@@ -921,7 +921,7 @@ function latestReviewItemForAudience(audienceKey) {
 }
 
 function mutationResultText(result, fallback) {
-  return String(result?.requestError || result?.nextStep || fallback || '').trim();
+  return String(result?.requestError || result?.actionMessage || result?.nextStep || fallback || '').trim();
 }
 
 function resultMessage(result) {
@@ -929,7 +929,7 @@ function resultMessage(result) {
 }
 
 function isMutationFailed(result) {
-  return Boolean(result?.requestError || result?.success === false || result?.status === 'FAILED');
+  return Boolean(result?.requestError || result?.actionBlocked || result?.success === false || result?.status === 'FAILED');
 }
 
 function setActionError(message) {
@@ -1095,16 +1095,23 @@ async function handleAcceptance() {
     return;
   }
   isSubmittingAcceptance.value = true;
+  clearActionError();
   try {
-    acceptanceResult.value = await submitAcceptance(taskId, {
+    const result = await submitAcceptance(taskId, {
       accepterUserId: reviewerUserId(),
       acceptanceNote: acceptanceForm.value.acceptanceNote
     });
+    acceptanceResult.value = result;
     if (isMutationFailed(acceptanceResult.value)) {
       setActionError(mutationResultText(acceptanceResult.value, '验收确认暂时无法提交。'));
       return;
     }
     await refreshPage();
+    acceptanceResult.value = result;
+  } catch (error) {
+    const message = error?.message || '验收确认暂时无法提交。';
+    setActionError(message);
+    acceptanceResult.value = { status: 'FAILED', requestError: message };
   } finally {
     isSubmittingAcceptance.value = false;
   }
@@ -1128,17 +1135,24 @@ async function handleGrade() {
     return;
   }
   isSubmittingGrade.value = true;
+  clearActionError();
   try {
-    gradeResult.value = await submitEarlyCompletion(taskId, {
+    const result = await submitEarlyCompletion(taskId, {
       action: 'grade',
       grade: gradeForm.value.grade,
       note: gradeForm.value.note
     });
+    gradeResult.value = result;
     if (isMutationFailed(gradeResult.value)) {
       setActionError(mutationResultText(gradeResult.value, '合同评级暂时无法提交。'));
       return;
     }
     await refreshPage();
+    gradeResult.value = result;
+  } catch (error) {
+    const message = error?.message || '合同评级暂时无法提交。';
+    setActionError(message);
+    gradeResult.value = { status: 'FAILED', requestError: message };
   } finally {
     isSubmittingGrade.value = false;
   }
@@ -1162,18 +1176,25 @@ async function handleReview() {
     return;
   }
   isSubmittingReview.value = true;
+  clearActionError();
   try {
-    reviewResult.value = await submitReview(taskId, {
+    const result = await submitReview(taskId, {
       reviewerUserId: reviewerUserId(),
       revieweeUserId: revieweeUserId(),
       rating: reviewForm.value.rating,
       reviewContent: reviewForm.value.reviewContent
     });
+    reviewResult.value = result;
     if (isMutationFailed(reviewResult.value)) {
       setActionError(mutationResultText(reviewResult.value, '反馈暂时无法提交。'));
       return;
     }
     await refreshPage();
+    reviewResult.value = result;
+  } catch (error) {
+    const message = error?.message || '反馈暂时无法提交。';
+    setActionError(message);
+    reviewResult.value = { status: 'FAILED', requestError: message };
   } finally {
     isSubmittingReview.value = false;
   }

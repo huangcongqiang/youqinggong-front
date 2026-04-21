@@ -1859,6 +1859,7 @@ export function submitAcceptance(taskId, payload) {
       nextStep: '当前暂时无法提交验收，请稍后再试。'
     },
     {
+      accepterUserId: payload.accepterUserId,
       acceptanceNote: payload.acceptanceNote
     }
   );

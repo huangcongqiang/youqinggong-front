@@ -356,7 +356,8 @@ assert(
   acceptanceSource.includes('const deliveryCompletionPercent = computed(() => {')
     && acceptanceSource.includes("String(item?.label || '').includes('交付完成度')")
     && acceptanceSource.includes("return deliveryCompletionPercent.value >= 100 && !alreadyAccepted && !deliveryGrade.value && !isGradePending.value;")
-    && taskLifecycleServiceSource.includes('repairLegacyExecutionStateIfNeeded(context.task());\n        if (!"PENDING_ACCEPTANCE".equalsIgnoreCase')
+    && taskLifecycleServiceSource.includes('repairLegacyExecutionStateIfNeeded(context.task());\n        syncAcceptanceStatusFromFullDelivery(context.task());\n        if (!"PENDING_ACCEPTANCE".equalsIgnoreCase')
+    && taskLifecycleServiceSource.includes('private void syncAcceptanceStatusFromFullDelivery(TaskEntity task) {')
     && taskLifecycleServiceSource.includes('private void syncAcceptanceStatusFromActiveMilestone(TaskEntity task, TaskMilestoneEntity activeMilestone) {')
     && taskLifecycleServiceSource.includes('task.setTaskStatus("PENDING_ACCEPTANCE");')
     && taskLifecycleServiceSource.includes('task.setAcceptanceStatus("PENDING_CONFIRM");'),
@@ -364,6 +365,10 @@ assert(
 );
 assert(
   acceptanceSource.includes("function normalizeAcceptanceMutationStatusLabel(value, fallback = '处理中') {")
+    && acceptanceSource.includes("result?.actionMessage")
+    && acceptanceSource.includes("result?.actionBlocked")
+    && acceptanceSource.includes("acceptanceResult.value = result;")
+    && acceptanceSource.includes("} catch (error) {\n    const message = error?.message || '验收确认暂时无法提交。';")
     && acceptanceSource.includes("const acceptanceResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(acceptanceResult.value?.status, '已同步'));")
     && acceptanceSource.includes("const gradeResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(gradeResult.value?.status, '已同步'));")
     && acceptanceSource.includes("const reviewResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(reviewResult.value?.status, '已同步'));")
