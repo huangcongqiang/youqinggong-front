@@ -452,6 +452,19 @@ assert(
   'ClientOperationsPage should keep the billing banner and gap card mutually exclusive and explain disabled actions with status copy instead of action-looking pills.'
 );
 
+const recordPageSource = readSource('RecordPage.vue');
+assert(
+  recordPageSource.includes("import ContractShellHeader from '../components/ContractShellHeader.vue'")
+    && recordPageSource.includes('<ContractShellHeader')
+    && recordPageSource.includes('v-if="hasShellContext"')
+    && recordPageSource.includes('const recordShellTabs = computed(() => {')
+    && recordPageSource.includes("{ label: '记录', current: true }")
+    && recordPageSource.includes('function detailRoute(record) {')
+    && recordPageSource.includes("roomKey: record?.roomKey || currentRoomKey.value")
+    && recordPageSource.includes("originRecordId: textQuery('originRecordId') || recordId"),
+  'RecordPage should keep the contract shell navigation and route context when opened from workspace, messages, or acceptance.'
+);
+
 const recordDetailSource = readSource('RecordDetailPage.vue');
 assert(
   recordDetailSource.includes('const reviewItems = viewModel.value.confirmationHistory.map(')

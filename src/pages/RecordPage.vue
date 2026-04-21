@@ -1,6 +1,16 @@
 <template>
     <section class="history-page stack-xl">
-      <header class="history-hero panel stack-lg">
+      <ContractShellHeader
+        v-if="hasShellContext"
+        eyebrow="记录"
+        :title="recordShellTitle"
+        :lead="recordShellLead"
+        :support-copy="recordShellSupportCopy"
+        :pills="recordShellPills"
+        :tabs="recordShellTabs"
+      />
+
+      <header v-else class="history-hero panel stack-lg">
         <div class="history-hero__topline">
           <div>
             <p class="eyebrow">申请 / 面试 / 合作</p>
@@ -27,6 +37,21 @@
         </article>
       </div>
     </header>
+
+    <div v-if="hasShellContext" class="signal-grid">
+      <article class="signal-card">
+        <span>全部记录</span>
+        <strong>{{ page?.summary?.total || records.length }}</strong>
+      </article>
+      <article class="signal-card">
+        <span>进行中</span>
+        <strong>{{ page?.summary?.ongoing || 0 }}</strong>
+      </article>
+      <article class="signal-card">
+        <span>已完成</span>
+        <strong>{{ page?.summary?.completed || 0 }}</strong>
+      </article>
+    </div>
 
     <article v-if="errorMessage" class="result-card stack-sm history-error-banner">
       <span class="eyebrow">暂时无法加载</span>
@@ -84,7 +109,7 @@
             </div>
 
             <div class="toolbar toolbar--wrap">
-              <router-link class="button-primary" :to="detailRoute(record.id)">打开记录</router-link>
+              <router-link class="button-primary" :to="detailRoute(record)">打开记录</router-link>
               <router-link v-if="record.taskId" class="button-secondary" :to="workspaceRoute(record.taskId)">打开工作区</router-link>
               <router-link v-if="record.taskId && record.roomKey" class="button-tertiary" :to="chatRoute(record)">查看消息</router-link>
             </div>
@@ -137,6 +162,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ActionErrorDialog from '../components/ActionErrorDialog.vue'
+import ContractShellHeader from '../components/ContractShellHeader.vue'
 import { formatDateLabel, formatDateRangeLabel, formatGrade, formatMoney } from '../services/recordFormatters.js'
 import { getOrderRecords } from '../services/api'
 
@@ -161,6 +187,76 @@ const gradeLabel = computed(() => (audience.value === 'talent' ? '企业评分' 
 const searchPlaceholder = computed(() => (audience.value === 'talent' ? '搜索申请、面试、企业、标签或摘要' : '搜索申请、面试、合作、标签或摘要'))
 const emptyHint = computed(() => (searchText.value ? '换一个合作名称、对象或标签关键词试试。' : '随着合作推进、验收完成和结算继续，记录会持续沉淀在这里。'))
 const dashboardRoute = computed(() => `/${audience.value}`)
+const currentTaskId = computed(() => textQuery('taskId') || textQuery('originTaskId'))
+const currentRecordId = computed(() => textQuery('recordId') || textQuery('originRecordId'))
+const currentRoomKey = computed(() => textQuery('roomKey') || textQuery('room'))
+const currentMilestoneLabel = computed(() => textQuery('contextMilestone'))
+const hasShellContext = computed(() => Boolean(currentTaskId.value))
+const recordShellTitle = computed(() => page.value?.summary?.title || defaultTitle.value)
+const recordShellLead = computed(() => page.value?.summary?.description || defaultLead.value)
+const recordShellSupportCopy = computed(() => '当前记录继续挂在同一份合同下，概览、消息、验收和助手都可以从这里切回去。')
+const recordShellPills = computed(() => ([
+  currentTaskId.value ? `合同 ${currentTaskId.value}` : '',
+  tabs.value.find((tab) => tab.key === activeTab.value)?.label || '全部记录',
+  currentMilestoneLabel.value,
+]).filter(Boolean))
+const workspaceShellRoute = computed(() => buildShellRoute(`/${audience.value}/workspace`, {
+  source: 'contract',
+  surface: 'contract',
+}))
+const messagesShellRoute = computed(() => buildShellRoute(`/${audience.value}/chat`, {
+  source: 'messages',
+  surface: 'messages',
+}))
+const acceptanceShellRoute = computed(() => buildShellRoute(`/${audience.value}/acceptance`, {
+  source: 'records',
+  surface: 'review',
+}))
+const assistantShellRoute = computed(() => buildShellRoute(`/${audience.value}/assistant`, {
+  source: 'history',
+  surface: 'history',
+}))
+const recordShellTabs = computed(() => {
+  if (!hasShellContext.value) return []
+  return [
+    { label: '概览', to: workspaceShellRoute.value },
+    currentRoomKey.value ? { label: '消息', to: messagesShellRoute.value } : null,
+    { label: '验收', to: acceptanceShellRoute.value },
+    { label: '记录', current: true },
+    { label: '助手', to: assistantShellRoute.value },
+  ].filter(Boolean)
+})
+
+function textQuery(key) {
+  const value = route.query[key]
+  return String(Array.isArray(value) ? value[0] || '' : value || '').trim()
+}
+
+function compactQuery(input) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => {
+      if (Array.isArray(value)) return value.length > 0
+      return String(value || '').trim()
+    })
+  )
+}
+
+function buildShellRoute(path, overrides = {}) {
+  return {
+    path,
+    query: compactQuery({
+      ...route.query,
+      taskId: currentTaskId.value,
+      recordId: currentRecordId.value,
+      room: currentRoomKey.value,
+      roomKey: currentRoomKey.value,
+      originSource: textQuery('originSource') || textQuery('source') || 'records',
+      originTaskId: textQuery('originTaskId') || currentTaskId.value,
+      originRecordId: textQuery('originRecordId') || currentRecordId.value,
+      ...overrides,
+    }),
+  }
+}
 
 function resolveLifecycleStageLabel(item) {
   const explicitLabel = [item?.stage, item?.stageLabel, item?.statusLabel]
@@ -222,9 +318,32 @@ const filteredRecords = computed(() => {
   return records.value.filter((item) => item.searchText.includes(query))
 })
 
-function detailRoute(recordId) {
-  const query = activeTab.value === 'all' ? {} : { tab: activeTab.value }
-  return `/${audience.value}/records/${encodeURIComponent(recordId)}${Object.keys(query).length ? `?tab=${encodeURIComponent(query.tab)}` : ''}`
+function detailRoute(record) {
+  const recordId = String(record?.id || record || '').trim()
+  if (!hasShellContext.value) {
+    const query = activeTab.value === 'all' ? {} : { tab: activeTab.value }
+    return {
+      path: `/${audience.value}/records/${encodeURIComponent(recordId)}`,
+      query,
+    }
+  }
+
+  return {
+    path: `/${audience.value}/records/${encodeURIComponent(recordId)}`,
+    query: compactQuery({
+      ...route.query,
+      tab: activeTab.value === 'all' ? '' : activeTab.value,
+      taskId: record?.taskId || currentTaskId.value,
+      recordId,
+      room: record?.roomKey || currentRoomKey.value,
+      roomKey: record?.roomKey || currentRoomKey.value,
+      source: 'records',
+      surface: 'records',
+      originSource: textQuery('originSource') || textQuery('source') || 'records',
+      originTaskId: textQuery('originTaskId') || record?.taskId || currentTaskId.value,
+      originRecordId: textQuery('originRecordId') || recordId,
+    }),
+  }
 }
 
 function workspaceRoute(taskId) {
