@@ -449,10 +449,16 @@
 
             <label class="field">
               <span>当前进度</span>
-              <input v-model.trim="progressForm.completion" type="text" placeholder="例如：68%" />
+              <input
+                :value="progressDisplayText(progressDialogNode)"
+                class="field-input--readonly"
+                type="text"
+                disabled
+                aria-disabled="true"
+              />
             </label>
 
-            <label class="field">
+            <label class="field field--select">
               <span>需要支持</span>
               <select v-model="progressForm.supportNeeded">
                 <option value="">当前不需要支持</option>
@@ -910,7 +916,7 @@ function openProgressDialog(node, options = {}) {
     resetProgressForm()
   }
   progressForm.stageName = node.title || ''
-  progressForm.completion = node.progress || ''
+  progressForm.completion = progressDisplayText(node)
   progressDialogOpen.value = true
 }
 
@@ -939,6 +945,11 @@ function isCompletedStatus(value) {
 
 function isNotStartedStatus(value) {
   return /待开始|未开始|排期待确认|等待同步|待同步|待处理|待确认|not started|pending|upcoming|todo/i.test(String(value || ''))
+}
+
+function progressDisplayText(node) {
+  if (!node) return '等待同步'
+  return node.progress || node.completion || node.completionPercent || milestoneStateLabel(node)
 }
 
 function closeProgressDialog() {
@@ -975,9 +986,9 @@ async function submitProgressForm() {
   }
 
   const targetNode = progressDialogNode.value || currentNode.value
-  const percent = normalizePercent(progressForm.completion)
+  const percent = resolveProgressSubmissionPercent(targetNode)
   if (percent === null) {
-    actionError.value = '请输入有效进度，例如 68% 或 68。'
+    actionError.value = '当前进度暂时没有同步，请刷新后再提交。'
     return
   }
 
@@ -1095,6 +1106,16 @@ function normalizePercent(value) {
   const percent = Number.parseFloat(matched[0])
   if (Number.isNaN(percent)) return null
   return Math.max(0, Math.min(100, Math.round(percent)))
+}
+
+function resolveProgressSubmissionPercent(node) {
+  const fromForm = normalizePercent(progressForm.completion)
+  if (fromForm !== null) return fromForm
+  const fromNode = normalizePercent(node?.completionPercent || node?.completion || node?.progress)
+  if (fromNode !== null) return fromNode
+  if (node?.isCompleted || isCompletedStatus(node?.status) || isCompletedStatus(node?.progress)) return 100
+  if (node?.isCurrent || isActiveStatus(node?.status) || isActiveStatus(node?.progress)) return 50
+  return null
 }
 
 function normalizeWorkspace(raw, requestedTaskId = '') {
@@ -1866,6 +1887,40 @@ function buildRoute(path, query = {}) {
 .field textarea:focus {
   border-color: rgba(16, 138, 0, 0.62);
   box-shadow: 0 0 0 4px rgba(16, 138, 0, 0.08);
+}
+
+.field-input--readonly:disabled {
+  border-color: rgba(18, 18, 18, 0.08);
+  background: #f5f6f2;
+  color: #80887a;
+  cursor: not-allowed;
+  -webkit-text-fill-color: #80887a;
+}
+
+.field--select {
+  position: relative;
+}
+
+.field--select select {
+  appearance: none;
+  padding-right: 46px;
+  border-color: rgba(16, 138, 0, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #fffef8 100%);
+  color: #27321f;
+  font-weight: 600;
+}
+
+.field--select::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  top: 45px;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid #108a00;
+  border-bottom: 2px solid #108a00;
+  transform: rotate(45deg);
+  pointer-events: none;
 }
 
 .composer-actions {
