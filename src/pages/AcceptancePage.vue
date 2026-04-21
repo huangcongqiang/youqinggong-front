@@ -287,72 +287,6 @@
           </article>
         </article>
 
-        <section class="split-grid acceptance-lower-grid">
-          <article class="glass-panel stack-lg acceptance-history-panel">
-          <SectionTitle
-            eyebrow="验收记录"
-            title="验收记录和反馈历史"
-            description="把验收决策、评级和反馈历史放在一起查看。"
-          />
-
-            <div class="stack-sm">
-              <div v-if="!acceptanceTimeline.length" class="mini-card stack-sm">
-                <h4>当前还没有验收记录</h4>
-                <p class="muted">验收、评级和反馈完成后，关键节点会显示在这里。</p>
-              </div>
-              <div v-else class="timeline-list acceptance-history-timeline">
-                <article v-for="item in acceptanceTimeline" :key="`${item.title}-${item.time}`" class="timeline-item">
-                  <span class="soft-pill">{{ normalizeAcceptanceStatusLabel(item.status || '记录') }}</span>
-                  <div>
-                    <strong>{{ item.title }}</strong>
-                    <p>{{ item.note }}</p>
-                    <small>{{ item.time || '待同步' }}</small>
-                  </div>
-                </article>
-              </div>
-            </div>
-
-            <div class="stack-sm">
-              <div v-if="!reviewHistoryItems.length" class="mini-card stack-sm">
-                <h4>当前还没有反馈记录</h4>
-                <p class="muted">验收、评级和反馈完成后，双方反馈会显示在这里。</p>
-              </div>
-              <div v-for="item in reviewHistoryItems" :key="`${item.reviewer}-${item.time}`" class="list-card stack-sm">
-                <div class="panel-header">
-                  <div>
-                    <h4>{{ item.reviewer }}</h4>
-                    <p class="muted">{{ item.role }} · {{ item.time }}</p>
-                  </div>
-                  <span class="score-pill">{{ item.rating }}</span>
-                </div>
-                <p class="muted">{{ item.content }}</p>
-              </div>
-            </div>
-          </article>
-
-          <article class="glass-panel stack-lg acceptance-signals-panel">
-            <SectionTitle
-              eyebrow="合作信号"
-              title="推荐与信任信号"
-              description="这些总结会继续影响推荐、案例和信任信号。"
-            />
-
-            <div class="stack-sm">
-              <div v-if="acceptanceReviewHighlights.length" class="stack-sm">
-                <div v-for="item in acceptanceReviewHighlights" :key="`${item.label}-${item.text}`" class="mini-card stack-sm">
-                  <span class="eyebrow">{{ item.label }}</span>
-                  <p class="muted">{{ item.text }}</p>
-                </div>
-              </div>
-
-              <div v-for="item in page.creditImpact" :key="item.title" class="mini-card stack-sm">
-                <h4>{{ item.title }}</h4>
-                <p class="muted">{{ item.note }}</p>
-              </div>
-            </div>
-          </article>
-        </section>
-
       </main>
 
       <aside class="stack-lg acceptance-side">
@@ -858,20 +792,7 @@ const acceptanceContextCards = computed(() => {
   if (!hasShellContext.value) return cards;
   return [];
 });
-const acceptanceTimeline = computed(() => listOf(page.value?.timeline).slice(0, 5));
 const acceptanceMetricCards = computed(() => listOf(page.value?.metrics).slice(0, 4));
-const acceptanceReviewHighlights = computed(() => listOf(page.value?.reviewSummary).slice(0, 3));
-const reviewHistoryItems = computed(() => listOf(page.value?.reviewHistory).map((item, index) => {
-  const role = normalizeReviewRoleLabel(item);
-  const reviewer = String(item?.reviewer || item?.reviewerName || '').trim() || (role === '反馈方' ? `反馈记录 ${index + 1}` : `${role}反馈`);
-  return {
-    reviewer,
-    role,
-    time: String(item?.time || item?.updatedAt || item?.createdAt || '待同步').trim() || '待同步',
-    rating: String(item?.rating || '待评分').trim() || '待评分',
-    content: String(item?.content || item?.summary || '这条反馈已经记录。').trim() || '这条反馈已经记录。',
-  };
-}));
 const acceptanceResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(acceptanceResult.value?.status, '已同步'));
 const gradeResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(gradeResult.value?.status, '已同步'));
 const reviewResultStatusLabel = computed(() => normalizeAcceptanceMutationStatusLabel(reviewResult.value?.status, '已同步'));
@@ -1836,19 +1757,6 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-.acceptance-lower-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.acceptance-history-panel,
-.acceptance-signals-panel {
-  min-width: 0;
-}
-
-.acceptance-history-timeline {
-  gap: 10px;
-}
-
 .acceptance-celebration-card {
   border-radius: 24px;
   border-left-color: #108a00;
@@ -1883,8 +1791,7 @@ onBeforeUnmount(() => {
   }
 
   .acceptance-grid-cards,
-  .acceptance-summary-grid,
-  .acceptance-lower-grid {
+  .acceptance-summary-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1915,8 +1822,7 @@ onBeforeUnmount(() => {
 .acceptance-page .result-card {
   border-radius: 28px;
 }
-.acceptance-page .split-grid,
-.acceptance-page .acceptance-lower-grid {
+.acceptance-page .split-grid {
   gap: 24px;
   align-items: start;
 }
