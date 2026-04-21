@@ -98,6 +98,7 @@ assert(
     && workspaceSource.includes('function canCompleteMilestoneProgress(node)')
     && workspaceSource.includes('const shouldCompleteMilestone = options?.completeMilestone === true')
     && workspaceSource.includes('const percent = shouldCompleteMilestone ? 100 : resolveProgressSubmissionPercent(targetNode)')
+    && workspaceSource.includes('不用手动填写 100%。点击“完成并进入下一里程碑”时，系统会自动按 100% 完成当前里程碑。')
     && workspaceSource.includes('button-primary--finish'),
   'Workspace progress dialog should expose an explicit complete-and-advance action that submits 100% completion to move to the next milestone.'
 );

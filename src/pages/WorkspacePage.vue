@@ -487,6 +487,7 @@
                 disabled
                 aria-disabled="true"
               />
+              <small class="field-help">不用手动填写 100%。点击“完成并进入下一里程碑”时，系统会自动按 100% 完成当前里程碑。</small>
             </label>
 
             <label class="field field--select">
@@ -2145,6 +2146,12 @@ function buildRoute(path, query = {}) {
   color: #80887a;
   cursor: not-allowed;
   -webkit-text-fill-color: #80887a;
+}
+
+.field-help {
+  color: #65715f;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .field--select {
