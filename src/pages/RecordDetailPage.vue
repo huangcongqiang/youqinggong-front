@@ -606,8 +606,9 @@ onMounted(loadRecordDetail)
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 26px;
   align-items: start;
-  width: min(calc(100vw - 56px), 1480px);
-  margin-inline: calc((100% - min(calc(100vw - 56px), 1480px)) / 2);
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
 }
 
 .record-archive-cover {

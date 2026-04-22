@@ -563,7 +563,9 @@ assert(
     && recordDetailSource.includes('record-archive-cover')
     && recordDetailSource.includes('record-timeline-panel')
     && recordDetailSource.includes('record-side-rail')
-    && recordDetailSource.includes('width: min(calc(100vw - 56px), 1480px);')
+    && recordDetailSource.includes('max-width: none;')
+    && recordDetailSource.includes('margin-inline: 0;')
+    && !recordDetailSource.includes('width: min(calc(100vw - 56px), 1480px);')
     && !recordDetailSource.includes('下一步财务动作'),
   'RecordDetailPage should use the real confirmationHistory field and clearly separate application, interview, and confirmed collaboration states.'
 );
