@@ -22,12 +22,19 @@ const taskLifecycleServiceSource = fs.readFileSync(
   'utf8'
 );
 const liveSyncSource = fs.readFileSync(new URL('../components/LiveSyncStatusBar.vue', import.meta.url), 'utf8');
+const desktopWorkbenchShellSource = fs.readFileSync(new URL('../components/DesktopWorkbenchShell.vue', import.meta.url), 'utf8');
 const businessSource = readSource('BusinessPage.vue');
 const workspaceSource = readSource('WorkspacePage.vue');
 const talentMarketSource = readSource('TalentMarketPage.vue');
 const recruitingSource = readSource('RecruitingPage.vue');
 
 const onboardingSource = readSource('OnboardingPage.vue');
+assert(
+  desktopWorkbenchShellSource.includes('<section v-if="!hidePageHero" class="workspace-hero">')
+    && desktopWorkbenchShellSource.includes("route.path.startsWith('/enterprise/workspace')")
+    && desktopWorkbenchShellSource.includes("route.path.startsWith('/talent/workspace')"),
+  'DesktopWorkbenchShell should hide the entry hero inside single-contract workspace pages.'
+);
 assert(
   onboardingSource.includes('setup-flow-shell')
     && onboardingSource.includes('onboarding-stepper')

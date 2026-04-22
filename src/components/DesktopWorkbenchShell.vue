@@ -59,7 +59,7 @@
       </router-link>
     </section>
 
-    <section v-if="!usesImmersiveFlow" class="workspace-hero">
+    <section v-if="!hidePageHero" class="workspace-hero">
       <div class="workspace-hero__copy">
         <span class="workspace-hero__eyebrow">{{ pageEyebrow }}</span>
         <h1>{{ pageTitle }}</h1>
@@ -384,6 +384,11 @@ const usesImmersiveFlow = computed(() => (
   route.path.startsWith('/enterprise/onboarding')
   || route.path.startsWith('/talent/onboarding')
   || route.path.startsWith('/enterprise/publish')
+));
+const hidePageHero = computed(() => (
+  usesImmersiveFlow.value
+  || route.path.startsWith('/enterprise/workspace')
+  || route.path.startsWith('/talent/workspace')
 ));
 
 const userInitials = computed(() => {

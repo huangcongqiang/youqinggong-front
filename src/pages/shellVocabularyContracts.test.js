@@ -124,6 +124,12 @@ assert(
     && !desktopShellSource.includes('workspace-topbar__right'),
   'DesktopWorkbenchShell should use a three-rail single-line workspace header instead of the old left/right compressed layout.'
 );
+assert(
+  desktopShellSource.includes('<section v-if="!hidePageHero" class="workspace-hero">')
+    && desktopShellSource.includes("route.path.startsWith('/enterprise/workspace')")
+    && desktopShellSource.includes("route.path.startsWith('/talent/workspace')"),
+  'DesktopWorkbenchShell should hide the entry hero inside single-contract workspace pages.'
+);
 
 const registerSource = readSource('RegisterPage.vue');
 assert(
