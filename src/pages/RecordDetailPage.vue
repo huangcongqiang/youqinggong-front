@@ -6,7 +6,6 @@
       :lead="recordShellLead"
       :support-copy="recordShellSupportCopy"
       :pills="recordShellPills"
-      :tabs="recordShellTaskId ? recordShellTabs : []"
     />
 
     <div v-if="!recordShellTaskId" class="hero-actions">
@@ -410,75 +409,9 @@ function openRecordAttachment(asset, event = null) {
 
 const recordShellTaskId = computed(() => String(viewModel.value.anchor.taskId || route.query.taskId || '').trim())
 const recordShellRoomKey = computed(() => String(viewModel.value.anchor.roomKey || route.query.roomKey || route.query.room || '').trim())
-const recordShellCounterpartName = computed(() => String(
-  viewModel.value.partnerName || record.value?.counterpartName || record.value?.partnerName || route.query.counterpartName || ''
-).trim())
 const backRoute = computed(() => {
   const tab = String(route.query.tab || '')
   return `/${audience.value}/records${tab ? `?tab=${encodeURIComponent(tab)}` : ''}`
-})
-const workspaceRoute = computed(() => {
-  const query = new URLSearchParams()
-  if (recordShellTaskId.value) query.set('taskId', recordShellTaskId.value)
-  if (recordId.value) query.set('recordId', recordId.value)
-  if (recordShellRoomKey.value) {
-    query.set('room', recordShellRoomKey.value)
-    query.set('roomKey', recordShellRoomKey.value)
-  }
-  query.set('source', 'contract')
-  query.set('surface', 'contract')
-  query.set('originSource', 'record-detail')
-  if (recordShellTaskId.value) query.set('originTaskId', recordShellTaskId.value)
-  if (recordId.value) query.set('originRecordId', recordId.value)
-  return `/${audience.value}/workspace${query.toString() ? `?${query.toString()}` : ''}`
-})
-const messagesRoute = computed(() => {
-  const query = new URLSearchParams()
-  if (recordShellTaskId.value) query.set('taskId', recordShellTaskId.value)
-  if (recordId.value) query.set('recordId', recordId.value)
-  if (recordShellCounterpartName.value) query.set('counterpartName', recordShellCounterpartName.value)
-  if (recordShellRoomKey.value) {
-    query.set('room', recordShellRoomKey.value)
-    query.set('roomKey', recordShellRoomKey.value)
-  }
-  query.set('source', 'messages')
-  query.set('surface', 'messages')
-  query.set('originSource', 'record-detail')
-  if (recordShellTaskId.value) query.set('originTaskId', recordShellTaskId.value)
-  if (recordId.value) query.set('originRecordId', recordId.value)
-  return `/${audience.value}/chat?${query.toString()}`
-})
-const acceptanceRoute = computed(() => {
-  const query = new URLSearchParams()
-  if (recordShellTaskId.value) query.set('taskId', recordShellTaskId.value)
-  if (recordId.value) query.set('recordId', recordId.value)
-  if (recordShellRoomKey.value) {
-    query.set('room', recordShellRoomKey.value)
-    query.set('roomKey', recordShellRoomKey.value)
-  }
-  query.set('source', 'record-detail')
-  query.set('surface', 'review')
-  query.set('originSource', 'record-detail')
-  if (recordShellTaskId.value) query.set('originTaskId', recordShellTaskId.value)
-  if (recordId.value) query.set('originRecordId', recordId.value)
-  return `/${audience.value}/acceptance${query.toString() ? `?${query.toString()}` : ''}`
-})
-const assistantRoute = computed(() => {
-  const query = new URLSearchParams()
-  if (recordShellTaskId.value) query.set('taskId', recordShellTaskId.value)
-  if (recordId.value) query.set('recordId', recordId.value)
-  if (recordShellRoomKey.value) {
-    query.set('room', recordShellRoomKey.value)
-    query.set('roomKey', recordShellRoomKey.value)
-  }
-  if (record.value?.title) query.set('contextTitle', record.value.title)
-  if (viewModel.value.stageLabel) query.set('contextStage', viewModel.value.stageLabel)
-  query.set('source', 'history')
-  query.set('surface', 'history')
-  query.set('originSource', 'record-detail')
-  if (recordShellTaskId.value) query.set('originTaskId', recordShellTaskId.value)
-  if (recordId.value) query.set('originRecordId', recordId.value)
-  return `/${audience.value}/assistant${query.toString() ? `?${query.toString()}` : ''}`
 })
 const recordShellSupportCopy = computed(() =>
   recordShellLifecycleLabel.value === '申请阶段'
@@ -496,16 +429,6 @@ const recordShellPills = computed(() => ([
   recordShellLifecycleLabel.value,
   String(route.query.contextMilestone || '').trim(),
 ]).filter(Boolean))
-const recordShellTabs = computed(() => {
-  if (!recordShellTaskId.value) return []
-  return [
-    workspaceRoute.value ? { label: '概览', to: workspaceRoute.value } : null,
-    recordShellRoomKey.value ? { label: '消息', to: messagesRoute.value } : null,
-    recordShellRoomKey.value ? { label: '验收', to: acceptanceRoute.value } : null,
-    { label: '记录', current: true },
-    assistantRoute.value ? { label: '助手', to: assistantRoute.value } : null,
-  ].filter(Boolean)
-})
 
 function buildFinanceActionRoute(actionCode = '') {
   const settlementRoute = buildSettlementRoute({
