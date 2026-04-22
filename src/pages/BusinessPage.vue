@@ -284,14 +284,15 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import ActionErrorDialog from '../components/ActionErrorDialog.vue'
-import { getBusinessData } from '../services/api'
+import { getBusinessData, getOrderRecords } from '../services/api'
 import { roleRouteMap } from '../utils/roleRoutes'
 
 const dashboard = ref(null)
+const recordsPage = ref(null)
 const errorMessage = ref('')
 
 const metrics = computed(() => listOf(dashboard.value?.metrics))
-const taskBoard = computed(() => normalizeContracts(listOf(dashboard.value?.taskBoard)))
+const contractRecords = computed(() => normalizeContracts(listOf(recordsPage.value?.items)))
 const liveConversation = computed(() => normalizeMessages(listOf(dashboard.value?.liveConversation)))
 const onboardingChecklist = computed(() => listOf(dashboard.value?.onboardingChecklist))
 const recommendedTalents = computed(() => normalizeTalents(listOf(dashboard.value?.recommendedTalents)))
@@ -320,7 +321,7 @@ const recruitingWorkCount = computed(() => {
   const count = Number(recruitingWorkCard.value?.count)
   return Number.isFinite(count) && count > 0 ? count : 0
 })
-const activeContracts = computed(() => taskBoard.value)
+const activeContracts = computed(() => contractRecords.value)
 const recentMessages = computed(() => liveConversation.value)
 const spendingItems = computed(() => contractSummary.value)
 const hiringInboxCards = computed(() => inboundItems.value.slice(0, 3))
@@ -1170,13 +1171,14 @@ function normalizeInboundQueue(items) {
 }
 
 function normalizeContracts(items) {
-  return items.slice(0, 4).map((item, index) => {
+  return items.map((item, index) => {
     const title = item?.title || item?.taskTitle || item?.taskName || `合同 ${index + 1}`
     const summary = compactText(item?.summary || item?.brief || item?.note || '继续在当前合同里推进这次合作。')
-    const partner = item?.partner || item?.talentName || item?.counterpartName || '待确认人才'
-    const status = item?.status || item?.stage || '进行中'
-    const updatedAt = item?.updatedAt || item?.time || '等待同步'
+    const partner = item?.partner || item?.talentName || item?.counterpartName || item?.partnerName || '待确认人才'
+    const status = item?.stage || item?.status || item?.statusGroup || '进行中'
+    const updatedAt = item?.updatedAt || item?.latestUpdatedAt || item?.time || '等待同步'
     const meta = listOf(item?.meta || item?.tags || item?.milestones).slice(0, 3)
+    const recordId = item?.recordId || item?.id || item?.taskId || ''
     return {
       key: item?.taskId || item?.id || `contract-${index}`,
       title,
@@ -1186,7 +1188,8 @@ function normalizeContracts(items) {
       updatedAt,
       meta,
       workspaceRoute: routeForWorkspace(item),
-      messageRoute: routeForMessage(item)
+      messageRoute: routeForMessage(item),
+      recordRoute: recordId ? roleRouteMap.enterprise.recordDetail(recordId) : roleRouteMap.enterprise.records
     }
   })
 }
@@ -1332,10 +1335,14 @@ function countBySignals(items, keywords) {
 
 onMounted(async () => {
   try {
-    const payload = await getBusinessData()
+    const [payload, recordsPayload] = await Promise.all([
+      getBusinessData(),
+      getOrderRecords('enterprise', 'ongoing')
+    ])
     dashboard.value = payload
-    if (payload?.requestError) {
-      errorMessage.value = payload.requestError
+    recordsPage.value = recordsPayload
+    if (payload?.requestError || recordsPayload?.requestError) {
+      errorMessage.value = payload?.requestError || recordsPayload?.requestError
     }
   } catch (error) {
     errorMessage.value = error?.message || '企业工作台数据暂时无法加载。'
