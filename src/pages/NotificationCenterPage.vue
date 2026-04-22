@@ -858,8 +858,7 @@ function reviewPrimaryRoute(context = {}, preferredRoute) {
     );
   }
   if (context.taskId && ownerKind === 'review') {
-    const taskId = encodeURIComponent(String(context.taskId));
-    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptanceDetail(taskId) : roleRouteMap.enterprise.acceptanceDetail(taskId), 'reviews'), context);
+    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptance : roleRouteMap.enterprise.acceptance, 'reviews'), context);
   }
   if (context.recordId && !context.taskId) {
     return attachRouteContext(
@@ -871,8 +870,7 @@ function reviewPrimaryRoute(context = {}, preferredRoute) {
     );
   }
   if (context.taskId && !context.recordId) {
-    const taskId = encodeURIComponent(String(context.taskId));
-    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptanceDetail(taskId) : roleRouteMap.enterprise.acceptanceDetail(taskId), 'reviews'), context);
+    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptance : roleRouteMap.enterprise.acceptance, 'reviews'), context);
   }
   if (context.recordId) {
     return attachRouteContext(
@@ -884,8 +882,7 @@ function reviewPrimaryRoute(context = {}, preferredRoute) {
     );
   }
   if (context.taskId) {
-    const taskId = encodeURIComponent(String(context.taskId));
-    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptanceDetail(taskId) : roleRouteMap.enterprise.acceptanceDetail(taskId), 'reviews'), context);
+    return attachRouteContext(withSource(isTalent.value ? roleRouteMap.talent.acceptance : roleRouteMap.enterprise.acceptance, 'reviews'), context);
   }
   return recordHistoryRoute(context);
 }

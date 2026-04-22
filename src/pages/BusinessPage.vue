@@ -998,10 +998,7 @@ function routeForReview(item = {}) {
     query.set('roomKey', String(item.roomKey))
   }
   query.set('source', 'reviews')
-  if (!item?.taskId) {
-    return `${roleRouteMap.enterprise.acceptance}?${query.toString()}`
-  }
-  return `${roleRouteMap.enterprise.acceptanceDetail(encodeURIComponent(String(item.taskId)))}?${query.toString()}`
+  return `${roleRouteMap.enterprise.acceptance}?${query.toString()}`
 }
 
 function routeForRecord(item = {}) {

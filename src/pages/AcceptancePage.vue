@@ -443,7 +443,7 @@ function buildEmptyClosurePage(taskId = '', reason = '') {
 
 const pageContext = computed(() =>
   readObjectPageContext(route.query, {
-    taskId: String(route.params.taskId || '').trim() || page.value?.summary?.taskId || ''
+    taskId: page.value?.summary?.taskId || ''
   })
 );
 const entrySource = computed(() => pageContext.value.source);
@@ -980,19 +980,6 @@ function routeForAcceptanceImmediateSource(source) {
     };
   }
 
-  if (source === 'acceptance') {
-    return {
-      path: isEnterprise.value ? roleRouteMap.enterprise.acceptance : roleRouteMap.talent.acceptance,
-      query: {
-        ...(currentRecordTab.value ? { tab: currentRecordTab.value } : {}),
-        ...(currentTaskIdValue.value ? { taskId: currentTaskIdValue.value } : {}),
-        ...(currentRecordId.value ? { recordId: currentRecordId.value } : {}),
-        ...(currentRoomKey.value ? { room: currentRoomKey.value, roomKey: currentRoomKey.value } : {}),
-        source: 'acceptance'
-      }
-    };
-  }
-
   return null;
 }
 
@@ -1168,12 +1155,11 @@ async function handleReview() {
 onMounted(refreshPage);
 
 watch(
-  () => [String(route.params.taskId || '').trim(), String(route.query.taskId || '').trim(), String(route.query.recordId || '').trim()],
-  ([nextParamTaskId, nextTaskId, nextRecordId], previous = []) => {
-    const previousParamTaskId = String(previous?.[0] || '').trim();
-    const previousTaskId = String(previous?.[1] || '').trim();
-    const previousRecordId = String(previous?.[2] || '').trim();
-    if ((!nextParamTaskId && !nextTaskId) || (nextParamTaskId === previousParamTaskId && nextTaskId === previousTaskId && nextRecordId === previousRecordId)) {
+  () => [String(route.query.taskId || '').trim(), String(route.query.recordId || '').trim()],
+  ([nextTaskId, nextRecordId], previous = []) => {
+    const previousTaskId = String(previous?.[0] || '').trim();
+    const previousRecordId = String(previous?.[1] || '').trim();
+    if (!nextTaskId || (nextTaskId === previousTaskId && nextRecordId === previousRecordId)) {
       return;
     }
     refreshPage();
