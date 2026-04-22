@@ -283,8 +283,9 @@ const activityStream = computed(() => {
     attachments: item.attachments || [],
     stamp: resolveActivityStamp(item.time)
   }))
+  const visibleTimelineItems = timelineItems.filter((item) => !shouldHideProgressSyncTimelineItem(item, progressItems))
 
-  return [...progressItems, ...reviewItems, ...timelineItems]
+  return [...progressItems, ...reviewItems, ...visibleTimelineItems]
     .sort((left, right) => {
       if (left.stamp == null && right.stamp == null) return 0
       if (left.stamp == null) return 1
@@ -292,6 +293,11 @@ const activityStream = computed(() => {
       return right.stamp - left.stamp
     })
 })
+
+function shouldHideProgressSyncTimelineItem(item, progressItems = []) {
+  if (!progressItems.length) return false
+  return /进展同步|进度同步|协作进展同步/.test(String(item?.title || '').trim())
+}
 
 function looksLikeUploadId(value) {
   return /^upload[-_]/i.test(String(value || '').trim())

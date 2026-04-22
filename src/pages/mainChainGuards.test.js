@@ -563,6 +563,8 @@ assert(
     && recordDetailSource.includes('record-archive-cover')
     && recordDetailSource.includes('record-timeline-panel')
     && recordDetailSource.includes('record-side-rail')
+    && recordDetailSource.includes('const visibleTimelineItems = timelineItems.filter((item) => !shouldHideProgressSyncTimelineItem(item, progressItems))')
+    && recordDetailSource.includes('function shouldHideProgressSyncTimelineItem(item, progressItems = [])')
     && recordDetailSource.includes('max-width: none;')
     && recordDetailSource.includes('margin-inline: 0;')
     && !recordDetailSource.includes('width: min(calc(100vw - 56px), 1480px);')
