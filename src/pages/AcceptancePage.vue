@@ -32,6 +32,7 @@
         :lead="acceptanceHeroLead"
         :support-copy="acceptanceShellSupportCopy"
         :pills="acceptanceShellPills"
+        :tabs="hasShellContext ? acceptanceShellTabs : []"
       />
 
       <div v-if="!hasShellContext && acceptanceBackRoute" class="toolbar acceptance-hero-actions">
@@ -448,8 +449,10 @@ const pageContext = computed(() =>
 );
 const entrySource = computed(() => pageContext.value.source);
 const currentItemId = computed(() => pageContext.value.itemId);
+const currentGroupKey = computed(() => pageContext.value.group);
 const currentRecordId = computed(() => pageContext.value.recordId);
 const currentRoomKey = computed(() => pageContext.value.room);
+const currentNodeId = computed(() => pageContext.value.nodeId);
 const currentRecordTab = computed(() => pageContext.value.tab);
 const currentTaskIdValue = computed(() => pageContext.value.taskId || String(page.value?.summary?.taskId || '').trim());
 const settlementRoute = computed(() => buildSettlementRoute({
@@ -619,6 +622,16 @@ const acceptanceShellPills = computed(() => ([
   acceptanceSummaryStatusLabel.value,
   String(route.query.contextMilestone || '').trim(),
 ]).filter(Boolean));
+const acceptanceShellTabs = computed(() => {
+  if (!hasShellContext.value) return [];
+  return [
+    workspaceRoute.value ? { label: '概览', to: workspaceRoute.value } : null,
+    messagesRoute.value ? { label: '消息', to: messagesRoute.value } : null,
+    { label: '验收', current: true },
+    recordsRoute.value ? { label: '记录', to: recordsRoute.value } : null,
+    assistantRoute.value ? { label: '助手', to: assistantRoute.value } : null,
+  ].filter(Boolean);
+});
 const acceptanceDecisionTitle = computed(() => {
   if (deliveryGrade.value) {
     return `${deliveryGrade.value} 级交付结果已经确认`;
@@ -723,6 +736,41 @@ watch([requestedFinanceAction, settlementRoute], () => {
     router.replace(settlementRoute.value)
   }
 }, { immediate: true });
+const acceptanceContextQuery = computed(() =>
+  buildChildObjectPageContext({
+    current: pageContext.value,
+    origin: originContext.value,
+    overrides: {
+      itemId: currentItemId.value,
+      group: currentGroupKey.value,
+      taskId: currentTaskIdValue.value,
+      recordId: currentRecordId.value,
+      room: currentRoomKey.value,
+      nodeId: currentNodeId.value,
+      tab: currentRecordTab.value,
+      source: 'acceptance'
+    }
+  })
+);
+const workspaceRoute = computed(() => ({
+  path: isEnterprise.value ? roleRouteMap.enterprise.workspace : roleRouteMap.talent.workspace,
+  query: acceptanceContextQuery.value
+}));
+const messagesRoute = computed(() => ({
+  path: isEnterprise.value ? roleRouteMap.enterprise.messages : roleRouteMap.talent.messages,
+  query: acceptanceContextQuery.value
+}));
+const recordsRoute = computed(() => ({
+  path: currentRecordId.value
+    ? `${isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records}/${encodeURIComponent(currentRecordId.value)}`
+    : isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records,
+  query: acceptanceContextQuery.value
+}));
+const assistantRoute = computed(() => ({
+  path: isEnterprise.value ? roleRouteMap.enterprise.assistant : roleRouteMap.talent.assistant,
+  query: acceptanceContextQuery.value
+}));
+
 function clearAssistantDraftQuery() {
   if (!route.query.assistantDraftToken && !route.query.assistantDraft && !route.query.assistantSurface) return;
   const query = { ...route.query };

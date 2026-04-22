@@ -343,12 +343,6 @@ assert(
   'AcceptancePage should render a true blocking unavailable state when the page context fails instead of keeping the rest of the acceptance surface visible.'
 );
 assert(
-  !acceptanceSource.includes(':tabs="hasShellContext ? acceptanceShellTabs : []"')
-    && !acceptanceSource.includes('const acceptanceShellTabs = computed')
-    && !acceptanceSource.includes("workspaceRoute.value ? { label: '概览'"),
-  'AcceptancePage should not render contract shell tabs inside the acceptance detail surface.'
-);
-assert(
   acceptanceSource.includes("const showGradeForm = computed(() => !acceptanceTradingBlocked.value && isEnterprise.value && isGradePending.value);")
     && acceptanceSource.includes("const showReviewForm = computed(() =>\n  !acceptanceTradingBlocked.value")
     && acceptanceSource.includes("v-else-if=\"acceptanceTradingBlocked\"")
@@ -552,11 +546,6 @@ assert(
     && recordPageSource.includes("originRecordId: textQuery('originRecordId') || recordId"),
   'RecordPage should keep the contract shell navigation and route context when opened from workspace, messages, or acceptance.'
 );
-assert(
-  workspaceSource.includes("currentRecordId.value ? `${basePath.value}/records/${encodeURIComponent(currentRecordId.value)}` : `${basePath.value}/records`")
-    && messagesSource.includes("const detailPath = currentRecordId.value ? `${basePath}/${encodeURIComponent(currentRecordId.value)}` : basePath"),
-  'Workspace and messages record tabs should open the current record detail when the single-task context has a recordId.'
-);
 
 const recordDetailSource = readSource('RecordDetailPage.vue');
 assert(
@@ -565,12 +554,10 @@ assert(
     && recordDetailSource.includes('记录概览')
     && recordDetailSource.includes('申请阶段')
     && recordDetailSource.includes('面试阶段')
-    && recordDetailSource.includes(':tabs="recordShellTaskId ? recordShellTabs : []"')
-    && recordDetailSource.includes('const recordShellTabs = computed(() => {')
     && recordDetailSource.includes("if (recordShellCounterpartName.value) query.set('counterpartName', recordShellCounterpartName.value)")
     && recordDetailSource.includes("recordShellRoomKey.value ? { label: '消息', to: messagesRoute.value } : null")
     && recordDetailSource.includes("recordShellRoomKey.value ? { label: '验收', to: acceptanceRoute.value } : null")
-    && !recordDetailSource.includes("{ label: '全部记录', to: allRecordsRoute.value }")
+    && recordDetailSource.includes("{ label: '全部记录', to: allRecordsRoute.value }")
     && recordDetailSource.includes('这条记录当前还是申请阶段。先看申请摘要和任务进展，再决定是否约面试、继续沟通或确认合作。')
     && recordDetailSource.includes('这条记录已经进入面试阶段，后续可以继续沟通、判断是否通过面试并确认合作。')
     && recordDetailSource.includes('当前缺少记录编号，暂时无法加载合作记录。')

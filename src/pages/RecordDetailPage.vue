@@ -417,6 +417,7 @@ const backRoute = computed(() => {
   const tab = String(route.query.tab || '')
   return `/${audience.value}/records${tab ? `?tab=${encodeURIComponent(tab)}` : ''}`
 })
+const allRecordsRoute = computed(() => backRoute.value)
 const workspaceRoute = computed(() => {
   const query = new URLSearchParams()
   if (recordShellTaskId.value) query.set('taskId', recordShellTaskId.value)
@@ -503,6 +504,7 @@ const recordShellTabs = computed(() => {
     recordShellRoomKey.value ? { label: '消息', to: messagesRoute.value } : null,
     recordShellRoomKey.value ? { label: '验收', to: acceptanceRoute.value } : null,
     { label: '记录', current: true },
+    { label: '全部记录', to: allRecordsRoute.value },
     assistantRoute.value ? { label: '助手', to: assistantRoute.value } : null,
   ].filter(Boolean)
 })
