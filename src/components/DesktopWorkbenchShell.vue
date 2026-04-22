@@ -385,10 +385,26 @@ const usesImmersiveFlow = computed(() => (
   || route.path.startsWith('/talent/onboarding')
   || route.path.startsWith('/enterprise/publish')
 ));
+function isRecordDetailPath(path) {
+  return /^\/(enterprise|talent)\/records\/[^/]+\/?$/.test(path);
+}
+
+function isContractFlowPath(path) {
+  return [
+    '/enterprise/workspace',
+    '/enterprise/chat',
+    '/enterprise/acceptance',
+    '/enterprise/assistant',
+    '/talent/workspace',
+    '/talent/chat',
+    '/talent/acceptance',
+    '/talent/assistant'
+  ].some((prefix) => path.startsWith(prefix)) || isRecordDetailPath(path);
+}
+
 const hidePageHero = computed(() => (
   usesImmersiveFlow.value
-  || route.path.startsWith('/enterprise/workspace')
-  || route.path.startsWith('/talent/workspace')
+  || isContractFlowPath(route.path)
 ));
 
 const userInitials = computed(() => {

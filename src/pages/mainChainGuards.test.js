@@ -31,9 +31,17 @@ const recruitingSource = readSource('RecruitingPage.vue');
 const onboardingSource = readSource('OnboardingPage.vue');
 assert(
   desktopWorkbenchShellSource.includes('<section v-if="!hidePageHero" class="workspace-hero">')
-    && desktopWorkbenchShellSource.includes("route.path.startsWith('/enterprise/workspace')")
-    && desktopWorkbenchShellSource.includes("route.path.startsWith('/talent/workspace')"),
-  'DesktopWorkbenchShell should hide the entry hero inside single-contract workspace pages.'
+    && desktopWorkbenchShellSource.includes('function isContractFlowPath(path) {')
+    && desktopWorkbenchShellSource.includes("'/enterprise/workspace'")
+    && desktopWorkbenchShellSource.includes("'/enterprise/chat'")
+    && desktopWorkbenchShellSource.includes("'/enterprise/acceptance'")
+    && desktopWorkbenchShellSource.includes("'/enterprise/assistant'")
+    && desktopWorkbenchShellSource.includes("'/talent/workspace'")
+    && desktopWorkbenchShellSource.includes("'/talent/chat'")
+    && desktopWorkbenchShellSource.includes("'/talent/acceptance'")
+    && desktopWorkbenchShellSource.includes("'/talent/assistant'")
+    && desktopWorkbenchShellSource.includes('isRecordDetailPath(path)'),
+  'DesktopWorkbenchShell should hide the entry hero inside single-contract flow pages.'
 );
 assert(
   onboardingSource.includes('setup-flow-shell')

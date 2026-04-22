@@ -126,9 +126,17 @@ assert(
 );
 assert(
   desktopShellSource.includes('<section v-if="!hidePageHero" class="workspace-hero">')
-    && desktopShellSource.includes("route.path.startsWith('/enterprise/workspace')")
-    && desktopShellSource.includes("route.path.startsWith('/talent/workspace')"),
-  'DesktopWorkbenchShell should hide the entry hero inside single-contract workspace pages.'
+    && desktopShellSource.includes('function isContractFlowPath(path) {')
+    && desktopShellSource.includes("'/enterprise/workspace'")
+    && desktopShellSource.includes("'/enterprise/chat'")
+    && desktopShellSource.includes("'/enterprise/acceptance'")
+    && desktopShellSource.includes("'/enterprise/assistant'")
+    && desktopShellSource.includes("'/talent/workspace'")
+    && desktopShellSource.includes("'/talent/chat'")
+    && desktopShellSource.includes("'/talent/acceptance'")
+    && desktopShellSource.includes("'/talent/assistant'")
+    && desktopShellSource.includes('isRecordDetailPath(path)'),
+  'DesktopWorkbenchShell should hide the entry hero inside single-contract flow pages.'
 );
 
 const registerSource = readSource('RegisterPage.vue');
