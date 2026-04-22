@@ -343,6 +343,12 @@ assert(
   'AcceptancePage should render a true blocking unavailable state when the page context fails instead of keeping the rest of the acceptance surface visible.'
 );
 assert(
+  !acceptanceSource.includes(':tabs="hasShellContext ? acceptanceShellTabs : []"')
+    && !acceptanceSource.includes('const acceptanceShellTabs = computed')
+    && !acceptanceSource.includes("workspaceRoute.value ? { label: '概览'"),
+  'AcceptancePage should not render contract shell tabs inside the acceptance detail surface.'
+);
+assert(
   acceptanceSource.includes("const showGradeForm = computed(() => !acceptanceTradingBlocked.value && isEnterprise.value && isGradePending.value);")
     && acceptanceSource.includes("const showReviewForm = computed(() =>\n  !acceptanceTradingBlocked.value")
     && acceptanceSource.includes("v-else-if=\"acceptanceTradingBlocked\"")
