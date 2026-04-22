@@ -301,6 +301,7 @@ assert(
 );
 
 const acceptanceSource = readSource('AcceptancePage.vue');
+const acceptanceListSource = readSource('AcceptanceListPage.vue');
 assert(
   acceptanceSource.includes('acceptanceResult.requestError || acceptanceResult.nextStep')
     || acceptanceSource.includes('resultMessage(acceptanceResult)'),
@@ -347,6 +348,18 @@ assert(
     && !acceptanceSource.includes('const acceptanceShellTabs = computed')
     && !acceptanceSource.includes("workspaceRoute.value ? { label: '概览'"),
   'AcceptancePage should not render contract shell tabs inside the acceptance detail surface.'
+);
+assert(
+  acceptanceListSource.includes('<p class="eyebrow">验收列表</p>')
+    && acceptanceListSource.includes("['all', 'ongoing', 'completed'].includes(value)")
+    && acceptanceListSource.includes("{ key: 'ongoing', label: '进行中'")
+    && acceptanceListSource.includes("{ key: 'completed', label: '已完成'")
+    && acceptanceListSource.includes('function detailRoute(row) {')
+    && acceptanceListSource.includes('roleRouteMap.enterprise.acceptanceDetail')
+    && acceptanceListSource.includes('source: \'acceptance\'')
+    && acceptanceListSource.includes('ContractShellHeader')
+    && acceptanceListSource.includes("{ label: '验收', current: true }"),
+  'AcceptanceListPage should make /acceptance a filterable list and drill into task-specific acceptance details.'
 );
 assert(
   acceptanceSource.includes("const showGradeForm = computed(() => !acceptanceTradingBlocked.value && isEnterprise.value && isGradePending.value);")

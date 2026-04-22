@@ -17,6 +17,7 @@ const TalentDetailPage = () => import('./pages/TalentDetailPage.vue');
 const OnboardingPage = () => import('./pages/OnboardingPage.vue');
 const PublishTaskPage = () => import('./pages/PublishTaskPage.vue');
 const MessagesPage = () => import('./pages/MessagesPage.vue');
+const AcceptanceListPage = () => import('./pages/AcceptanceListPage.vue');
 const AcceptancePage = () => import('./pages/AcceptancePage.vue');
 const RegisterPage = () => import('./pages/RegisterPage.vue');
 const RecordPage = () => import('./pages/RecordPage.vue');
@@ -57,7 +58,8 @@ const routes = [
   { path: '/enterprise/chat', component: MessagesPage, meta: { title: '消息', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/messages', redirect: redirectWithQuery('/enterprise/chat') },
   { path: '/enterprise/workspace', component: WorkspacePage, meta: { title: '合同协作', audience: 'enterprise', requiresAuth: true } },
-  { path: '/enterprise/acceptance', component: AcceptancePage, meta: { title: '验收', audience: 'enterprise', requiresAuth: true } },
+  { path: '/enterprise/acceptance', component: AcceptanceListPage, meta: { title: '验收列表', audience: 'enterprise', requiresAuth: true } },
+  { path: '/enterprise/acceptance/:taskId', component: AcceptancePage, meta: { title: '验收详情', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/records', component: RecordPage, meta: { title: '申请与合作记录', audience: 'enterprise', requiresAuth: true } },
   { path: '/enterprise/contracts', component: ClientOperationsPage, meta: { title: '合同管理', audience: 'enterprise', requiresAuth: true, clientOperationsMode: 'contracts' } },
   { path: '/enterprise/reports', component: ClientOperationsPage, meta: { title: '交易核对', audience: 'enterprise', requiresAuth: true, clientOperationsMode: 'reports' } },
@@ -75,7 +77,8 @@ const routes = [
   { path: '/talent/chat', component: MessagesPage, meta: { title: '消息', audience: 'talent', requiresAuth: true } },
   { path: '/talent/messages', redirect: redirectWithQuery('/talent/chat') },
   { path: '/talent/workspace', component: WorkspacePage, meta: { title: '合同协作', audience: 'talent', requiresAuth: true } },
-  { path: '/talent/acceptance', component: AcceptancePage, meta: { title: '验收', audience: 'talent', requiresAuth: true } },
+  { path: '/talent/acceptance', component: AcceptanceListPage, meta: { title: '验收列表', audience: 'talent', requiresAuth: true } },
+  { path: '/talent/acceptance/:taskId', component: AcceptancePage, meta: { title: '验收详情', audience: 'talent', requiresAuth: true } },
   { path: '/talent/records', component: RecordPage, meta: { title: '申请、面试与收入记录', audience: 'talent', requiresAuth: true } },
   { path: '/talent/records/:recordId/settlement', component: SettlementPage, meta: { title: '结算', audience: 'talent', requiresAuth: true } },
   { path: '/talent/records/:recordId', component: RecordDetailPage, meta: { title: '申请与合作记录', audience: 'talent', requiresAuth: true } },
@@ -105,6 +108,13 @@ const routes = [
   { path: '/billing', redirect: redirectWithQuery('/enterprise/billing') },
   { path: '/workspace', redirect: redirectByAudience('/enterprise/workspace', '/talent/workspace') },
   { path: '/acceptance', redirect: redirectByAudience('/enterprise/acceptance', '/talent/acceptance') },
+  {
+    path: '/acceptance/:taskId',
+    redirect: redirectWithQuery((to) => {
+      const base = getStoredAuthUser()?.audience === 'talent' ? '/talent/acceptance' : '/enterprise/acceptance';
+      return `${base}/${encodeURIComponent(String(to.params.taskId || ''))}`;
+    })
+  },
   {
     path: '/records',
     redirect: redirectWithQuery(() => (getStoredAuthUser()?.audience === 'talent' ? '/talent/records' : '/enterprise/records'))

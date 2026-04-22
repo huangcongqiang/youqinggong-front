@@ -51,6 +51,7 @@ export const roleRouteMap = {
     }),
     workspace: '/enterprise/workspace',
     acceptance: '/enterprise/acceptance',
+    acceptanceDetail: (taskId) => `/enterprise/acceptance/${taskId}`,
     records: '/enterprise/records',
     recordDetail: (recordId) => `/enterprise/records/${recordId}`
   },
@@ -73,6 +74,7 @@ export const roleRouteMap = {
     }),
     workspace: '/talent/workspace',
     acceptance: '/talent/acceptance',
+    acceptanceDetail: (taskId) => `/talent/acceptance/${taskId}`,
     records: '/talent/records',
     recordDetail: (recordId) => `/talent/records/${recordId}`
   }

@@ -40,6 +40,15 @@ assert(
   'audience-aware redirects should continue to route through redirectByAudience.'
 );
 assert(
+  routerSource.includes("const AcceptanceListPage = () => import('./pages/AcceptanceListPage.vue')")
+    && routerSource.includes("path: '/enterprise/acceptance', component: AcceptanceListPage")
+    && routerSource.includes("path: '/enterprise/acceptance/:taskId', component: AcceptancePage")
+    && routerSource.includes("path: '/talent/acceptance', component: AcceptanceListPage")
+    && routerSource.includes("path: '/talent/acceptance/:taskId', component: AcceptancePage")
+    && routerSource.includes("path: '/acceptance/:taskId'"),
+  'acceptance base routes should render the acceptance list, while task-specific routes render acceptance detail.'
+);
+assert(
   routerSource.includes("title: '提交报名'"),
   'task apply route meta title should use localized application vocabulary.'
 );
