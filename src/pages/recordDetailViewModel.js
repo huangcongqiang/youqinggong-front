@@ -217,6 +217,32 @@ function normalizeRecordNote(note, options = {}) {
   return text;
 }
 
+function resolveRecordNoteCard(normalizedNote) {
+  const text = String(normalizedNote || '').trim();
+  if (!text) {
+    return null;
+  }
+
+  const separatorIndexes = ['：', ':']
+    .map((separator) => text.indexOf(separator))
+    .filter((index) => index > 0);
+  const separatorIndex = separatorIndexes.length ? Math.min(...separatorIndexes) : -1;
+  if (separatorIndex === -1) {
+    return { label: translateText('Record note'), text };
+  }
+
+  const label = text.slice(0, separatorIndex).trim();
+  const value = text.slice(separatorIndex + 1).trim();
+  if (!label || !value || label.length > 12) {
+    return { label: translateText('Record note'), text };
+  }
+
+  return {
+    label: translateText(label),
+    text: value
+  };
+}
+
 function resolveKeyResults(record, options = {}) {
   const items = [];
   const progressFeed = listOf(record?.progressFeed).length ? listOf(record?.progressFeed) : listOf(record?.sections?.progressFeed);
@@ -239,7 +265,10 @@ function resolveKeyResults(record, options = {}) {
     if (!normalizedNote) {
       return;
     }
-    items.push({ label: translateText('记录备注'), text: normalizedNote });
+    const noteCard = resolveRecordNoteCard(normalizedNote);
+    if (noteCard) {
+      items.push(noteCard);
+    }
   });
 
   if (latestProgress) {

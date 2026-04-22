@@ -44,7 +44,8 @@ assert.strictEqual(detail.dateRangeLabel, '03.10 - 03.19');
 assert.strictEqual(detail.ratingValue, 'S 级');
 assert.strictEqual(detail.stageLabel, '进行中');
 assert.strictEqual(detail.partnerName, '林昭');
-assert.strictEqual(detail.keyResults[0].text, '企业方：林昭');
+assert.strictEqual(detail.keyResults[0].label, '企业方');
+assert.strictEqual(detail.keyResults[0].text, '林昭');
 assert.strictEqual(detail.keyResults.length, 6);
 assert.strictEqual(detail.keyResults[5].label, '争议处理');
 
@@ -58,7 +59,8 @@ const applicationStageDetail = buildRecordDetailViewModel({
   audience: 'talent'
 });
 
-assert.strictEqual(applicationStageDetail.keyResults[0].text, '发布方：林昭');
+assert.strictEqual(applicationStageDetail.keyResults[0].label, '发布方');
+assert.strictEqual(applicationStageDetail.keyResults[0].text, '林昭');
 assert.strictEqual(detail.assetFiles[0].downloadHref, 'https://example.com/a.png');
 
 const emptyDetail = buildRecordDetailViewModel(null, {
