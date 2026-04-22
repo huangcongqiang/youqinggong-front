@@ -562,7 +562,9 @@ assert(
     && recordDetailSource.includes('当前缺少记录编号，暂时无法加载合作记录。')
     && recordDetailSource.includes('record-archive-cover')
     && recordDetailSource.includes('record-timeline-panel')
-    && recordDetailSource.includes('record-side-rail'),
+    && recordDetailSource.includes('record-side-rail')
+    && recordDetailSource.includes('width: min(calc(100vw - 56px), 1480px);')
+    && !recordDetailSource.includes('下一步财务动作'),
   'RecordDetailPage should use the real confirmationHistory field and clearly separate application, interview, and confirmed collaboration states.'
 );
 

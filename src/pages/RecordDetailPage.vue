@@ -103,7 +103,6 @@
             <div class="section-header section-header--compact">
             <div>
               <p class="eyebrow">财务跟进</p>
-              <h2>下一步财务动作</h2>
             </div>
           </div>
 
@@ -607,6 +606,8 @@ onMounted(loadRecordDetail)
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 26px;
   align-items: start;
+  width: min(calc(100vw - 56px), 1480px);
+  margin-inline: calc((100% - min(calc(100vw - 56px), 1480px)) / 2);
 }
 
 .record-archive-cover {
@@ -805,7 +806,6 @@ onMounted(loadRecordDetail)
 }
 
 .record-timeline-panel .section-header h2,
-.finance-command-panel h2,
 .file-vault-panel h2 {
   margin: 4px 0 0;
   color: var(--record-ink);
