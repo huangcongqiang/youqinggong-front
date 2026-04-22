@@ -525,6 +525,7 @@ const originRecordIdValue = computed(() => String(route.query.originRecordId || 
 const originRoomValue = computed(() => String(route.query.originRoom || route.query.roomKey || route.query.room || '').trim())
 const currentTaskId = computed(() => String(page.value?.summary?.taskId || routeTaskId.value || '').trim())
 const hasTask = computed(() => Boolean(currentTaskId.value))
+const currentRecordRouteId = computed(() => currentRecordId.value || currentTaskId.value)
 const assistantDraftToken = computed(() => String(route.query.assistantDraftToken || '').trim())
 const assistantDraftSeed = computed(() => {
   const raw = route.query.assistantDraft
@@ -630,7 +631,13 @@ const acceptanceRoute = computed(() =>
 )
 const recordsRoute = computed(() =>
   hasTask.value
-    ? buildRoute(currentRecordId.value ? `${basePath.value}/records/${encodeURIComponent(currentRecordId.value)}` : `${basePath.value}/records`, contextQuery.value)
+    ? buildRoute(`${basePath.value}/records/${encodeURIComponent(currentRecordRouteId.value)}`, {
+      ...contextQuery.value,
+      recordId: currentRecordRouteId.value,
+      source: 'records',
+      surface: 'records',
+      originRecordId: originRecordIdValue.value || currentRecordRouteId.value,
+    })
     : ''
 )
 const showTaskSwitcherPanel = computed(() => !currentTaskId.value || showTaskSwitcher.value)

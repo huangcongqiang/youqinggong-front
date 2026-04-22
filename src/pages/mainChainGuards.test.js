@@ -428,6 +428,17 @@ assert(
     && acceptanceSource.includes('clearActionError();'),
   'AcceptancePage should clear stale local submission results before refreshing or changing context.'
 );
+assert(
+  acceptanceSource.includes('<template v-if="showAcceptanceArchive">')
+    && acceptanceSource.includes('const showAcceptanceArchive = computed(() =>')
+    && acceptanceSource.includes('hasAcceptanceEvaluation.value')
+    && acceptanceSource.includes('buildRecordDetailViewModel(acceptanceArchiveRecord.value')
+    && acceptanceSource.includes('getOrderRecordDetail(audience.value, recordId)')
+    && acceptanceSource.includes('const acceptanceRecordPage = ref(null);')
+    && !acceptanceSource.includes('acceptanceArchiveTitle')
+    && !acceptanceSource.includes('acceptanceArchiveLead'),
+  'AcceptancePage should switch completed-and-evaluated acceptance into the record archive view while keeping unevaluated tasks in the normal flow.'
+);
 
 const talentDetailSource = readSource('TalentDetailPage.vue');
 assert(
@@ -561,18 +572,40 @@ assert(
     && recordPageSource.includes("originRecordId: textQuery('originRecordId') || recordId"),
   'RecordPage should keep the contract shell navigation and route context when opened from workspace, messages, or acceptance.'
 );
+assert(
+  !recordPageSource.includes('>打开记录</router-link>')
+    && recordPageSource.indexOf('打开工作区') > -1
+    && recordPageSource.indexOf('查看消息') > -1
+    && recordPageSource.indexOf('打开工作区') < recordPageSource.indexOf('查看消息'),
+  'RecordPage list cards should remove the open-record CTA and keep workspace before messages.'
+);
+assert(
+  recordPageSource.includes('const shellRecordId = computed(() => currentRecordId.value || currentTaskId.value)')
+    && recordPageSource.includes('const shellRecordDetailRoute = computed(() =>')
+    && recordPageSource.includes('router.replace(target)')
+    && recordPageSource.includes("query.set('recordId', recordId)")
+    && workspaceSource.includes('const currentRecordRouteId = computed(() => currentRecordId.value || currentTaskId.value)')
+    && workspaceSource.includes('`${basePath.value}/records/${encodeURIComponent(currentRecordRouteId.value)}`')
+    && messagesSource.includes('const currentRecordRouteId = computed(() => currentRecordId.value || currentTaskId.value)')
+    && acceptanceSource.includes('const acceptanceRecordRouteId = computed(() => currentRecordId.value || currentTaskIdValue.value);')
+    && acceptanceSource.includes("recordsRoute.value ? { label: '记录', to: recordsRoute.value } : null")
+    && !acceptanceSource.includes("!showAcceptanceArchive.value && recordsRoute.value ? { label: '记录', to: recordsRoute.value } : null"),
+  'Single-task record links should stay visible, resolve to the current record detail, and never fall back into the global records list loop.'
+);
 
 const recordDetailSource = readSource('RecordDetailPage.vue');
 assert(
   recordDetailSource.includes('const reviewItems = viewModel.value.confirmationHistory.map(')
     && !recordDetailSource.includes('confirmation记录')
+    && !recordDetailSource.includes('把这次合作沉淀成一份清晰档案')
+    && !recordDetailSource.includes('viewModel.overviewText || recordShellLead')
     && recordDetailSource.includes('记录概览')
     && recordDetailSource.includes('申请阶段')
     && recordDetailSource.includes('面试阶段')
     && recordDetailSource.includes("if (recordShellCounterpartName.value) query.set('counterpartName', recordShellCounterpartName.value)")
     && recordDetailSource.includes("recordShellRoomKey.value ? { label: '消息', to: messagesRoute.value } : null")
     && recordDetailSource.includes("recordShellRoomKey.value ? { label: '验收', to: acceptanceRoute.value } : null")
-    && recordDetailSource.includes("{ label: '全部记录', to: allRecordsRoute.value }")
+    && !recordDetailSource.includes("{ label: '全部记录', to: allRecordsRoute.value }")
     && recordDetailSource.includes('这条记录当前还是申请阶段。先看申请摘要和任务进展，再决定是否约面试、继续沟通或确认合作。')
     && recordDetailSource.includes('这条记录已经进入面试阶段，后续可以继续沟通、判断是否通过面试并确认合作。')
     && recordDetailSource.includes('当前缺少记录编号，暂时无法加载合作记录。')

@@ -182,6 +182,7 @@ const currentTaskId = computed(() => String(activeRoom.value?.taskId || route.qu
 const currentRoomQuery = computed(() => String(activeRoom.value?.roomKey || activeRoomKey.value || route.query.roomKey || route.query.room || ''))
 const hasShellContext = computed(() => Boolean(activeRoom.value?.taskId || currentTaskId.value))
 const currentRecordId = computed(() => String(route.query.recordId || '').trim())
+const currentRecordRouteId = computed(() => currentRecordId.value || currentTaskId.value)
 const originSourceValue = computed(() => String(route.query.originSource || route.query.source || 'messages').trim())
 const originTaskIdValue = computed(() => String(route.query.originTaskId || route.query.taskId || '').trim())
 const originRecordIdValue = computed(() => String(route.query.originRecordId || route.query.recordId || '').trim())
@@ -366,8 +367,14 @@ const acceptanceRoute = computed(() => {
 
 const recordsRoute = computed(() => {
   const basePath = audience.value === 'enterprise' ? '/enterprise/records' : '/talent/records'
-  const detailPath = currentRecordId.value ? `${basePath}/${encodeURIComponent(currentRecordId.value)}` : basePath
-  return buildRoute(detailPath, contextQuery.value)
+  const detailPath = currentRecordRouteId.value ? `${basePath}/${encodeURIComponent(currentRecordRouteId.value)}` : basePath
+  return buildRoute(detailPath, {
+    ...contextQuery.value,
+    ...(currentRecordRouteId.value ? { recordId: currentRecordRouteId.value } : {}),
+    source: 'records',
+    surface: 'records',
+    ...(currentRecordRouteId.value ? { originRecordId: originRecordIdValue.value || currentRecordRouteId.value } : {}),
+  })
 })
 const shellPills = computed(() => ([
   activeRoom.value?.taskId ? `合同 ${activeRoom.value.taskId}` : '暂未关联合同',

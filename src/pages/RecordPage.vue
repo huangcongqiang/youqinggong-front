@@ -109,8 +109,7 @@
             </div>
 
             <div class="toolbar toolbar--wrap">
-              <router-link class="button-primary" :to="detailRoute(record)">打开记录</router-link>
-              <router-link v-if="record.taskId" class="button-secondary" :to="workspaceRoute(record.taskId)">打开工作区</router-link>
+              <router-link v-if="record.taskId" class="button-secondary" :to="workspaceRoute(record)">打开工作区</router-link>
               <router-link v-if="record.taskId && record.roomKey" class="button-tertiary" :to="chatRoute(record)">查看消息</router-link>
             </div>
           </article>
@@ -192,6 +191,7 @@ const currentRecordId = computed(() => textQuery('recordId') || textQuery('origi
 const currentRoomKey = computed(() => textQuery('roomKey') || textQuery('room'))
 const currentMilestoneLabel = computed(() => textQuery('contextMilestone'))
 const hasShellContext = computed(() => Boolean(currentTaskId.value))
+const shellRecordId = computed(() => currentRecordId.value || currentTaskId.value)
 const recordShellTitle = computed(() => page.value?.summary?.title || defaultTitle.value)
 const recordShellLead = computed(() => page.value?.summary?.description || defaultLead.value)
 const recordShellSupportCopy = computed(() => '当前记录继续挂在同一份合同下，概览、消息、验收和助手都可以从这里切回去。')
@@ -257,6 +257,25 @@ function buildShellRoute(path, overrides = {}) {
     }),
   }
 }
+
+const shellRecordDetailRoute = computed(() => {
+  if (!hasShellContext.value || !shellRecordId.value) return null
+  return {
+    path: `/${audience.value}/records/${encodeURIComponent(shellRecordId.value)}`,
+    query: compactQuery({
+      ...route.query,
+      taskId: currentTaskId.value,
+      recordId: shellRecordId.value,
+      room: currentRoomKey.value,
+      roomKey: currentRoomKey.value,
+      source: 'records',
+      surface: 'records',
+      originSource: textQuery('originSource') || textQuery('source') || 'records',
+      originTaskId: textQuery('originTaskId') || currentTaskId.value,
+      originRecordId: textQuery('originRecordId') || shellRecordId.value,
+    }),
+  }
+})
 
 function resolveLifecycleStageLabel(item) {
   const explicitLabel = [item?.stage, item?.stageLabel, item?.statusLabel]
@@ -346,19 +365,28 @@ function detailRoute(record) {
   }
 }
 
-function workspaceRoute(taskId) {
+function workspaceRoute(record) {
+  const taskId = String(record?.taskId || record?.id || record || '').trim()
+  const recordId = String(record?.id || taskId).trim()
   const query = new URLSearchParams()
-  query.set('taskId', String(taskId))
+  query.set('taskId', taskId)
+  if (recordId) query.set('recordId', recordId)
+  if (record?.roomKey) {
+    query.set('room', record.roomKey)
+    query.set('roomKey', record.roomKey)
+  }
   query.set('source', 'contract')
   query.set('surface', 'contract')
   query.set('originSource', 'records')
-  query.set('originTaskId', String(taskId))
+  query.set('originTaskId', taskId)
+  if (recordId) query.set('originRecordId', recordId)
   return `/${audience.value}/workspace?${query.toString()}`
 }
 
 function chatRoute(record) {
   const query = new URLSearchParams()
   if (record.taskId) query.set('taskId', record.taskId)
+  if (record.id) query.set('recordId', record.id)
   if (record.roomKey) {
     query.set('room', record.roomKey)
     query.set('roomKey', record.roomKey)
@@ -367,6 +395,7 @@ function chatRoute(record) {
   query.set('surface', 'messages')
   query.set('originSource', 'records')
   if (record.taskId) query.set('originTaskId', record.taskId)
+  if (record.id) query.set('originRecordId', record.id)
   return `/${audience.value}/chat?${query.toString()}`
 }
 
@@ -389,6 +418,11 @@ async function loadRecords() {
 }
 
 watch(activeTab, loadRecords)
+watch(shellRecordDetailRoute, (target) => {
+  if (target) {
+    router.replace(target)
+  }
+}, { immediate: true })
 onMounted(loadRecords)
 </script>
 

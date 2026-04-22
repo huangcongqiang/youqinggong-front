@@ -41,6 +41,130 @@
         </router-link>
       </div>
 
+      <template v-if="showAcceptanceArchive">
+        <section class="acceptance-archive-grid">
+          <main class="stack-lg acceptance-archive-main">
+            <article class="glass-panel stack-lg acceptance-archive-cover">
+              <div class="acceptance-archive-cover__topline">
+                <div class="stack-sm">
+                  <span class="eyebrow">验收归档</span>
+                  <div class="mini-chip-row">
+                    <span class="mini-chip">时间线 {{ acceptanceArchiveViewModel.dateRangeLabel }}</span>
+                    <span class="mini-chip">评级 {{ deliveryGrade || acceptanceArchiveViewModel.ratingValue }}</span>
+                    <span v-for="tag in acceptanceArchiveViewModel.summaryTags" :key="tag" class="mini-chip">{{ tag }}</span>
+                  </div>
+                </div>
+                <div class="acceptance-archive-stamp">
+                  <span>验收完成</span>
+                  <strong>{{ deliveryGrade || acceptanceArchiveViewModel.ratingValue }}</strong>
+                  <small>{{ page.summary.acceptedAt || acceptanceArchiveViewModel.dateRangeLabel }}</small>
+                </div>
+              </div>
+
+              <div v-if="acceptanceArchiveSummaryCards.length" class="acceptance-archive-facts">
+                <article v-for="item in acceptanceArchiveSummaryCards" :key="item.label" class="mini-card stack-sm">
+                  <span class="eyebrow">{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                  <p v-if="item.note" class="muted">{{ item.note }}</p>
+                </article>
+              </div>
+
+              <div v-if="acceptanceArchiveViewModel.keyResults.length" class="acceptance-archive-facts">
+                <article v-for="item in acceptanceArchiveViewModel.keyResults" :key="`${item.label}-${item.text}`" class="mini-card stack-sm">
+                  <span class="eyebrow">{{ item.label }}</span>
+                  <p>{{ item.text }}</p>
+                </article>
+              </div>
+            </article>
+
+            <article class="glass-panel stack-md acceptance-archive-timeline">
+              <div class="panel-header acceptance-section-header">
+                <div>
+                  <span class="eyebrow">记录时间线</span>
+                  <h3>验收、进展和关键记录</h3>
+                </div>
+              </div>
+
+              <div v-if="acceptanceArchiveActivityStream.length" class="acceptance-archive-feed">
+                <article v-for="item in acceptanceArchiveActivityStream" :key="item.key" class="mini-card stack-sm acceptance-archive-event">
+                  <div class="acceptance-archive-event__topline">
+                    <div>
+                      <span class="eyebrow">{{ item.eyebrow }}</span>
+                      <strong>{{ item.title }}</strong>
+                    </div>
+                    <div class="acceptance-archive-event__meta">
+                      <span class="soft-pill">{{ item.status }}</span>
+                      <small>{{ item.time }}</small>
+                    </div>
+                  </div>
+                  <p>{{ item.summary }}</p>
+                  <p v-if="item.detail" class="muted">{{ item.detail }}</p>
+                  <p v-if="item.aiReviewSummary" class="muted">助手摘要：{{ item.aiReviewSummary }}</p>
+                  <div v-if="item.attachments.length" class="mini-chip-row">
+                    <span v-for="asset in item.attachments" :key="`${item.key}-${asset.name}`" class="mini-chip">{{ asset.name }}</span>
+                  </div>
+                </article>
+              </div>
+              <article v-else class="empty-state is-compact">
+                <strong>暂时还没有记录条目</strong>
+                <p>验收完成后，进展、附件和反馈会继续沉淀在这里。</p>
+              </article>
+            </article>
+          </main>
+
+          <aside class="stack-lg acceptance-archive-side">
+            <article class="glass-panel stack-md acceptance-sidebar-card">
+              <div class="panel-header acceptance-section-header">
+                <div>
+                  <span class="eyebrow">验收结果</span>
+                  <h3>当前结果已经归档</h3>
+                </div>
+              </div>
+              <p class="muted">{{ acceptanceDecisionBody }}</p>
+              <div class="tag-row">
+                <span class="soft-pill">{{ acceptanceSummaryStatusLabel }}</span>
+                <span v-if="deliveryPayoutRatio" class="soft-pill">{{ deliveryPayoutRatio }}</span>
+                <span v-if="page.summary.settledAt" class="soft-pill">已结算 {{ page.summary.settledAt }}</span>
+              </div>
+            </article>
+
+            <article v-if="acceptanceArchiveFinanceSections.length" class="glass-panel stack-md acceptance-sidebar-card">
+              <div class="panel-header acceptance-section-header">
+                <div>
+                  <span class="eyebrow">财务跟进</span>
+                  <h3>结算相关状态</h3>
+                </div>
+              </div>
+              <article v-for="section in acceptanceArchiveFinanceSections" :key="section.key" class="mini-card stack-sm">
+                <div class="acceptance-archive-event__topline">
+                  <div>
+                    <span class="eyebrow">{{ section.badge }}</span>
+                    <strong>{{ section.title }}</strong>
+                  </div>
+                  <span class="soft-pill">{{ section.status }}</span>
+                </div>
+                <p class="muted">{{ section.summary }}</p>
+              </article>
+            </article>
+
+            <article class="glass-panel stack-md acceptance-sidebar-card">
+              <div class="panel-header acceptance-section-header">
+                <div>
+                  <span class="eyebrow">文件</span>
+                  <h3>已保存的合同文件</h3>
+                </div>
+              </div>
+              <div v-if="acceptanceArchiveAssetFiles.length" class="mini-chip-row">
+                <span v-for="asset in acceptanceArchiveAssetFiles" :key="asset.name" class="mini-chip">{{ asset.name }}</span>
+              </div>
+              <p v-else class="muted">还没有保存的文件。</p>
+              <p v-if="acceptanceArchiveError" class="muted">{{ acceptanceArchiveError }}</p>
+            </article>
+          </aside>
+        </section>
+      </template>
+
+      <template v-else>
     <section class="acceptance-lane-strip">
       <article
         v-for="item in acceptanceMetricCards"
@@ -309,6 +433,7 @@
           <span class="soft-pill">{{ sCeremonyResultPill }}</span>
         </div>
       </article>
+      </template>
     </template>
   </section>
 </template>
@@ -318,8 +443,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ActionErrorDialog from '../components/ActionErrorDialog.vue';
 import ContractShellHeader from '../components/ContractShellHeader.vue';
-import SectionTitle from '../components/SectionTitle.vue';
 import {
+  getOrderRecordDetail,
   getTaskClosureData,
   submitAcceptance,
   submitEarlyCompletion,
@@ -337,11 +462,14 @@ import {
   resolveImmediateOriginContext
 } from '../utils/objectPageContext';
 import { resolveAudience, roleRouteMap } from '../utils/roleRoutes';
+import { buildRecordDetailViewModel } from './recordDetailViewModel.js';
 import { buildSettlementRoute, normalizeFinanceActionCode } from './settlementHelpers.js';
 
 const route = useRoute();
 const router = useRouter();
 const page = ref(null);
+const acceptanceRecordPage = ref(null);
+const acceptanceArchiveError = ref('');
 const authState = useAuthState();
 const audience = computed(() => resolveAudience(route));
 const isEnterprise = computed(() => audience.value === 'enterprise');
@@ -442,6 +570,46 @@ function buildEmptyClosurePage(taskId = '', reason = '') {
   };
 }
 
+function buildAcceptanceArchiveRecord(source, recordId = '') {
+  const summary = source?.summary || {};
+  if (!source || !summary) {
+    return null;
+  }
+
+  return {
+    id: recordId,
+    recordId,
+    taskId: summary.taskId || recordId,
+    title: summary.title || '验收记录',
+    summary: summary.nextStep || '验收结果已经沉淀到这份合作记录里。',
+    status: summary.status,
+    statusGroup: summary.status,
+    amountValue: summary.amount || summary.budget || '',
+    startAt: summary.startAt || summary.startDate,
+    endAt: summary.endAt || summary.endDate,
+    myGrade: summary.deliveryGrade || source?.earlyCompletion?.grade || '',
+    rating: {
+      value: summary.deliveryGrade || source?.earlyCompletion?.grade || ''
+    },
+    counterpartName: isEnterprise.value ? summary.talent : summary.business,
+    timeline: listOf(source.timeline),
+    progressFeed: listOf(source.progressFeed),
+    assetLibrary: listOf(source.assetLibrary),
+    reviews: listOf(source.reviewHistory),
+    sections: {
+      confirmationHistory: listOf(source.reviewHistory),
+      progressFeed: listOf(source.progressFeed),
+      assetLibrary: listOf(source.assetLibrary),
+      taskTags: listOf(source.tags)
+    },
+    claimSummary: source.claimSummary,
+    invoiceSummary: source.invoiceSummary,
+    reconciliationSummary: source.reconciliationSummary,
+    settlementSummary: source.settlementSummary,
+    disputeSummary: source.disputeSummary
+  };
+}
+
 const pageContext = computed(() =>
   readObjectPageContext(route.query, {
     taskId: page.value?.summary?.taskId || ''
@@ -455,6 +623,7 @@ const currentRoomKey = computed(() => pageContext.value.room);
 const currentNodeId = computed(() => pageContext.value.nodeId);
 const currentRecordTab = computed(() => pageContext.value.tab);
 const currentTaskIdValue = computed(() => pageContext.value.taskId || String(page.value?.summary?.taskId || '').trim());
+const archiveRecordId = computed(() => currentRecordId.value || currentTaskIdValue.value);
 const settlementRoute = computed(() => buildSettlementRoute({
   audience: audience.value,
   recordId: currentRecordId.value,
@@ -592,6 +761,21 @@ const showReviewForm = computed(() =>
   && !isGradePending.value
   && !latestCurrentActorReview.value
 );
+const hasAcceptanceEvaluation = computed(() =>
+  Boolean(
+    deliveryGrade.value
+    || latestEnterpriseToTalentReview.value
+    || latestTalentToBusinessReview.value
+    || listOf(page.value?.reviewHistory).length
+  )
+);
+const showAcceptanceArchive = computed(() =>
+  hasAccepted.value
+  && hasAcceptanceEvaluation.value
+  && !showGradeForm.value
+  && !showAcceptanceForm.value
+  && !showReviewForm.value
+);
 const acceptanceCounterpartLabel = computed(() => (isEnterprise.value ? '人才' : '企业'));
 const acceptanceCounterpartValue = computed(() =>
   isEnterprise.value ? page.value?.summary?.talent || '待同步' : page.value?.summary?.business || '待同步'
@@ -658,6 +842,87 @@ const acceptanceDecisionBody = computed(() => {
     return `当前结算比例是 ${deliveryPayoutRatio.value}，这次结果会继续沉淀到信任记录里。`;
   }
   return compactText(page.value.summary.nextStep, 48) || '当前结果会继续进入评级和结算步骤。';
+});
+const acceptanceArchiveRecord = computed(() =>
+  acceptanceRecordPage.value?.record
+  || acceptanceRecordPage.value
+  || buildAcceptanceArchiveRecord(page.value, archiveRecordId.value)
+);
+const acceptanceArchiveViewModel = computed(() => buildRecordDetailViewModel(acceptanceArchiveRecord.value, {
+  availableActions: page.value?.availableActions,
+  fallbackLead: acceptanceHeroLead.value,
+  audience: audience.value,
+}));
+const acceptanceArchiveSummaryCards = computed(() => [
+  {
+    label: '验收状态',
+    value: acceptanceSummaryStatusLabel.value,
+    note: hasAccepted.value && page.value?.summary?.acceptedAt ? `已验收 ${page.value.summary.acceptedAt}` : ''
+  },
+  {
+    label: '交付评级',
+    value: deliveryGrade.value ? `${deliveryGrade.value} 级` : acceptanceArchiveViewModel.value.ratingValue || '已评价',
+    note: earlyCompletion.value?.gradeNote || ''
+  },
+  {
+    label: '结算结果',
+    value: deliveryPayoutRatio.value || page.value?.summary?.settlementStatus || '待确认',
+    note: page.value?.summary?.settledAt ? `已结算 ${page.value.summary.settledAt}` : ''
+  }
+].filter((item) => item.value));
+const acceptanceArchiveFinanceSections = computed(() =>
+  acceptanceArchiveViewModel.value.financeSections
+    .filter((section) => section.status && section.status !== '未开始')
+    .slice(0, 4)
+);
+const acceptanceArchiveAssetFiles = computed(() => acceptanceArchiveViewModel.value.assetFiles);
+const acceptanceArchiveActivityStream = computed(() => {
+  const reviewItems = acceptanceArchiveViewModel.value.confirmationHistory.map((item, index) => ({
+    key: `review-${index}-${item?.title || item?.label || item}`,
+    eyebrow: '验收',
+    title: item?.title || item?.label || `验收记录 ${index + 1}`,
+    summary: typeof item === 'string'
+      ? item
+      : (item?.note || item?.summary || item?.text || item?.content || '这条验收记录已经保存。'),
+    detail: '',
+    status: '已记录',
+    time: item?.time || item?.updatedAt || item?.createdAt || '刚刚更新',
+    aiReviewSummary: '',
+    attachments: [],
+    stamp: resolveArchiveActivityStamp(item?.time || item?.updatedAt || item?.createdAt)
+  }));
+  const progressItems = acceptanceArchiveViewModel.value.progressItems.map((item, index) => ({
+    key: `progress-${item.key || index}`,
+    eyebrow: '工作更新',
+    title: item.progress || item.stage || item.status || '工作更新',
+    summary: item.summary,
+    detail: item.description,
+    status: item.stage || item.status || '已保存',
+    time: item.time || '刚刚更新',
+    aiReviewSummary: item.aiReviewSummary,
+    attachments: item.attachments || [],
+    stamp: resolveArchiveActivityStamp(item.time)
+  }));
+  const timelineItems = acceptanceArchiveViewModel.value.timelineItems.map((item, index) => ({
+    key: `timeline-${index}-${item.title}-${item.time}`,
+    eyebrow: '记录',
+    title: item.title || `合同更新 ${index + 1}`,
+    summary: item.note || '这条合同事件已经记录。',
+    detail: '',
+    status: item.status || '已记录',
+    time: item.time || '刚刚更新',
+    aiReviewSummary: '',
+    attachments: [],
+    stamp: resolveArchiveActivityStamp(item.time)
+  }));
+
+  return [...progressItems, ...reviewItems, ...timelineItems]
+    .sort((left, right) => {
+      if (left.stamp == null && right.stamp == null) return 0;
+      if (left.stamp == null) return 1;
+      if (right.stamp == null) return -1;
+      return right.stamp - left.stamp;
+    });
 });
 const acceptanceActionTitle = computed(() => {
   if (showGradeForm.value) {
@@ -760,11 +1025,16 @@ const messagesRoute = computed(() => ({
   path: isEnterprise.value ? roleRouteMap.enterprise.messages : roleRouteMap.talent.messages,
   query: acceptanceContextQuery.value
 }));
+const acceptanceRecordRouteId = computed(() => currentRecordId.value || currentTaskIdValue.value);
 const recordsRoute = computed(() => ({
-  path: currentRecordId.value
-    ? `${isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records}/${encodeURIComponent(currentRecordId.value)}`
-    : isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records,
-  query: acceptanceContextQuery.value
+  path: `${isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records}/${encodeURIComponent(acceptanceRecordRouteId.value)}`,
+  query: {
+    ...acceptanceContextQuery.value,
+    recordId: acceptanceRecordRouteId.value,
+    source: 'records',
+    surface: 'records',
+    originRecordId: acceptanceContextQuery.value.originRecordId || acceptanceRecordRouteId.value
+  }
 }));
 const assistantRoute = computed(() => ({
   path: isEnterprise.value ? roleRouteMap.enterprise.assistant : roleRouteMap.talent.assistant,
@@ -905,6 +1175,15 @@ function reviewSortTimestamp(item = {}) {
   }
   const parsed = Date.parse(String(raw || ''));
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function resolveArchiveActivityStamp(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function latestReviewItemForAudience(audienceKey) {
@@ -1056,10 +1335,36 @@ const acceptanceUnavailableRoute = computed(() => acceptanceBackRoute.value || (
 const actionDialogTitle = computed(() => '验收动作遇到问题');
 const dialogErrorMessage = computed(() => actionErrorMessage.value || '');
 
+async function refreshAcceptanceArchiveRecord() {
+  acceptanceArchiveError.value = '';
+  acceptanceRecordPage.value = null;
+  if (!showAcceptanceArchive.value) {
+    return;
+  }
+
+  const recordId = archiveRecordId.value;
+  if (!recordId) {
+    acceptanceArchiveError.value = '当前缺少记录编号，暂时只能展示验收摘要。';
+    return;
+  }
+
+  try {
+    const payload = await getOrderRecordDetail(audience.value, recordId);
+    acceptanceRecordPage.value = payload;
+    if (payload?.requestError) {
+      acceptanceArchiveError.value = payload.requestError;
+    }
+  } catch (error) {
+    acceptanceArchiveError.value = error?.message || '记录详情暂时无法加载。';
+  }
+}
+
 async function refreshPage() {
   acceptanceResult.value = null;
   gradeResult.value = null;
   reviewResult.value = null;
+  acceptanceRecordPage.value = null;
+  acceptanceArchiveError.value = '';
   clearActionError();
   const taskId = currentTaskId();
   if (!taskId) {
@@ -1072,6 +1377,7 @@ async function refreshPage() {
       ...nextPage,
       isUnavailable: false,
     };
+    await refreshAcceptanceArchiveRecord();
   } catch (error) {
     page.value = buildEmptyClosurePage(taskId, error?.message || '当前验收数据暂时无法加载，请稍后再试。');
   }
@@ -1509,6 +1815,93 @@ onBeforeUnmount(() => {
   background: linear-gradient(135deg, rgba(239, 247, 238, 0.9), rgba(255, 255, 255, 0.96));
 }
 
+.acceptance-archive-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 24px;
+  align-items: start;
+}
+
+.acceptance-archive-main,
+.acceptance-archive-side {
+  min-width: 0;
+}
+
+.acceptance-archive-side {
+  position: sticky;
+  top: 24px;
+}
+
+.acceptance-archive-cover {
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 84% 12%, rgba(16, 138, 0, 0.12), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 251, 0.98), rgba(244, 249, 241, 0.94));
+}
+
+.acceptance-archive-cover__topline,
+.acceptance-archive-event__topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.acceptance-archive-cover h3 {
+  margin: 4px 0 0;
+  font-size: clamp(28px, 4vw, 56px);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
+
+.acceptance-archive-stamp {
+  display: grid;
+  gap: 8px;
+  min-width: 150px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--acceptance-border);
+  background: rgba(255, 255, 255, 0.8);
+  text-align: center;
+}
+
+.acceptance-archive-stamp span,
+.acceptance-archive-stamp small,
+.acceptance-archive-event__meta small {
+  color: var(--acceptance-muted);
+}
+
+.acceptance-archive-stamp strong {
+  color: var(--acceptance-accent);
+  font-size: 42px;
+  line-height: 1;
+}
+
+.acceptance-archive-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.acceptance-archive-timeline {
+  border-radius: 28px;
+}
+
+.acceptance-archive-feed {
+  display: grid;
+  gap: 14px;
+}
+
+.acceptance-archive-event {
+  border-radius: 20px;
+}
+
+.acceptance-archive-event__meta {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
 .acceptance-lock-card {
   border-left-color: #cd8f00;
 }
@@ -1523,7 +1916,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1200px) {
   .acceptance-hero,
-  .acceptance-grid {
+  .acceptance-grid,
+  .acceptance-archive-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1531,12 +1925,14 @@ onBeforeUnmount(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .acceptance-side {
+  .acceptance-side,
+  .acceptance-archive-side {
     position: static;
   }
 
   .acceptance-grid-cards,
-  .acceptance-summary-grid {
+  .acceptance-summary-grid,
+  .acceptance-archive-facts {
     grid-template-columns: 1fr;
   }
 }
