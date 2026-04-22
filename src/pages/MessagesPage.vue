@@ -366,8 +366,7 @@ const acceptanceRoute = computed(() => {
 
 const recordsRoute = computed(() => {
   const basePath = audience.value === 'enterprise' ? '/enterprise/records' : '/talent/records'
-  const detailPath = currentRecordId.value ? `${basePath}/${encodeURIComponent(currentRecordId.value)}` : basePath
-  return buildRoute(detailPath, contextQuery.value)
+  return buildRoute(basePath, contextQuery.value)
 })
 const shellPills = computed(() => ([
   activeRoom.value?.taskId ? `合同 ${activeRoom.value.taskId}` : '暂未关联合同',

@@ -761,9 +761,7 @@ const messagesRoute = computed(() => ({
   query: acceptanceContextQuery.value
 }));
 const recordsRoute = computed(() => ({
-  path: currentRecordId.value
-    ? `${isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records}/${encodeURIComponent(currentRecordId.value)}`
-    : isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records,
+  path: isEnterprise.value ? roleRouteMap.enterprise.records : roleRouteMap.talent.records,
   query: acceptanceContextQuery.value
 }));
 const assistantRoute = computed(() => ({

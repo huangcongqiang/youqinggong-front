@@ -630,7 +630,7 @@ const acceptanceRoute = computed(() =>
 )
 const recordsRoute = computed(() =>
   hasTask.value
-    ? buildRoute(currentRecordId.value ? `${basePath.value}/records/${encodeURIComponent(currentRecordId.value)}` : `${basePath.value}/records`, contextQuery.value)
+    ? buildRoute(`${basePath.value}/records`, contextQuery.value)
     : ''
 )
 const showTaskSwitcherPanel = computed(() => !currentTaskId.value || showTaskSwitcher.value)
