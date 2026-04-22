@@ -1113,10 +1113,16 @@ onMounted(async () => {
 
 <style scoped>
 .client-ops-page {
-  --ops-panel: rgba(255, 255, 255, 0.96);
-  --ops-border: rgba(21, 36, 61, 0.08);
-  --ops-muted: #5a697d;
-  --ops-accent: #127d57;
+  --ops-panel: rgba(255, 255, 250, 0.96);
+  --ops-panel-soft: rgba(247, 250, 241, 0.94);
+  --ops-border: rgba(35, 51, 29, 0.1);
+  --ops-border-strong: rgba(16, 138, 0, 0.22);
+  --ops-muted: #5d6858;
+  --ops-ink: #172217;
+  --ops-accent: #108a00;
+  --ops-accent-deep: #2d5b2f;
+  --ops-warm: #9a6a18;
+  --ops-shadow: 0 18px 44px rgba(35, 51, 29, 0.06);
 }
 
 .client-ops-hero,
@@ -1159,10 +1165,10 @@ onMounted(async () => {
 }
 
 .client-ops-gap-card {
-  border-color: rgba(255, 159, 103, 0.22);
+  border-color: rgba(154, 106, 24, 0.2);
   background:
-    radial-gradient(circle at top right, rgba(255, 159, 103, 0.14), transparent 46%),
-    linear-gradient(180deg, rgba(45, 24, 12, 0.92), rgba(14, 19, 34, 0.96));
+    radial-gradient(circle at top right, rgba(245, 223, 156, 0.28), transparent 46%),
+    linear-gradient(180deg, rgba(255, 254, 248, 0.98), rgba(250, 248, 238, 0.96));
 }
 
 .client-ops-filter-bar {
@@ -1184,17 +1190,17 @@ onMounted(async () => {
   gap: 4px;
   padding: 14px 16px;
   border-radius: 18px;
-  border: 1px solid transparent;
-  background: rgba(15, 23, 38, 0.04);
-  color: #0f1726;
+  border: 1px solid rgba(35, 51, 29, 0.08);
+  background: rgba(244, 247, 239, 0.9);
+  color: var(--ops-ink);
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
 .client-ops-mode-tab:hover,
 .client-ops-mode-tab.is-active {
   transform: translateY(-1px);
-  border-color: rgba(18, 125, 87, 0.22);
-  background: linear-gradient(180deg, rgba(18, 125, 87, 0.12), rgba(18, 125, 87, 0.04));
+  border-color: var(--ops-border-strong);
+  background: linear-gradient(180deg, rgba(239, 247, 235, 0.98), rgba(255, 254, 248, 0.98));
 }
 
 .client-ops-mode-tab strong {
@@ -1225,6 +1231,24 @@ onMounted(async () => {
   color: var(--ops-muted);
 }
 
+.client-ops-page .select-input {
+  border-color: rgba(35, 51, 29, 0.12);
+  background: #fffef8;
+  color: var(--ops-ink);
+  box-shadow: none;
+}
+
+.client-ops-page .select-input:focus {
+  border-color: rgba(16, 138, 0, 0.36);
+  box-shadow: 0 0 0 3px rgba(16, 138, 0, 0.08);
+}
+
+.client-ops-page .soft-pill {
+  border-color: rgba(35, 51, 29, 0.1);
+  background: #f4f7ef;
+  color: #42613c;
+}
+
 .client-ops-layout {
   align-items: start;
 }
@@ -1249,8 +1273,8 @@ onMounted(async () => {
 .client-ops-mini-card {
   padding: 16px 18px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(15, 23, 38, 0.03), rgba(15, 23, 38, 0.01));
-  border: 1px solid rgba(15, 23, 38, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 252, 0.98), rgba(247, 250, 242, 0.96));
+  border: 1px solid rgba(35, 51, 29, 0.08);
 }
 
 .client-ops-summary-card__label,
@@ -1271,17 +1295,17 @@ onMounted(async () => {
   gap: 14px;
   padding: 16px 18px;
   border-radius: 18px;
-  border: 1px solid rgba(15, 23, 38, 0.08);
-  background: rgba(247, 249, 251, 0.92);
+  border: 1px solid rgba(35, 51, 29, 0.09);
+  background: rgba(255, 255, 250, 0.94);
   text-align: left;
   transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .client-ops-row:hover,
 .client-ops-row.is-selected {
-  border-color: rgba(18, 125, 87, 0.22);
+  border-color: var(--ops-border-strong);
   transform: translateY(-1px);
-  box-shadow: 0 16px 32px rgba(15, 23, 38, 0.08);
+  box-shadow: 0 16px 32px rgba(35, 51, 29, 0.08);
 }
 
 .client-ops-row__head,
@@ -1307,8 +1331,8 @@ onMounted(async () => {
 .client-ops-empty {
   padding: 18px;
   border-radius: 18px;
-  background: rgba(15, 23, 38, 0.03);
-  border: 1px dashed rgba(15, 23, 38, 0.12);
+  background: rgba(244, 247, 239, 0.86);
+  border: 1px dashed rgba(16, 138, 0, 0.16);
 }
 
 .client-ops-mini-card {
@@ -1320,12 +1344,15 @@ onMounted(async () => {
 }
 
 .client-ops-banner :deep(.soft-pill.is-gap) {
-  background: rgba(212, 162, 44, 0.14);
+  background: rgba(245, 223, 156, 0.34);
+  color: #725017;
 }
 
 .client-ops-banner :deep(.soft-pill.is-action-required),
 .client-ops-banner :deep(.soft-pill.is-blocked) {
-  background: rgba(204, 78, 78, 0.12);
+  border-color: rgba(171, 77, 51, 0.18);
+  background: rgba(246, 224, 213, 0.5);
+  color: #7d3e2a;
 }
 
 @media (max-width: 1100px) {
@@ -1367,8 +1394,10 @@ onMounted(async () => {
 .client-ops-hero {
   padding: 34px;
   border-radius: 34px;
-  background: linear-gradient(135deg, rgba(239, 248, 236, 0.94), rgba(255, 255, 255, 0.98));
-  box-shadow: 0 24px 56px rgba(15, 23, 42, 0.08);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(166, 205, 137, 0.18), transparent 30%),
+    linear-gradient(135deg, rgba(247, 251, 242, 0.98), rgba(255, 254, 248, 0.98));
+  box-shadow: 0 24px 56px rgba(42, 56, 34, 0.08);
 }
 .client-ops-hero__header {
   align-items: end;
@@ -1378,7 +1407,7 @@ onMounted(async () => {
   background: transparent;
   min-height: auto;
   padding-inline: 0;
-  color: #2d5b2f;
+  color: var(--ops-accent-deep);
 }
 .client-ops-banner,
 .client-ops-summary,
@@ -1386,7 +1415,7 @@ onMounted(async () => {
 .client-ops-detail,
 .client-ops-page .glass-panel {
   border-radius: 28px;
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--ops-shadow);
 }
 .client-ops-layout {
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -1394,7 +1423,9 @@ onMounted(async () => {
   align-items: start;
 }
 .client-ops-summary {
-  background: #fcfcf8;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(16, 138, 0, 0.05), transparent 32%),
+    #fcfcf8;
 }
 .client-ops-summary__grid {
   gap: 16px;
@@ -1404,27 +1435,28 @@ onMounted(async () => {
 .client-ops-detail-fact,
 .client-ops-mini-card {
   border-radius: 22px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background: #fff;
+  border: 1px solid rgba(35, 51, 29, 0.08);
+  background: #fffef8;
 }
 .client-ops-row {
   border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+  background: #fffef8;
+  box-shadow: 0 12px 30px rgba(35, 51, 29, 0.05);
 }
 .client-ops-detail {
-  background: #fcfcf8;
+  background:
+    linear-gradient(180deg, rgba(255, 254, 248, 0.98), rgba(247, 250, 242, 0.96));
   box-shadow: none;
-  border: 1px solid rgba(17, 24, 39, 0.08);
+  border: 1px solid rgba(35, 51, 29, 0.08);
 }
 .client-ops-empty {
   padding: 24px;
   border-radius: 24px;
-  border: 1px dashed rgba(17, 24, 39, 0.12);
-  background: #fafbf8;
+  border: 1px dashed rgba(16, 138, 0, 0.16);
+  background: #f6f9f1;
 }
 .client-ops-page .button-link {
-  color: #2d5b2f;
+  color: var(--ops-accent-deep);
   text-decoration: none;
   font-weight: 600;
 }
