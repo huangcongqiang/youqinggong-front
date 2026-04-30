@@ -1,11 +1,11 @@
-# react-demo / react-demo 2 UI 同步指南
+# frontend / react-demo 2 UI 同步指南
 
-目标：把 `react-demo 2` 作为原始 UI 与交互基线，把 `react-demo` 作为真实数据主工程。后续所有界面更新，优先参考 `react-demo 2` 的视觉与交互，再把这些变化补到 `react-demo`，而不是反过来覆盖主工程的数据逻辑。
+目标：把 `react-demo 2` 作为原始 UI 与交互基线，把 `frontend` 作为真实数据主工程。后续所有界面更新，优先参考 `react-demo 2` 的视觉与交互，再把这些变化补到 `frontend`，而不是反过来覆盖主工程的数据逻辑。
 
 ## 一句话原则
 
 - `react-demo 2`：原始 UI、原始交互、页面气质、视觉层级的基线。
-- `react-demo`：线上主工程，负责真实接口、真实状态、真实路由与真实业务动作。
+- `frontend`：线上主工程，负责真实接口、真实状态、真实路由与真实业务动作。
 - 迁移时的正确做法：复制 UI，保留数据。
 
 ## 什么时候应该看这份文档
@@ -17,7 +17,7 @@
 
 ## 当前项目分工
 
-### `react-demo`
+### `frontend`
 
 这是当前主前端，负责：
 
@@ -40,7 +40,7 @@
 
 ### 1. 永远不要直接用 `react-demo 2` 覆盖主工程的数据层
 
-以下文件或职责，默认保留 `react-demo` 版本：
+以下文件或职责，默认保留 `frontend` 版本：
 
 - `src/app/store.tsx`
 - `src/app/services/api.ts`
@@ -67,9 +67,9 @@
 
 正确做法：
 
-1. 先打开同名页面，对比 `react-demo` 和 `react-demo 2`
-2. 把 `react-demo 2` 的 JSX 结构、className、视觉分区搬到 `react-demo`
-3. 保留 `react-demo` 里的真实 `useStore()`、`services/api`、`useEffect`、`searchParams`
+1. 先打开同名页面，对比 `frontend` 和 `react-demo 2`
+2. 把 `react-demo 2` 的 JSX 结构、className、视觉分区搬到 `frontend`
+3. 保留 `frontend` 里的真实 `useStore()`、`services/api`、`useEffect`、`searchParams`
 4. 把 `react-demo 2` 里的静态数组改造成基于真实数据的渲染
 5. 把 mock 文案保留为“空状态兜底”或“无数据时文案”，不要直接当真实数据展示
 
@@ -232,7 +232,7 @@
 
 1. 先确定更新影响哪些页面
 2. 判断是“纯 UI 变化”还是“新增交互入口”
-3. 如果只是纯 UI，直接同步外壳到 `react-demo`
+3. 如果只是纯 UI，直接同步外壳到 `frontend`
 4. 如果新增交互入口，先确认主工程是否已有真实路由与真实数据
 5. 如果主工程没有，就先补真实数据和路由，再挂上新 UI
 6. 每迁移完一页就执行一次构建
@@ -252,11 +252,11 @@
 
 后续继续补 UI 时，统一按下面的描述执行：
 
-> 以 `react-demo 2` 为原始 UI 基线，把对应页面外观与交互补回 `react-demo`，保留 `react-demo` 当前的真实接口、真实状态、真实跳转和业务修复，不把 mock 数据带回主工程。
+> 以 `react-demo 2` 为原始 UI 基线，把对应页面外观与交互补回 `frontend`，保留 `frontend` 当前的真实接口、真实状态、真实跳转和业务修复，不把 mock 数据带回主工程。
 
 ## 相关文档
 
-- `react-demo/docs/real-data-integration-checklist.md`
+- `frontend/docs/real-data-integration-checklist.md`
 
 建议配合这份清单一起看：
 

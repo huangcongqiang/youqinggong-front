@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -6,12 +6,15 @@ import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { AttachmentButton } from '../components/AttachmentButton';
 import { useStore } from '../store';
+import { BusinessRealtimeEvent, openBusinessEventStream } from '../services/realtime';
 import {
-  Send, Paperclip, Image as ImageIcon, Smile, MoreVertical,
+  Send, Paperclip, Image as ImageIcon, Smile, MoreVertical, X,
   Phone, Video, CheckCircle2, Clock
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import { getTaskRoom, getTaskRooms, sendTaskRoomMessage, submitTaskConfirmation, uploadTaskAttachmentAsset } from '../services/api';
+import { useTaskImRoom } from '../services/useTaskImRoom';
+import type { TaskImIncomingMessage } from '../services/tencentImClient';
 import { useSearchParams } from 'react-router';
 
 interface ChatRoomListItem {
@@ -32,6 +35,18 @@ interface ChatMessageItem {
   time: string;
   type: string;
   attachments: Array<Record<string, any>>;
+  isOwn?: boolean;
+}
+
+type TaskActionMode = 'update' | 'request_changes' | 'withdraw_update' | '';
+
+interface TaskActionForm {
+  note: string;
+  summary: string;
+  scopeNote: string;
+  period: string;
+  scheduleNote: string;
+  budget: string;
 }
 
 function stringOf(...values: unknown[]) {
@@ -41,6 +56,12 @@ function stringOf(...values: unknown[]) {
     if (next) return next;
   }
   return '';
+}
+
+function imageSrcOf(value: unknown) {
+  const src = stringOf(value);
+  if (!src || /^(undefined|null)$/i.test(src)) return '';
+  return /^(https?:\/\/|data:image\/|blob:|\/)/i.test(src) ? src : '';
 }
 
 function normalizeRoom(raw: any, index = 0): ChatRoomListItem {
@@ -56,15 +77,42 @@ function normalizeRoom(raw: any, index = 0): ChatRoomListItem {
   };
 }
 
-function normalizeMessage(raw: any, index = 0): ChatMessageItem {
+function normalizeMessage(raw: any, index = 0, currentUserId = ''): ChatMessageItem {
+  const senderUserId = stringOf(raw?.senderUserId, raw?.senderId, raw?.userId);
   return {
-    id: stringOf(raw?.id, raw?.messageId, `message-${index}`),
+    id: stringOf(raw?.providerMessageId, raw?.id, raw?.messageId, `message-${index}`),
     author: stringOf(raw?.author, raw?.senderName, '系统消息'),
     text: stringOf(raw?.text, raw?.content, raw?.summary),
     time: stringOf(raw?.time, raw?.createdAt, raw?.sentAt, ''),
     type: stringOf(raw?.type, raw?.messageType, 'text').toUpperCase(),
-    attachments: Array.isArray(raw?.attachments) ? raw.attachments : []
+    attachments: Array.isArray(raw?.attachments) ? raw.attachments : [],
+    isOwn: Boolean(raw?.isOwn) || Boolean(currentUserId && senderUserId === currentUserId)
   };
+}
+
+function normalizeImMessage(raw: TaskImIncomingMessage, index = 0, currentUserName = ''): ChatMessageItem {
+  const own = raw.senderAccount && raw.senderAccount.startsWith('u_') && raw.author === raw.senderAccount ? false : raw.author === currentUserName;
+  return {
+    id: stringOf(raw.providerMessageId, `im-message-${index}`),
+    author: raw.flow === 'out' ? stringOf(currentUserName, '我') : stringOf(raw.author, raw.senderAccount, '协作方'),
+    text: stringOf(raw.text),
+    time: stringOf(raw.createdAt),
+    type: raw.attachments.length > 0 && !raw.text ? 'FILE' : 'TEXT',
+    attachments: raw.attachments,
+    isOwn: Boolean(raw.isOwn) || raw.flow === 'out' || own
+  };
+}
+
+function mergeMessages(businessMessages: ChatMessageItem[], imMessages: ChatMessageItem[]) {
+  const seen = new Set<string>();
+  const result: ChatMessageItem[] = [];
+  [...businessMessages, ...imMessages].forEach((message) => {
+    const key = stringOf(message.id, message.text, message.time);
+    if (key && seen.has(key)) return;
+    if (key) seen.add(key);
+    result.push(message);
+  });
+  return result;
 }
 
 export function ContractChat() {
@@ -77,12 +125,24 @@ export function ContractChat() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isConfirmingTask, setIsConfirmingTask] = useState(false);
+  const [isSubmittingTaskAction, setIsSubmittingTaskAction] = useState(false);
+  const [taskActionMode, setTaskActionMode] = useState<TaskActionMode>('');
+  const [taskActionForm, setTaskActionForm] = useState<TaskActionForm>({
+    note: '',
+    summary: '',
+    scopeNote: '',
+    period: '',
+    scheduleNote: '',
+    budget: ''
+  });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const taskId = searchParams.get('taskId') || '';
+  const currentUserId = stringOf(currentUser?.id, currentUser?.raw?.id);
   const userDisplayName = stringOf(currentUser?.raw?.displayName, currentUser?.name);
+  const taskImRoom = useTaskImRoom(activeRoomKey);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,14 +202,110 @@ export function ContractChat() {
 
   const messages = useMemo(() => {
     const list = Array.isArray(roomDetail?.messages) ? roomDetail.messages : [];
-    return list.map(normalizeMessage);
-  }, [roomDetail]);
+    const businessMessages = list.map((item, index) => normalizeMessage(item, index, currentUserId));
+    const imMessages = taskImRoom.messages.map((item, index) => normalizeImMessage(item, index, userDisplayName));
+    return mergeMessages(businessMessages, imMessages);
+  }, [currentUserId, roomDetail, taskImRoom.messages, userDisplayName]);
 
   const activeRoom = normalizeRoom(roomDetail || rooms.find((room) => room.roomKey === activeRoomKey) || {});
   const roomTaskConfirmation = roomDetail?.taskConfirmation || null;
   const currentAudience = currentUser?.role === 'TALENT' ? 'talent' : 'enterprise';
-  const confirmationPendingForCurrentUser = stringOf(roomTaskConfirmation?.pendingAudience).toLowerCase() === currentAudience;
+  const confirmationStatus = stringOf(roomTaskConfirmation?.status, '任务确认中');
+  const confirmationPendingAudience = stringOf(roomTaskConfirmation?.pendingAudience).toLowerCase();
+  const confirmationVersion = Number(roomTaskConfirmation?.version || 1);
+  const confirmationPendingForCurrentUser = confirmationPendingAudience === currentAudience;
+  const enterpriseWaitingTalentConfirm =
+    currentAudience === 'enterprise' &&
+    confirmationPendingAudience === 'talent' &&
+    confirmationStatus === '待人才确认';
+  const canEnterpriseOpenUpdate =
+    currentAudience === 'enterprise' && (confirmationPendingAudience !== 'none' || confirmationStatus === '已确认');
+  const canWithdrawTaskChange = enterpriseWaitingTalentConfirm && confirmationVersion > 1;
   const confirmationTaskId = stringOf(roomDetail?.taskId, activeRoom.taskId, taskId);
+  const isTaskConfirmationPending = Boolean(
+    confirmationPendingAudience && confirmationPendingAudience !== 'none'
+  ) || ['待人才确认', '待企业修改'].includes(confirmationStatus);
+  const displayStage = isTaskConfirmationPending ? confirmationStatus : activeRoom.stage;
+  const activeTaskId = stringOf(roomDetail?.taskId, activeRoom.taskId, taskId);
+
+  const taskActionTitle =
+    taskActionMode === 'request_changes'
+      ? '提出任务修改'
+      : taskActionMode === 'withdraw_update'
+        ? '撤回本次变更'
+        : confirmationStatus === '已确认'
+          ? '发起任务变更（范围 / 工期 / 金额）'
+          : '补充信息或修改范围 / 工期后重新发送';
+  const taskActionPrimaryLabel =
+    taskActionMode === 'request_changes'
+      ? '提交修改意见'
+      : taskActionMode === 'withdraw_update'
+        ? '确认撤回'
+        : confirmationStatus === '已确认'
+          ? '提交变更并重新发送'
+          : '提交补充并重新发送';
+
+  const refreshActiveRoom = useCallback(async (options?: { silent?: boolean }) => {
+    if (!activeRoomKey) return;
+    const latest = await getTaskRoom(activeRoomKey);
+    if (latest?.requestError) {
+      if (!options?.silent) {
+        setError(latest.requestError);
+      }
+    } else {
+      setRoomDetail(latest);
+    }
+  }, [activeRoomKey]);
+
+  useEffect(() => {
+    if (!activeRoomKey) return;
+
+    let cancelled = false;
+    const refreshVisibleRoom = () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      void refreshActiveRoom({ silent: true });
+    };
+    const timer = window.setInterval(refreshVisibleRoom, 6000);
+    document.addEventListener('visibilitychange', refreshVisibleRoom);
+    window.addEventListener('focus', refreshVisibleRoom);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshVisibleRoom);
+      window.removeEventListener('focus', refreshVisibleRoom);
+    };
+  }, [activeRoomKey, refreshActiveRoom]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const refreshRoomsSilently = async () => {
+      const payload = await getTaskRooms();
+      if (!payload.requestError && Array.isArray(payload.items)) {
+        setRooms(payload.items.map(normalizeRoom));
+      }
+    };
+
+    const handleRealtimeEvent = (event: BusinessRealtimeEvent) => {
+      const eventType = stringOf(event.type).toLowerCase();
+      const eventScope = stringOf(event.scope).toLowerCase();
+      const eventRoomKey = stringOf(event.roomKey);
+      const eventTaskId = stringOf(event.taskId);
+      const isMessageScope = eventScope === 'messages' || eventType.includes('message') || eventType.includes('confirmation');
+      if (!isMessageScope) return;
+
+      void refreshRoomsSilently();
+      const matchesActiveRoom =
+        (eventRoomKey && eventRoomKey === activeRoomKey) ||
+        (eventTaskId && eventTaskId === activeTaskId);
+      if (matchesActiveRoom) {
+        void refreshActiveRoom({ silent: true });
+      }
+    };
+
+    return openBusinessEventStream(handleRealtimeEvent);
+  }, [activeRoomKey, activeTaskId, currentUser, refreshActiveRoom]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,39 +315,90 @@ export function ContractChat() {
     setError('');
     setNotice('');
     const uploadTaskId = taskId || activeRoom.taskId;
-    const uploadedAttachments = [];
-    if (pendingFiles.length > 0) {
-      if (!uploadTaskId) {
-        setError('缺少任务 ID，暂时无法上传附件。');
-        setIsSending(false);
-        return;
-      }
-      for (const file of pendingFiles) {
-        const uploaded = await uploadTaskAttachmentAsset(uploadTaskId, file, {
-          scene: 'CHAT_ATTACHMENT',
-          source: 'CHAT_MESSAGE'
-        });
-        if ((uploaded as any).requestError) {
-          setError((uploaded as any).requestError);
-          setIsSending(false);
-          return;
+
+    const sendViaLegacyChannel = async () => {
+      const uploadedAttachments = [];
+      if (pendingFiles.length > 0) {
+        if (!uploadTaskId) {
+          throw new Error('缺少任务 ID，暂时无法上传附件。');
         }
-        uploadedAttachments.push(uploaded);
+        for (const file of pendingFiles) {
+          const uploaded = await uploadTaskAttachmentAsset(uploadTaskId, file, {
+            scene: 'CHAT_ATTACHMENT',
+            source: 'CHAT_MESSAGE'
+          });
+          if ((uploaded as any).requestError) {
+            throw new Error((uploaded as any).requestError);
+          }
+          uploadedAttachments.push(uploaded);
+        }
       }
-    }
-    const response = await sendTaskRoomMessage(activeRoomKey, {
-      type: uploadedAttachments.length && !message.trim() ? 'FILE' : 'TEXT',
-      text: message.trim(),
-      attachments: uploadedAttachments
-    });
-    if (response.requestError) {
-      setError(response.requestError);
-    } else {
+      const response = await sendTaskRoomMessage(activeRoomKey, {
+        type: uploadedAttachments.length && !message.trim() ? 'FILE' : 'TEXT',
+        text: message.trim(),
+        attachments: uploadedAttachments
+      });
+      if (response.requestError) {
+        throw new Error(response.requestError);
+      }
       setRoomDetail(response);
+    };
+
+    try {
+      if (taskImRoom.status === 'ready') {
+        let sentByIm = false;
+        if (message.trim()) {
+          await taskImRoom.sendText(message.trim());
+          sentByIm = true;
+        }
+        if (pendingFiles.length > 0 && !uploadTaskId) {
+          throw new Error('缺少任务 ID，暂时无法上传附件。');
+        }
+        for (const file of pendingFiles) {
+          // Native Lite Chat image upload currently has no production upload endpoint,
+          // so images use the same platform-backed attachment path as other files.
+          const uploaded = await uploadTaskAttachmentAsset(uploadTaskId, file, {
+            scene: 'CHAT_ATTACHMENT',
+            source: 'CHAT_MESSAGE'
+          });
+          if ((uploaded as any).requestError) {
+            throw new Error((uploaded as any).requestError);
+          }
+          await taskImRoom.sendBusinessFile({
+            kind: 'YQG_TASK_FILE',
+            taskId: uploadTaskId,
+            roomKey: activeRoomKey,
+            assetId: stringOf((uploaded as any).id, (uploaded as any).uploadId, (uploaded as any).objectKey),
+            uploadId: stringOf((uploaded as any).uploadId),
+            objectKey: stringOf((uploaded as any).objectKey),
+            fileName: stringOf((uploaded as any).name, file.name),
+            fileSize: file.size,
+            mimeType: file.type || 'application/octet-stream',
+            downloadUrl: stringOf((uploaded as any).downloadUrl, (uploaded as any).url),
+            uploadedAt: new Date().toISOString()
+          });
+          sentByIm = true;
+        }
+        if (sentByIm) {
+          void refreshActiveRoom({ silent: true });
+        }
+      } else if (taskImRoom.isDegraded) {
+        await sendViaLegacyChannel();
+        setNotice('腾讯 IM 暂不可用，已使用备用消息通道。');
+      } else {
+        throw new Error('腾讯 IM 正在连接，请稍候再发送。');
+      }
       setMessage('');
       setPendingFiles([]);
+    } catch (exception) {
+      if (taskImRoom.status !== 'ready') {
+        setError(exception instanceof Error ? exception.message : '当前暂时无法发送消息。');
+      } else {
+        setError(exception instanceof Error ? exception.message : '腾讯 IM 消息发送失败。');
+      }
+    } finally {
+      setIsSending(false);
     }
-    setIsSending(false);
   };
 
   const handleConfirmTaskVersion = async () => {
@@ -216,17 +423,70 @@ export function ContractChat() {
 
     setNotice(response?.nextStep || '当前版本已确认，任务将进入执行阶段。');
     if (activeRoomKey) {
-      const latest = await getTaskRoom(activeRoomKey);
-      if (latest?.requestError) {
-        setError(latest.requestError);
-      } else {
-        setRoomDetail(latest);
-      }
+      await refreshActiveRoom();
     }
   };
 
+  const openTaskAction = (mode: TaskActionMode) => {
+    if (!roomTaskConfirmation) return;
+    setTaskActionMode(mode);
+    setError('');
+    setNotice('');
+    setTaskActionForm({
+      note: stringOf(roomTaskConfirmation?.changeRequest),
+      summary: stringOf(roomTaskConfirmation?.summary, activeRoom.title),
+      scopeNote: stringOf(roomTaskConfirmation?.scopeNote),
+      period: stringOf(roomTaskConfirmation?.period),
+      scheduleNote: stringOf(roomTaskConfirmation?.scheduleNote),
+      budget: stringOf(roomTaskConfirmation?.budget)
+    });
+  };
+
+  const closeTaskAction = () => {
+    setTaskActionMode('');
+    setTaskActionForm({
+      note: '',
+      summary: '',
+      scopeNote: '',
+      period: '',
+      scheduleNote: '',
+      budget: ''
+    });
+  };
+
+  const submitTaskAction = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!taskActionMode || !confirmationTaskId) {
+      setError('缺少任务 ID，暂时无法提交任务确认动作。');
+      return;
+    }
+
+    setIsSubmittingTaskAction(true);
+    setError('');
+    setNotice('');
+    const response = await submitTaskConfirmation(confirmationTaskId, {
+      action: taskActionMode,
+      note: taskActionForm.note,
+      summary: taskActionForm.summary,
+      scopeNote: taskActionForm.scopeNote,
+      period: taskActionForm.period,
+      scheduleNote: taskActionForm.scheduleNote,
+      budget: taskActionForm.budget
+    }) as any;
+    setIsSubmittingTaskAction(false);
+
+    if (response?.requestError || response?.status === 'FAILED' || response?.status === 'BLOCKED' || response?.actionBlocked) {
+      setError(response?.requestError || response?.actionMessage || response?.nextStep || '当前暂时无法更新任务确认单。');
+      return;
+    }
+
+    setNotice(response?.nextStep || '任务确认单已更新。');
+    closeTaskAction();
+    await refreshActiveRoom();
+  };
+
   function isOwnMessage(msg: ChatMessageItem) {
-    return Boolean(userDisplayName && msg.author === userDisplayName);
+    return Boolean(msg.isOwn || (userDisplayName && msg.author === userDisplayName));
   }
 
   return (
@@ -290,14 +550,28 @@ export function ContractChat() {
                 {activeRoom.counterpartName || '选择会话'}
               </h2>
               <Badge variant="outline" className="hidden md:flex bg-indigo-50 text-indigo-700 border-none">
-                {activeRoom.stage}：{activeRoom.title}
+                {displayStage}：{activeRoom.title}
               </Badge>
             </div>
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon" className="text-slate-400 hover:text-indigo-600 hidden md:inline-flex">
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled
+                title="CALL_NOT_ENABLED"
+                aria-label="语音通话暂未启用"
+                className="text-slate-300 hidden md:inline-flex"
+              >
                 <Phone className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="text-slate-400 hover:text-indigo-600 hidden md:inline-flex">
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled
+                title="CALL_NOT_ENABLED"
+                aria-label="视频通话暂未启用"
+                className="text-slate-300 hidden md:inline-flex"
+              >
                 <Video className="w-5 h-5" />
               </Button>
               <Button variant="ghost" size="icon" className="text-slate-400 hover:text-slate-600">
@@ -318,6 +592,12 @@ export function ContractChat() {
             </div>
           )}
 
+          {taskImRoom.isDegraded && activeRoomKey && (
+            <div className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+              腾讯 IM 暂不可用，已使用备用消息通道。
+            </div>
+          )}
+
           {isLoading && (
             <div className="mx-4 mt-4 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-500">
               正在同步真实消息...
@@ -330,7 +610,7 @@ export function ContractChat() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="border-indigo-100 bg-indigo-50 text-indigo-700">
-                      {stringOf(roomTaskConfirmation?.status, '任务确认中')}
+                      {confirmationStatus}
                     </Badge>
                     <span className="text-xs text-slate-400">第 {stringOf(roomTaskConfirmation?.version, '1')} 版</span>
                   </div>
@@ -345,16 +625,165 @@ export function ContractChat() {
                   </p>
                 </div>
 
-                {confirmationPendingForCurrentUser && currentAudience === 'talent' && (
-                  <Button
-                    disabled={isConfirmingTask}
-                    onClick={handleConfirmTaskVersion}
-                    className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
-                  >
-                    {isConfirmingTask ? '确认中...' : '确认进入执行'}
-                  </Button>
-                )}
+                <div className="flex shrink-0 flex-wrap gap-2 md:justify-end">
+                  {confirmationPendingForCurrentUser && currentAudience === 'talent' && (
+                    <>
+                      <Button
+                        disabled={isConfirmingTask}
+                        onClick={handleConfirmTaskVersion}
+                        className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        {isConfirmingTask ? '确认中...' : '确认进入执行'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSubmittingTaskAction}
+                        onClick={() => openTaskAction('request_changes')}
+                        className="rounded-xl border-slate-200 bg-white"
+                      >
+                        提出修改
+                      </Button>
+                    </>
+                  )}
+                  {canEnterpriseOpenUpdate && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isSubmittingTaskAction}
+                      onClick={() => openTaskAction('update')}
+                      className="rounded-xl border-slate-200 bg-white"
+                    >
+                      {confirmationStatus === '已确认' ? '发起任务变更' : '补充信息 / 修改任务'}
+                    </Button>
+                  )}
+                  {canWithdrawTaskChange && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isSubmittingTaskAction}
+                      onClick={() => openTaskAction('withdraw_update')}
+                      className="rounded-xl border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    >
+                      撤回本次变更
+                    </Button>
+                  )}
+                </div>
               </div>
+            </div>
+          )}
+
+          {taskActionMode && roomTaskConfirmation && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8" onClick={closeTaskAction}>
+              <form
+                onSubmit={submitTaskAction}
+                className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">任务确认</h2>
+                    <p className="mt-1 text-sm text-slate-500">{taskActionTitle}</p>
+                  </div>
+                  <button type="button" className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100" onClick={closeTaskAction}>
+                    关闭
+                  </button>
+                </div>
+
+                <div className="space-y-4 px-6 py-5">
+                  <div className="grid gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600 sm:grid-cols-2">
+                    <div>
+                      <span className="text-xs text-slate-400">当前状态</span>
+                      <p className="font-semibold text-slate-800">{confirmationStatus} · 第 {confirmationVersion} 版</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-slate-400">当前金额</span>
+                      <p className="font-semibold text-slate-800">{stringOf(roomTaskConfirmation?.budget, '待确认')}</p>
+                    </div>
+                  </div>
+
+                  {taskActionMode === 'withdraw_update' ? (
+                    <p className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      撤回后将恢复上一版已确认的范围、工期和金额，人才端不会继续看到当前待确认变更。
+                    </p>
+                  ) : null}
+
+                  {taskActionMode === 'update' && (
+                    <>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        任务摘要
+                        <textarea
+                          value={taskActionForm.summary}
+                          onChange={(event) => setTaskActionForm((value) => ({ ...value, summary: event.target.value }))}
+                          rows={3}
+                          className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                          placeholder="例如：第一阶段先确认任务发布、人才接单、聊天协作和验收结算主链路。"
+                        />
+                      </label>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label className="block text-sm font-semibold text-slate-700">
+                          任务金额
+                          <input
+                            value={taskActionForm.budget}
+                            onChange={(event) => setTaskActionForm((value) => ({ ...value, budget: event.target.value }))}
+                            className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                            placeholder="例如：26000 或 ￥26000"
+                          />
+                        </label>
+                        <label className="block text-sm font-semibold text-slate-700">
+                          预计工期
+                          <input
+                            value={taskActionForm.period}
+                            onChange={(event) => setTaskActionForm((value) => ({ ...value, period: event.target.value }))}
+                            className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                            placeholder="例如：6 个 AI 协同工作日"
+                          />
+                        </label>
+                      </div>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        范围说明
+                        <textarea
+                          value={taskActionForm.scopeNote}
+                          onChange={(event) => setTaskActionForm((value) => ({ ...value, scopeNote: event.target.value }))}
+                          rows={3}
+                          className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                          placeholder="例如：首版只覆盖发布、接单、消息确认、协作验收和结算。"
+                        />
+                      </label>
+                      <label className="block text-sm font-semibold text-slate-700">
+                        协作安排说明
+                        <textarea
+                          value={taskActionForm.scheduleNote}
+                          onChange={(event) => setTaskActionForm((value) => ({ ...value, scheduleNote: event.target.value }))}
+                          rows={3}
+                          className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                          placeholder="例如：先确认新版金额与工期，再提交交付物并进入验收。"
+                        />
+                      </label>
+                    </>
+                  )}
+
+                  <label className="block text-sm font-semibold text-slate-700">
+                    {taskActionMode === 'request_changes' ? '修改意见' : '附加说明'}
+                    <textarea
+                      value={taskActionForm.note}
+                      onChange={(event) => setTaskActionForm((value) => ({ ...value, note: event.target.value }))}
+                      rows={3}
+                      className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                      placeholder={taskActionMode === 'request_changes' ? '例如：当前工期过短，希望把验收整理时间单独留出来。' : '例如：已根据反馈调整金额、工期和范围，请再次确认。'}
+                    />
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-5">
+                  <Button type="button" variant="outline" className="rounded-xl border-slate-200 bg-white" onClick={closeTaskAction}>
+                    取消
+                  </Button>
+                  <Button type="submit" disabled={isSubmittingTaskAction} className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">
+                    {isSubmittingTaskAction ? '提交中...' : taskActionPrimaryLabel}
+                  </Button>
+                </div>
+              </form>
             </div>
           )}
 
@@ -362,6 +791,7 @@ export function ContractChat() {
             {messages.map((msg, idx) => {
               const own = isOwnMessage(msg);
               const system = msg.type === 'SYSTEM' || msg.author === '系统消息';
+              const ownAvatarSrc = own ? imageSrcOf(currentUser?.avatar) : '';
               return (
                 <motion.div
                   key={msg.id}
@@ -378,7 +808,7 @@ export function ContractChat() {
                   ) : (
                     <div className={`flex max-w-[85%] md:max-w-[70%] ${own ? 'flex-row-reverse' : 'flex-row'}`}>
                       <Avatar className="w-8 h-8 shrink-0 mt-1 hidden md:block">
-                        {own ? <AvatarImage src={currentUser?.avatar} /> : null}
+                        {ownAvatarSrc ? <AvatarImage src={ownAvatarSrc} /> : null}
                         <AvatarFallback>{own ? '我' : msg.author[0] || 'Ta'}</AvatarFallback>
                       </Avatar>
 
@@ -451,10 +881,20 @@ export function ContractChat() {
               {pendingFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {pendingFiles.map((file) => (
-                    <span key={`${file.name}-${file.size}`} className="inline-flex max-w-[220px] items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
-                      <span className="truncate">{file.name}</span>
-                      <button type="button" className="text-slate-400 hover:text-rose-500" onClick={() => setPendingFiles((items) => items.filter((item) => item !== file))}>
-                        移除
+                    <span
+                      key={`${file.name}-${file.size}`}
+                      className="inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600 sm:max-w-[320px]"
+                    >
+                      <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                      <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                      <button
+                        type="button"
+                        aria-label={`移除 ${file.name}`}
+                        title="移除"
+                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-rose-50 hover:text-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                        onClick={() => setPendingFiles((items) => items.filter((item) => item !== file))}
+                      >
+                        <X className="h-3.5 w-3.5" />
                       </button>
                     </span>
                   ))}
@@ -466,7 +906,7 @@ export function ContractChat() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder={activeRoomKey ? '输入消息，按 Enter 发送...' : '请先选择一个真实会话'}
-                  disabled={!activeRoomKey || isSending}
+                  disabled={!activeRoomKey || isSending || taskImRoom.status === 'connecting'}
                   className="flex-1 max-h-32 min-h-[44px] bg-slate-50 border-transparent focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 rounded-xl px-4 py-2 md:py-3 text-sm resize-none transition-all disabled:opacity-60"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -477,7 +917,7 @@ export function ContractChat() {
                 />
                 <Button
                   type="submit"
-                  disabled={(!message.trim() && pendingFiles.length === 0) || !activeRoomKey || isSending}
+                  disabled={(!message.trim() && pendingFiles.length === 0) || !activeRoomKey || isSending || taskImRoom.status === 'connecting'}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-11 px-4 md:px-6 shadow-sm disabled:opacity-50"
                 >
                   <Send className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">{isSending ? '发送中' : '发送'}</span>

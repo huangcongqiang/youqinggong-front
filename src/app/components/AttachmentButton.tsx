@@ -38,10 +38,10 @@ export function AttachmentButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white text-left transition-colors hover:border-emerald-300 hover:bg-emerald-50/40 ${compact ? "px-3 py-2" : "px-4 py-3"} ${className}`}
+        className={`flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 ${compact ? "px-3 py-2" : "px-4 py-3"} ${className}`}
       >
         <span className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
             {canPreviewImage ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
           </span>
           <span className="min-w-0">
@@ -82,7 +82,7 @@ export function AttachmentButton({
                 关闭
               </Button>
               <a href={normalized.href || undefined} target="_blank" rel="noreferrer" download>
-                <Button className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700" disabled={!normalized.href}>
+                <Button className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700" disabled={!normalized.href}>
                   <Download className="mr-2 h-4 w-4" /> 下载附件
                 </Button>
               </a>

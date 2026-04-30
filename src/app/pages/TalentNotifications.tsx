@@ -9,13 +9,18 @@ import { EmptyState, ErrorState, LoadingState } from '../components/AsyncState';
 
 function buildTalentNotificationLink(item: any) {
   const taskId = stringOf(item?.taskId, item?.recordId);
-  const roomKey = stringOf(item?.roomKey, item?.room);
+  const rawRoomKey = stringOf(item?.roomKey, item?.room);
   const source = stringOf(item?.source, item?.groupKey, 'records').toLowerCase();
+  const pendingInterview = isPendingInterviewNotification(item, source);
+  const roomKey = pendingInterview ? '' : rawRoomKey;
   const query = new URLSearchParams();
   if (taskId) query.set('taskId', taskId);
   if (roomKey) query.set('roomKey', roomKey);
   const suffix = query.toString() ? `?${query.toString()}` : '';
 
+  if (pendingInterview) {
+    return taskId ? `/talent/tasks?taskId=${encodeURIComponent(taskId)}` : '/talent';
+  }
   if (!taskId && !roomKey) {
     return '/talent';
   }
@@ -35,6 +40,21 @@ function buildTalentNotificationLink(item: any) {
     return `/talent/chat${suffix}`;
   }
   return `/talent/workspace${suffix}`;
+}
+
+function isPendingInterviewNotification(item: any, source = '') {
+  const id = stringOf(item?.id, item?.itemId, item?.key).toLowerCase();
+  const status = stringOf(item?.status, item?.statusLabel, item?.applicationStatus, item?.action?.status).toLowerCase();
+  const content = [
+    source,
+    id,
+    status,
+    stringOf(item?.groupKey, item?.type, item?.category),
+    stringOf(item?.title, item?.label),
+    stringOf(item?.summary, item?.note, item?.description)
+  ].join(' ').toLowerCase();
+  const closed = /accepted|rejected|failed|confirmed|selected|已同意|已拒绝|未通过|已确认|执行中/.test(content);
+  return !closed && /talent-interview-|interview_pending|待确认面试|面试邀约/.test(content);
 }
 
 function normalizeNote(item: any, index = 0) {

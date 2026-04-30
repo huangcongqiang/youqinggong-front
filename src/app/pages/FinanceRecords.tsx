@@ -89,6 +89,21 @@ export function FinanceRecords() {
         { key: "ongoing", label: "进行中", count: Number(summary?.ongoing || 0) },
         { key: "completed", label: "已完成", count: Number(summary?.completed || 0) }
       ] as const);
+  const accent = isEnterprise
+    ? {
+        badge: "border-indigo-200 bg-indigo-50 text-indigo-700",
+        activeTab: "bg-indigo-600 text-white shadow-sm",
+        tag: "border-indigo-100 bg-indigo-50 text-indigo-700",
+        settlementLink: "text-indigo-700 hover:bg-indigo-50",
+        loader: "text-indigo-600"
+      }
+    : {
+        badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        activeTab: "bg-emerald-600 text-white shadow-sm",
+        tag: "border-emerald-100 bg-emerald-50 text-emerald-700",
+        settlementLink: "text-emerald-700 hover:bg-emerald-50",
+        loader: "text-emerald-600"
+      };
 
   function changeTab(nextTab: TabKey) {
     setActiveTab(nextTab);
@@ -101,7 +116,7 @@ export function FinanceRecords() {
     <div className="max-w-6xl mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <Badge variant="outline" className="mb-4 border-emerald-200 bg-emerald-50 text-emerald-700">
+          <Badge variant="outline" className={`mb-4 ${accent.badge}`}>
             记录与筛选
           </Badge>
           <h1 className="text-3xl font-semibold text-slate-900 tracking-tight mb-2">
@@ -150,7 +165,7 @@ export function FinanceRecords() {
                 type="button"
                 onClick={() => changeTab(tab.key)}
                 className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-                  activeTab === tab.key ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:text-slate-900"
+                  activeTab === tab.key ? accent.activeTab : "text-slate-500 hover:text-slate-900"
                 }`}
               >
                 {tab.label} {tab.count}
@@ -165,7 +180,7 @@ export function FinanceRecords() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="px-6 py-12 text-center text-slate-500">
-              <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" /> 正在读取真实记录...
+              <Loader2 className={`w-5 h-5 mx-auto mb-3 animate-spin ${accent.loader}`} /> 正在读取真实记录...
             </div>
           ) : records.length ? (
             <div className="divide-y divide-slate-100">
@@ -200,7 +215,7 @@ export function FinanceRecords() {
                           </span>
                         )}
                         {record.tags.slice(0, 3).map((tag) => (
-                          <span key={tag} className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-emerald-700">
+                          <span key={tag} className={`rounded-full border px-3 py-1 ${accent.tag}`}>
                             {tag}
                           </span>
                         ))}
@@ -224,7 +239,7 @@ export function FinanceRecords() {
                         </Button>
                       </Link>
                       <Link to={`/${audience}/records/${encodeURIComponent(record.taskId)}/settlement?taskId=${encodeURIComponent(record.taskId)}`}>
-                        <Button variant="ghost" className="rounded-xl text-emerald-700 hover:bg-emerald-50">
+                        <Button variant="ghost" className={`rounded-xl ${accent.settlementLink}`}>
                           <Wallet className="w-4 h-4 mr-2" /> 结算
                         </Button>
                       </Link>

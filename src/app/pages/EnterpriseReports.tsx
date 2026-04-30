@@ -38,7 +38,7 @@ export function EnterpriseReports() {
   }, []);
 
   const summaryCards = [
-    { title: '已结算支出', value: moneyLabel(summary?.totalSpent, '￥0'), change: '真实汇总', icon: TrendingUp, color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    { title: '已结算支出', value: moneyLabel(summary?.totalSpent, '￥0'), change: '真实汇总', icon: TrendingUp, color: 'text-indigo-700', bg: 'bg-indigo-50' },
     { title: '待处理款项', value: moneyLabel(summary?.pendingPayable, '￥0'), change: `${history.length} 条`, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
     { title: '争议/冻结', value: moneyLabel(summary?.disputedAmount, '￥0'), change: '后端统计', icon: AlertTriangle, color: 'text-slate-600', bg: 'bg-slate-50' }
   ];
@@ -54,7 +54,7 @@ export function EnterpriseReports() {
           <Button variant="outline" onClick={load} className="gap-2 border-slate-200 text-slate-600">
             <RefreshCw className="h-4 w-4" /> 刷新
           </Button>
-          <Button className="gap-2 bg-emerald-700 hover:bg-emerald-800">
+          <Button className="gap-2 bg-indigo-700 hover:bg-indigo-800">
             <Download className="h-4 w-4" /> 导出报表
           </Button>
         </div>
@@ -86,7 +86,7 @@ export function EnterpriseReports() {
           <Card className="border-slate-200 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 p-6">
               <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-                <FileText className="h-5 w-5 text-emerald-700" />
+                <FileText className="h-5 w-5 text-indigo-700" />
                 最近交易记录
               </h2>
             </div>
@@ -117,7 +117,7 @@ export function EnterpriseReports() {
                         <td className="p-4 text-sm text-slate-600">{row.type}</td>
                         <td className="p-4 text-right text-sm font-bold text-slate-900">{row.amount}</td>
                         <td className="p-4 text-center">
-                          <span className="inline-flex items-center justify-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                          <span className="inline-flex items-center justify-center rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700">
                             {row.status}
                           </span>
                         </td>

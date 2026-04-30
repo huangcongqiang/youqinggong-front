@@ -46,11 +46,11 @@ export function EnterpriseAssistant() {
   return (
     <div className="mx-auto flex h-[calc(100vh-64px)] max-w-6xl gap-6 p-4">
       <div className="hidden w-64 shrink-0 flex-col gap-4 md:flex">
-        <Card className="border-0 bg-emerald-700 text-white shadow-lg shadow-emerald-700/20">
+        <Card className="border-0 bg-indigo-700 text-white shadow-lg shadow-indigo-700/20">
           <CardContent className="p-6">
             <Bot className="mb-4 h-10 w-10" />
             <h2 className="mb-2 text-xl font-bold">业务助理</h2>
-            <p className="text-sm leading-relaxed text-emerald-100">这里不再模拟 AI 回复，而是基于真实企业工作台数据提示下一步。</p>
+            <p className="text-sm leading-relaxed text-indigo-100">这里不再模拟 AI 回复，而是基于真实企业工作台数据提示下一步。</p>
           </CardContent>
         </Card>
 
@@ -59,7 +59,7 @@ export function EnterpriseAssistant() {
             <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">快捷入口</h3>
             <div className="space-y-2">
               {quickActions.map((action) => (
-                <Link key={action.label} to={action.to} className="flex w-full items-center gap-3 rounded-lg bg-slate-100/50 px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white hover:text-emerald-700 hover:shadow">
+                <Link key={action.label} to={action.to} className="flex w-full items-center gap-3 rounded-lg bg-slate-100/50 px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-white hover:text-indigo-700 hover:shadow">
                   <action.icon className="h-4 w-4" />
                   {action.label}
                 </Link>
@@ -72,13 +72,13 @@ export function EnterpriseAssistant() {
       <Card className="flex flex-1 flex-col border-0 shadow-xl shadow-slate-200/50">
         <div className="flex items-center justify-between rounded-t-xl border-b border-slate-100 bg-white px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
-              <BrainCircuit className="h-5 w-5 text-emerald-700" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100">
+              <BrainCircuit className="h-5 w-5 text-indigo-700" />
             </div>
             <div>
               <h1 className="font-bold text-slate-900">企业专属助理</h1>
-              <p className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" /> 已连接真实业务上下文
+              <p className="flex items-center gap-1 text-xs font-medium text-indigo-600">
+                <span className="h-2 w-2 rounded-full bg-indigo-500" /> 已连接真实业务上下文
               </p>
             </div>
           </div>
@@ -94,7 +94,7 @@ export function EnterpriseAssistant() {
             <div className="space-y-5">
               <Card className="border-slate-200 bg-white">
                 <CardContent className="p-5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">当前建议</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">当前建议</p>
                   <h2 className="mt-2 text-xl font-bold text-slate-900">{stringOf(payload?.attentionHeadline, '当前没有高优先级事项')}</h2>
                 </CardContent>
               </Card>
@@ -115,7 +115,7 @@ export function EnterpriseAssistant() {
                 <CardContent className="p-5">
                   <div className="mb-4 flex items-center justify-between">
                     <h3 className="font-bold text-slate-900">任务状态板</h3>
-                    <Link to="/enterprise" className="flex items-center text-sm font-medium text-emerald-700">回工作台 <ArrowRight className="ml-1 h-4 w-4" /></Link>
+                    <Link to="/enterprise" className="flex items-center text-sm font-medium text-indigo-700">回工作台 <ArrowRight className="ml-1 h-4 w-4" /></Link>
                   </div>
                   {taskBoard.length ? (
                     <div className="grid gap-3 md:grid-cols-2">
@@ -143,12 +143,12 @@ export function EnterpriseAssistant() {
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && handleSend()}
               placeholder="输入要梳理的业务问题，助手会基于当前后端上下文提示入口..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-4 pl-4 pr-14 text-sm transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-4 pl-4 pr-14 text-sm transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className={`absolute right-3 rounded-lg p-2 transition-colors ${input.trim() ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'cursor-not-allowed bg-slate-200 text-slate-400'}`}
+              className={`absolute right-3 rounded-lg p-2 transition-colors ${input.trim() ? 'bg-indigo-700 text-white hover:bg-indigo-800' : 'cursor-not-allowed bg-slate-200 text-slate-400'}`}
             >
               <Send className="h-4 w-4" />
             </button>

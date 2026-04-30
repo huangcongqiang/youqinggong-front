@@ -10,9 +10,11 @@ import {
   confirmTaskAnalysis,
   decomposeTaskBrief,
   getAiPublishPresets,
+  getTagCatalog,
   publishTask
 } from '../services/api';
 import { asArray, isMutationFailed, mutationMessage, stringOf } from '../services/workflowFormatters';
+import { classifyTags, mergeTags, normalizeCatalog, normalizeTags, toggleTag, type TagCatalog } from '../services/tagCatalog';
 
 type AiModule = {
   name: string;
@@ -22,6 +24,9 @@ type AiModule = {
 
 type AiSuggestion = {
   skills: string[];
+  businessTags: string[];
+  deliverableTags: string[];
+  customTags: string[];
   modules: AiModule[];
   recommendations: string[];
   recommendedBudget: string;
@@ -30,10 +35,53 @@ type AiSuggestion = {
   provider: string;
 };
 
+type MilestoneBudget = {
+  name: string;
+  ratio: string;
+};
+
+function createMilestoneBudgetPlan(modules: AiModule[]): MilestoneBudget[] {
+  const source = modules.length ? modules : [{ name: '整体验收交付', duration: '', output: '阶段性交付结果' }];
+  const baseRatio = Math.floor((100 / source.length) * 100) / 100;
+  let used = 0;
+  return source.map((module, index) => {
+    const ratio = index === source.length - 1 ? Number((100 - used).toFixed(2)) : baseRatio;
+    used += ratio;
+    return {
+      name: module.name || `执行模块 ${index + 1}`,
+      ratio: String(ratio)
+    };
+  });
+}
+
+function parseBudgetNumber(raw: string) {
+  const match = String(raw || '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function ratioNumber(raw: string) {
+  const value = Number.parseFloat(String(raw || '').replace('%', ''));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function ratioTotal(items: MilestoneBudget[]) {
+  return Number(items.reduce((total, item) => total + ratioNumber(item.ratio), 0).toFixed(2));
+}
+
+function formatMilestoneAmount(totalBudget: number, ratio: string) {
+  if (!totalBudget) return '金额待确认';
+  const amount = (totalBudget * ratioNumber(ratio)) / 100;
+  return `￥${Number(amount.toFixed(2)).toLocaleString('zh-CN')}`;
+}
+
 function normalizeAiSuggestion(payload: any, fallbackBudget: string): AiSuggestion {
   const schedule = payload?.schedule || payload?.analysisSummary || {};
+  const classified = classifyTags(payload?.tags || payload?.skillTags || []);
   return {
-    skills: asArray<string>(payload?.tags || payload?.skillTags || payload?.skills).map(String).filter(Boolean),
+    skills: normalizeTags(payload?.skills, classified.skills),
+    businessTags: normalizeTags(payload?.businessTags, classified.businessTags),
+    deliverableTags: normalizeTags(payload?.deliverableTags, classified.deliverableTags),
+    customTags: mergeTags(classified.customTags, payload?.customTags),
     modules: asArray<any>(payload?.modules || payload?.moduleBreakdown).map((item, index) => ({
       name: stringOf(item?.name, item?.title, `执行模块 ${index + 1}`),
       duration: stringOf(item?.duration, item?.period, ''),
@@ -47,6 +95,51 @@ function normalizeAiSuggestion(payload: any, fallbackBudget: string): AiSuggesti
   };
 }
 
+function TagChoiceGroup({
+  title,
+  note,
+  options,
+  selected,
+  onToggle,
+  max
+}: {
+  title: string;
+  note: string;
+  options: string[];
+  selected: string[];
+  onToggle: (tag: string) => void;
+  max?: number;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-4">
+      <div className="mb-3 flex items-end justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+          <p className="mt-1 text-xs text-slate-500">{note}</p>
+        </div>
+        {max && <span className="shrink-0 text-xs font-medium text-slate-400">{selected.length}/{max}</span>}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((tag) => {
+          const active = selected.includes(tag);
+          return (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => onToggle(tag)}
+              className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                active ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50'
+              }`}
+            >
+              {tag}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function TaskPublish() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -55,11 +148,17 @@ export function TaskPublish() {
   const [budget, setBudget] = useState('');
   const [cycle, setCycle] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
+  const [businessTags, setBusinessTags] = useState<string[]>([]);
+  const [deliverableTags, setDeliverableTags] = useState<string[]>([]);
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [customTagInput, setCustomTagInput] = useState('');
+  const [tagCatalog, setTagCatalog] = useState<TagCatalog>(() => normalizeCatalog({}));
   const [presets, setPresets] = useState<any[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
+  const [milestoneBudgets, setMilestoneBudgets] = useState<MilestoneBudget[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -70,12 +169,27 @@ export function TaskPublish() {
       }
       setPresets(asArray(data?.presets || data?.templates || data?.suggestions));
     });
+    getTagCatalog().then((data: any) => {
+      if (!alive || data?.requestError) {
+        return;
+      }
+      setTagCatalog(normalizeCatalog(data));
+    });
     return () => {
       alive = false;
     };
   }, []);
 
   const selectedPreset = presets.find((item) => stringOf(item?.id, item?.presetId) === selectedPresetId);
+
+  const addCustomTag = () => {
+    const tag = customTagInput.trim();
+    if (!tag || customTags.includes(tag)) {
+      return;
+    }
+    setCustomTags((items) => [...items, tag].slice(0, 6));
+    setCustomTagInput('');
+  };
 
   const handleAiBreakdown = async () => {
     if (!title.trim() || !description.trim()) {
@@ -91,7 +205,10 @@ export function TaskPublish() {
       source: 'TEXT',
       presetId: stringOf(selectedPreset?.id, selectedPreset?.presetId),
       presetTitle: stringOf(selectedPreset?.title, selectedPreset?.name),
-      presetTags: asArray<string>(selectedPreset?.tags)
+      presetTags: mergeTags(asArray<string>(selectedPreset?.tags), skills),
+      businessTags,
+      deliverableTags,
+      customTags
     });
 
     setIsAiLoading(false);
@@ -109,15 +226,31 @@ export function TaskPublish() {
     if (!aiSuggestion) {
       return;
     }
-    setSkills(aiSuggestion.skills);
+    setSkills((items) => mergeTags(items, aiSuggestion.skills).slice(0, 6));
+    setBusinessTags((items) => mergeTags(items, aiSuggestion.businessTags));
+    setDeliverableTags((items) => mergeTags(items, aiSuggestion.deliverableTags));
+    setCustomTags((items) => mergeTags(items, aiSuggestion.customTags).slice(0, 6));
     setBudget(aiSuggestion.recommendedBudget);
     setCycle(aiSuggestion.recommendedCycle);
+    setMilestoneBudgets(createMilestoneBudgetPlan(aiSuggestion.modules));
     setStep(3);
   };
 
   const handleSubmit = async () => {
     if (!title.trim() || !description.trim()) {
       setError('请先补充任务名称和任务简介。');
+      return;
+    }
+    if (skills.length === 0) {
+      setError('请至少选择 1 个必需技能，系统会优先按技能做推荐。');
+      return;
+    }
+    const normalizedMilestoneBudgets = milestoneBudgets.length
+      ? milestoneBudgets
+      : createMilestoneBudgetPlan(aiSuggestion?.modules || []);
+    const totalRatio = ratioTotal(normalizedMilestoneBudgets);
+    if (Math.abs(totalRatio - 100) > 0.01) {
+      setError('里程碑金额配比合计必须等于 100%。');
       return;
     }
 
@@ -129,7 +262,14 @@ export function TaskPublish() {
       source: 'TEXT',
       budget: budget || aiSuggestion?.recommendedBudget || '',
       skills,
-      customSkills: []
+      customSkills: [],
+      businessTags,
+      deliverableTags,
+      customTags,
+      milestoneBudgets: normalizedMilestoneBudgets.map((item) => ({
+        name: item.name,
+        ratio: ratioNumber(item.ratio)
+      }))
     });
 
     if (isMutationFailed(response)) {
@@ -140,7 +280,7 @@ export function TaskPublish() {
 
     const taskId = stringOf((response as any).taskId, (response as any).id);
     if (taskId) {
-      const confirmResponse = await confirmTaskAnalysis(taskId, { source: 'react-demo' });
+      const confirmResponse = await confirmTaskAnalysis(taskId, { source: 'frontend' });
       if (isMutationFailed(confirmResponse)) {
         setIsSubmitting(false);
         setError(mutationMessage(confirmResponse, '任务已发布，但 AI 分析确认失败，请稍后在任务中继续确认。'));
@@ -153,6 +293,9 @@ export function TaskPublish() {
     setIsSubmitting(false);
     navigate('/enterprise/recruiting');
   };
+
+  const budgetNumber = parseBudgetNumber(budget || aiSuggestion?.recommendedBudget || '');
+  const milestoneRatioTotal = ratioTotal(milestoneBudgets);
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -171,7 +314,7 @@ export function TaskPublish() {
       <div className="relative">
         <div className="absolute left-0 right-0 top-6 z-0 h-1 overflow-hidden rounded-full bg-slate-100">
           <motion.div
-            className="h-full rounded-full bg-emerald-600"
+            className="h-full rounded-full bg-indigo-600"
             initial={{ width: '33%' }}
             animate={{ width: `${(step / 3) * 100}%` }}
             transition={{ duration: 0.5 }}
@@ -183,7 +326,7 @@ export function TaskPublish() {
             <div
               key={s}
               className={`flex h-12 w-12 items-center justify-center rounded-full border-4 text-lg font-bold ${
-                step >= s ? 'border-white bg-emerald-700 text-white shadow-lg' : 'border-slate-100 bg-white text-slate-400'
+                step >= s ? 'border-white bg-indigo-600 text-white shadow-lg' : 'border-slate-100 bg-white text-slate-400'
               }`}
             >
               {s}
@@ -209,7 +352,7 @@ export function TaskPublish() {
                               type="button"
                               onClick={() => setSelectedPresetId(active ? '' : presetId)}
                               className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                                active ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                active ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                               }`}
                             >
                               {stringOf(preset?.title, preset?.name, '任务模板')}
@@ -233,7 +376,7 @@ export function TaskPublish() {
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">任务简介与期望</label>
                     <textarea
-                      className="min-h-[200px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="min-h-[200px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-4 text-slate-700 transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       placeholder="简单描述您需要完成什么工作、交付边界、验收口径和已有素材。"
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
@@ -249,12 +392,73 @@ export function TaskPublish() {
                     <Input value={cycle} onChange={(event) => setCycle(event.target.value)} placeholder="期望周期，可让 AI 自动估算" />
                   </div>
 
+                  <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-5">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-900">推荐匹配标签</h2>
+                      <p className="mt-1 text-sm text-slate-500">必需技能会作为推荐主条件，业务场景和交付物用于判断经验。</p>
+                    </div>
+                    <TagChoiceGroup
+                      title="必需技能"
+                      note="至少选择 1 个，推荐优先按这里匹配人才。"
+                      options={tagCatalog.skills}
+                      selected={skills}
+                      onToggle={(tag) => setSkills((items) => toggleTag(items, tag, 6))}
+                      max={6}
+                    />
+                    <TagChoiceGroup
+                      title="业务场景经验"
+                      note="可选，命中类似场景的人才会加分。"
+                      options={tagCatalog.businessTags}
+                      selected={businessTags}
+                      onToggle={(tag) => setBusinessTags((items) => toggleTag(items, tag))}
+                    />
+                    <TagChoiceGroup
+                      title="交付物经验"
+                      note="可选，标记这次真正要交付的成果。"
+                      options={tagCatalog.deliverableTags}
+                      selected={deliverableTags}
+                      onToggle={(tag) => setDeliverableTags((items) => toggleTag(items, tag))}
+                    />
+                    <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                      <h3 className="text-sm font-semibold text-slate-800">自定义标签</h3>
+                      <p className="mt-1 text-xs text-slate-500">补充新需求，系统会保存为候选标签供后续复用。</p>
+                      <div className="mt-3 flex gap-2">
+                        <Input
+                          value={customTagInput}
+                          onChange={(event) => setCustomTagInput(event.target.value)}
+                          onKeyDown={(event) => event.key === 'Enter' && (event.preventDefault(), addCustomTag())}
+                          placeholder="例如：私域转化、AIGC 海报"
+                          className="bg-white"
+                        />
+                        <Button type="button" variant="outline" onClick={addCustomTag} className="shrink-0">添加</Button>
+                      </div>
+                      {tagCatalog.customTags.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {tagCatalog.customTags.slice(0, 8).map((tag) => (
+                            <button key={tag} type="button" onClick={() => setCustomTags((items) => toggleTag(items, tag, 6))} className="rounded-md bg-slate-100 px-2.5 py-1 text-xs text-slate-600 hover:bg-indigo-50 hover:text-indigo-700">
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {customTags.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {customTags.map((tag) => (
+                            <button key={tag} type="button" onClick={() => setCustomTags((items) => items.filter((item) => item !== tag))} className="rounded-lg bg-indigo-100 px-3 py-1.5 text-sm font-medium text-indigo-800 hover:bg-rose-50 hover:text-rose-700">
+                              {tag} 移除
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="flex justify-end pt-4">
                     <Button
                       size="lg"
                       onClick={handleAiBreakdown}
                       disabled={!title || !description || isAiLoading}
-                      className="gap-2 rounded-xl border-none bg-gradient-to-r from-emerald-700 to-lime-600 shadow-lg shadow-emerald-700/25 hover:from-emerald-800 hover:to-lime-700"
+                      className="gap-2 rounded-xl border-none bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/25 hover:from-indigo-700 hover:to-violet-700"
                     >
                       {isAiLoading ? <Wand2 className="h-5 w-5 animate-pulse" /> : <Sparkles className="h-5 w-5" />}
                       {isAiLoading ? 'AI 正在拆解任务...' : '使用 AI 智能拆解并继续'}
@@ -267,16 +471,16 @@ export function TaskPublish() {
 
           {step === 2 && aiSuggestion && (
             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <Card className="relative overflow-hidden border-2 border-emerald-100 shadow-xl shadow-emerald-100/50">
-                <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-gradient-to-br from-emerald-500/10 to-lime-500/10 blur-3xl" />
+              <Card className="relative overflow-hidden border-2 border-indigo-100 shadow-xl shadow-indigo-100/50">
+                <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-gradient-to-br from-indigo-500/10 to-violet-500/10 blur-3xl" />
                 <CardContent className="relative z-10 p-8">
                   <div className="mb-8 flex items-center space-x-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
-                      <Sparkles className="h-6 w-6 text-emerald-700" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100">
+                      <Sparkles className="h-6 w-6 text-indigo-700" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-emerald-950">AI 任务拆解建议</h2>
-                      <p className="text-sm text-emerald-700/80">来自 {aiSuggestion.provider}，你确认后会把任务发布到后端并进入匹配。</p>
+                      <h2 className="text-xl font-bold text-slate-950">AI 任务拆解建议</h2>
+                      <p className="text-sm text-indigo-700/80">来自 {aiSuggestion.provider}，你确认后会把任务发布到后端并进入匹配。</p>
                     </div>
                   </div>
 
@@ -284,14 +488,33 @@ export function TaskPublish() {
                     <div className="space-y-6">
                       <div>
                         <h3 className="mb-3 flex items-center text-sm font-semibold text-slate-700">
-                          <Briefcase className="mr-2 h-4 w-4" />建议标签
+                          <Briefcase className="mr-2 h-4 w-4" />建议匹配标签
                         </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {(aiSuggestion.skills.length ? aiSuggestion.skills : ['协作执行', '交付验收']).map((skill) => (
-                            <Badge key={skill} variant="secondary" className="border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
-                              {skill}
-                            </Badge>
-                          ))}
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            {(aiSuggestion.skills.length ? aiSuggestion.skills : ['前端开发']).map((skill) => (
+                              <Badge key={skill} variant="secondary" className="border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700">
+                                技能 · {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {aiSuggestion.businessTags.map((tag) => (
+                              <Badge key={tag} variant="outline" className="border-sky-100 bg-sky-50 px-3 py-1.5 text-sm text-sky-700">
+                                场景 · {tag}
+                              </Badge>
+                            ))}
+                            {aiSuggestion.deliverableTags.map((tag) => (
+                              <Badge key={tag} variant="outline" className="border-violet-100 bg-violet-50 px-3 py-1.5 text-sm text-violet-700">
+                                交付 · {tag}
+                              </Badge>
+                            ))}
+                            {aiSuggestion.customTags.map((tag) => (
+                              <Badge key={tag} variant="outline" className="border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600">
+                                自定义 · {tag}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
@@ -342,7 +565,7 @@ export function TaskPublish() {
 
                   <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-6">
                     <Button variant="ghost" onClick={() => setStep(1)} className="text-slate-500">返回修改</Button>
-                    <Button size="lg" onClick={applyAiSuggestions} className="gap-2 rounded-xl bg-emerald-700 shadow-md hover:bg-emerald-800">
+                    <Button size="lg" onClick={applyAiSuggestions} className="gap-2 rounded-xl bg-indigo-600 shadow-md hover:bg-indigo-700">
                       应用建议并继续 <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -359,7 +582,10 @@ export function TaskPublish() {
                     <h3 className="mb-2 text-lg font-bold text-slate-900">{title}</h3>
                     <p className="mb-4 line-clamp-3 text-sm text-slate-500">{description}</p>
                     <div className="mb-4 flex flex-wrap gap-2">
-                      {skills.map((skill) => <Badge key={skill} variant="outline" className="bg-white">{skill}</Badge>)}
+                      {skills.map((skill) => <Badge key={skill} variant="outline" className="bg-white">技能 · {skill}</Badge>)}
+                      {businessTags.map((tag) => <Badge key={tag} variant="outline" className="bg-sky-50 text-sky-700">场景 · {tag}</Badge>)}
+                      {deliverableTags.map((tag) => <Badge key={tag} variant="outline" className="bg-violet-50 text-violet-700">交付 · {tag}</Badge>)}
+                      {customTags.map((tag) => <Badge key={tag} variant="outline" className="bg-slate-100 text-slate-700">自定义 · {tag}</Badge>)}
                     </div>
                     <div className="flex items-center space-x-6 text-sm text-slate-600">
                       <span className="flex items-center"><DollarSign className="mr-1 h-4 w-4 text-slate-400" /> {budget || '预算待确认'}</span>
@@ -367,7 +593,42 @@ export function TaskPublish() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-800">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="mb-4 flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900">里程碑金额配比</h3>
+                        <p className="mt-1 text-sm text-slate-500">每个阶段会在合同工作区展示对应金额，人才提交进度时也能看到当前阶段价值。</p>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-sm font-semibold ${Math.abs(milestoneRatioTotal - 100) <= 0.01 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                        合计 {milestoneRatioTotal}%
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {milestoneBudgets.map((item, index) => (
+                        <div key={`${item.name}-${index}`} className="grid gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 md:grid-cols-[1fr_120px_140px] md:items-center">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{index + 1}. {item.name}</p>
+                            <p className="mt-1 text-xs text-slate-500">阶段金额：{formatMilestoneAmount(budgetNumber, item.ratio)}</p>
+                          </div>
+                          <label className="text-xs font-semibold text-slate-500">
+                            配比
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={item.ratio}
+                              onChange={(event) => setMilestoneBudgets((items) => items.map((next, nextIndex) => nextIndex === index ? { ...next, ratio: event.target.value } : next))}
+                              className="mt-1 h-10 bg-white text-right"
+                            />
+                          </label>
+                          <div className="text-right text-sm font-bold text-slate-900">{formatMilestoneAmount(budgetNumber, item.ratio)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5 text-sm text-indigo-800">
                     确认发布后，系统会创建真实任务、确认 AI 拆解结果，并进入人才匹配/招募处理。
                   </div>
 
@@ -381,7 +642,7 @@ export function TaskPublish() {
                         size="lg"
                         onClick={handleSubmit}
                         disabled={isSubmitting}
-                        className="rounded-xl border-none bg-emerald-700 shadow-lg shadow-emerald-700/25 hover:bg-emerald-800"
+                        className="rounded-xl border-none bg-indigo-600 shadow-lg shadow-indigo-500/25 hover:bg-indigo-700"
                       >
                         {isSubmitting ? '正在发布...' : '确认发布任务'}
                       </Button>

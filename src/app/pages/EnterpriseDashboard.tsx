@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -7,17 +7,25 @@ import { useStore } from '../store';
 import { Link } from 'react-router';
 import { 
   ArrowRight, FileText, CheckCircle, Wallet, AlertCircle, 
-  ChevronRight, Calendar, Users, Sparkles, TrendingUp
+  ChevronRight, Calendar, Users, Sparkles, TrendingUp, Edit3, Loader2, X
 } from 'lucide-react';
+import { updateTaskContent } from '../services/api';
 
 export function EnterpriseDashboard() {
-  const { currentUser, tasks, dashboardData, dataError, isLoadingData } = useStore();
+  const { currentUser, tasks, dashboardData, dataError, isLoadingData, refreshDashboardData } = useStore();
+  const [editingTask, setEditingTask] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ title: '', brief: '', budget: '', period: '' });
+  const [editError, setEditError] = useState('');
+  const [editNotice, setEditNotice] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const financeSummary = dashboardData?.financeSummary || {};
   const attentionItems = Array.isArray(dashboardData?.attentionItems) ? dashboardData.attentionItems : [];
   const activeTasks = tasks.filter(task => task.status === 'IN_PROGRESS');
   const openTasks = tasks.filter(task => task.status === 'OPEN');
   const completedTasks = tasks.filter(task => task.status === 'CLOSED');
   const visibleTasks = [...openTasks, ...activeTasks];
+  const dashboardTasks = visibleTasks.slice(0, 10);
+  const hiddenTaskCount = Math.max(visibleTasks.length - dashboardTasks.length, 0);
   const urgentTask = activeTasks[0] || openTasks[0];
 
   const metrics = [
@@ -26,6 +34,35 @@ export function EnterpriseDashboard() {
     { label: "执行中合作", value: activeTasks.length, icon: CheckCircle, color: "text-violet-600", bg: "bg-violet-50" },
     { label: "已完成记录", value: completedTasks.length, icon: Wallet, color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
   ];
+
+  function openEditTask(task: any) {
+    setEditingTask(task);
+    setEditForm({
+      title: task.title || '',
+      brief: task.description || '',
+      budget: task.budget || '',
+      period: task.cycle || ''
+    });
+    setEditError('');
+    setEditNotice('');
+  }
+
+  async function handleSaveTaskContent(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editingTask) return;
+    setIsSavingEdit(true);
+    setEditError('');
+    setEditNotice('');
+    const result = await updateTaskContent(editingTask.id, editForm) as any;
+    setIsSavingEdit(false);
+    if (result.requestError || result.actionBlocked || result.status === 'FAILED') {
+      setEditError(result.requestError || result.actionMessage || result.nextStep || '当前暂时无法修改任务内容。');
+      return;
+    }
+    setEditNotice(result.nextStep || '任务内容已更新。');
+    setEditingTask(null);
+    await refreshDashboardData();
+  }
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -61,6 +98,75 @@ export function EnterpriseDashboard() {
       {isLoadingData && (
         <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-500">
           正在同步企业工作台真实数据...
+        </div>
+      )}
+
+      {editNotice && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">
+          {editNotice}
+        </div>
+      )}
+
+      {editingTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">修改任务内容</h2>
+                <p className="mt-1 text-sm text-slate-500">仅支持任务进入正式协作前修改；执行中的合同内容请在协作空间补充确认。</p>
+              </div>
+              <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" onClick={() => setEditingTask(null)}>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveTaskContent} className="space-y-4 px-6 py-5">
+              {editError && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{editError}</div>}
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">任务标题</label>
+                <input
+                  value={editForm.title}
+                  onChange={(event) => setEditForm((value) => ({ ...value, title: event.target.value }))}
+                  className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">任务说明</label>
+                <textarea
+                  value={editForm.brief}
+                  onChange={(event) => setEditForm((value) => ({ ...value, brief: event.target.value }))}
+                  rows={6}
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">预算</label>
+                  <input
+                    value={editForm.budget}
+                    onChange={(event) => setEditForm((value) => ({ ...value, budget: event.target.value }))}
+                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">周期</label>
+                  <input
+                    value={editForm.period}
+                    onChange={(event) => setEditForm((value) => ({ ...value, period: event.target.value }))}
+                    className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" className="rounded-xl border-slate-200 bg-white" onClick={() => setEditingTask(null)}>
+                  取消
+                </Button>
+                <Button type="submit" disabled={isSavingEdit || !editForm.title.trim() || !editForm.brief.trim()} className="rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+                  {isSavingEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  保存修改
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -112,11 +218,24 @@ export function EnterpriseDashboard() {
         {/* Active Tasks */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">进行中的合作与任务</h2>
-            <Button variant="ghost" size="sm" className="text-slate-500">查看全部</Button>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">进行中的合作与任务</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                工作台最多展示 10 个，更多任务进入全量页查看。
+              </p>
+            </div>
+            {visibleTasks.length > 0 && (
+              <Link to="/enterprise/tasks">
+                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900">
+                  查看更多
+                  {hiddenTaskCount > 0 && <span className="ml-1">({hiddenTaskCount})</span>}
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              </Link>
+            )}
           </div>
           <div className="space-y-4">
-            {visibleTasks.map(task => (
+            {dashboardTasks.map(task => (
               <motion.div 
                 key={task.id}
                 whileHover={{ scale: 1.01 }}
@@ -150,6 +269,16 @@ export function EnterpriseDashboard() {
                     ))}
                     <span className="text-xs text-slate-500 pl-4">{task.applicantsCount} 人已申请</span>
                   </div>
+                  {task.status === 'OPEN' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditTask(task)}
+                      className="rounded-lg h-8 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      <Edit3 className="w-4 h-4 mr-1" /> 修改
+                    </Button>
+                  )}
                   <Link to={task.status === 'OPEN' ? `/enterprise/recruiting?taskId=${encodeURIComponent(task.id)}` : `/enterprise/workspace?taskId=${encodeURIComponent(task.id)}`}>
                     <Button
                       variant="outline"

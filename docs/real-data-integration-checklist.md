@@ -1,10 +1,10 @@
 # React 主前端真实数据接入清单
 
-目标：先不部署，先把 `react-demo` 从 Figma 静态原型推进到真实业务前端。每个页面只有接入真实接口、能使用真实 `taskId / recordId / roomKey` 跑通后，才进入部署验收。
+目标：先不部署，先把 `frontend` 从 Figma 静态原型推进到真实业务前端。每个页面只有接入真实接口、能使用真实 `taskId / recordId / roomKey` 跑通后，才进入部署验收。
 
 配套文档：
 
-- `react-demo2-ui-sync-guide.md`：说明如何把 `react-demo 2` 的原始 UI 和交互安全同步回 `react-demo`，同时保留主工程的真实数据逻辑。
+- `react-demo2-ui-sync-guide.md`：说明如何把 `react-demo 2` 的原始 UI 和交互安全同步回 `frontend`，同时保留主工程的真实数据逻辑。
 
 ## 第一阶段：基础数据层
 

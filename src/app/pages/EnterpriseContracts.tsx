@@ -28,12 +28,12 @@ function normalizeContract(item: any, index = 0) {
 function getStatusBadge(status: string, label: string) {
   const tone = statusTone(label || status);
   if (tone === 'success') {
-    return <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700"><CheckCircle className="h-3.5 w-3.5" /> 已归档</span>;
+    return <span className="flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700"><CheckCircle className="h-3.5 w-3.5" /> 已归档</span>;
   }
   if (tone === 'warning') {
     return <span className="flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700"><Clock className="h-3.5 w-3.5" /> 待确认</span>;
   }
-  return <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"><FileSignature className="h-3.5 w-3.5" /> 履约中</span>;
+  return <span className="flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700"><FileSignature className="h-3.5 w-3.5" /> 履约中</span>;
 }
 
 export function EnterpriseContracts() {
@@ -89,7 +89,7 @@ export function EnterpriseContracts() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索合同编号或项目名..."
-              className="w-64 rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              className="w-64 rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
           <Button variant="outline" className="gap-2 border-slate-200 text-slate-600">
@@ -112,7 +112,7 @@ export function EnterpriseContracts() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`border-b-2 py-4 text-sm font-medium transition-colors ${
-                  activeTab === tab.id ? 'border-emerald-700 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                  activeTab === tab.id ? 'border-indigo-700 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
                 {tab.label}
@@ -131,7 +131,7 @@ export function EnterpriseContracts() {
               <div key={contract.id} className="group p-6 transition-colors hover:bg-slate-50">
                 <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                   <div className="flex flex-1 items-start gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
                       <FileSignature className="h-6 w-6" />
                     </div>
                     <div>
@@ -153,9 +153,9 @@ export function EnterpriseContracts() {
                     <div className="text-lg font-bold text-slate-900">{contract.amount}</div>
                     <Link
                       to={`/enterprise/workspace?taskId=${encodeURIComponent(contract.taskId)}&roomKey=${encodeURIComponent(contract.roomKey)}`}
-                      className="flex items-center gap-1 text-sm font-medium text-emerald-700 transition-opacity hover:text-emerald-800 md:opacity-0 group-hover:opacity-100"
+                      className="flex items-center gap-1 text-sm font-medium text-indigo-700 transition-opacity hover:text-indigo-800 md:opacity-0 group-hover:opacity-100"
                     >
-                      打开合同 <ArrowRight className="h-4 w-4" />
+                      进入协作空间 <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </div>

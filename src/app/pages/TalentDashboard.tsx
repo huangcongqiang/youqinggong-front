@@ -5,7 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useStore } from '../store';
 import { Briefcase, Clock, ChevronRight, DollarSign, Star, TrendingUp, Zap } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { respondRecruitingInterviewInvite } from '../services/api';
 
 function stringOf(...values: unknown[]) {
@@ -21,11 +21,25 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+function isPendingInterviewItem(item: any) {
+  const id = stringOf(item?.id, item?.itemId, item?.key).toLowerCase();
+  const status = stringOf(item?.status, item?.statusLabel, item?.applicationStatus, item?.action?.status).toLowerCase();
+  const content = [
+    id,
+    status,
+    stringOf(item?.groupKey, item?.source, item?.type, item?.category),
+    stringOf(item?.title, item?.label),
+    stringOf(item?.summary, item?.note, item?.description)
+  ].join(' ').toLowerCase();
+  const closed = /accepted|rejected|failed|confirmed|selected|已同意|已拒绝|未通过|已确认|执行中/.test(content);
+  return !closed && /talent-interview-|interview_pending|待确认面试|面试邀约/.test(content);
+}
+
 export function TalentDashboard() {
-  const navigate = useNavigate();
   const { currentUser, applications, tasks, dashboardData, dataError, isLoadingData, refreshDashboardData } = useStore();
   const [inviteError, setInviteError] = useState('');
-  const [acceptingInviteId, setAcceptingInviteId] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [processingInviteId, setProcessingInviteId] = useState('');
   const walletSummary = dashboardData?.walletSummary || dashboardData?.overview?.walletSummary || {};
   const overview = dashboardData?.overview || {};
   const hero = dashboardData?.hero || {};
@@ -42,6 +56,7 @@ export function TalentDashboard() {
         const period = highlights.find((entry) => /工期/.test(stringOf(entry?.label)))?.value;
         const taskId = stringOf(item?.taskId, item?.recordId, `task-${index + 1}`);
         const roomKey = stringOf(item?.roomKey, item?.room);
+        const pendingInterview = isPendingInterviewItem(item);
         return {
           id: stringOf(item?.id, `talent-notification-${taskId}`),
           taskId,
@@ -51,13 +66,16 @@ export function TalentDashboard() {
           updatedAt: stringOf(item?.updatedAt, item?.time, '待同步'),
           budget: stringOf(budget, '待确认'),
           period: stringOf(period, '待确认'),
-          roomKey
+          roomKey,
+          pendingInterview,
+          canEnterRoom: Boolean(roomKey && !pendingInterview)
         };
       })
     : applications
         .filter((item) => !item.talentId || item.talentId === currentUser?.id)
         .map((item) => {
           const task = tasks.find((taskItem) => taskItem.id === item.taskId);
+          const pendingInterview = item.status === 'INTERVIEW';
           return {
             id: item.id,
             taskId: item.taskId,
@@ -67,7 +85,9 @@ export function TalentDashboard() {
             updatedAt: item.interviewTime || '待同步',
             budget: stringOf(item.quote, task?.budget, '待确认'),
             period: stringOf(item.availableTime, task?.cycle, '待确认'),
-            roomKey: stringOf(task?.roomKey)
+            roomKey: stringOf(task?.roomKey),
+            pendingInterview,
+            canEnterRoom: Boolean(task?.roomKey && !pendingInterview)
           };
         });
 
@@ -120,20 +140,22 @@ export function TalentDashboard() {
         roomKey: stringOf(item?.roomKey, item?.room)
       };
     });
-  const latestInterviewInvite = pendingInterviewInvites[0] || null;
+  const visibleInterviewInvites = pendingInterviewInvites.slice(0, 3);
+  const hiddenInterviewInviteCount = Math.max(pendingInterviewInvites.length - visibleInterviewInvites.length, 0);
 
-  const handleAcceptInvite = async () => {
-    if (!latestInterviewInvite || !latestInterviewInvite.taskId || !currentUser?.id) {
-      setInviteError('缺少面试邀约信息，暂时无法进入沟通。');
+  const handleRespondInvite = async (invite: any, decision: 'ACCEPT' | 'REJECT') => {
+    if (!invite || !invite.taskId || !currentUser?.id) {
+      setInviteError('缺少面试邀约信息，暂时无法处理。');
       return;
     }
 
     setInviteError('');
-    setAcceptingInviteId(latestInterviewInvite.id);
+    setInviteMessage('');
+    setProcessingInviteId(`${decision}-${invite.id}`);
     const response = await respondRecruitingInterviewInvite({
-      taskId: latestInterviewInvite.taskId,
+      taskId: invite.taskId,
       talentUserId: currentUser.id,
-      decision: 'ACCEPT'
+      decision
     }) as {
       roomKey?: string;
       nextRoute?: string;
@@ -143,22 +165,22 @@ export function TalentDashboard() {
       nextStep?: string;
       message?: string;
     };
-    setAcceptingInviteId('');
+    setProcessingInviteId('');
 
     if (response.requestError || response.status === 'FAILED') {
-      setInviteError(response.requestError || response.nextStep || response.message || '当前暂时无法接受面试邀约。');
+      setInviteError(response.requestError || response.nextStep || response.message || (decision === 'REJECT' ? '当前暂时无法拒绝面试邀约。' : '当前暂时无法接受面试邀约。'));
       return;
     }
 
     await refreshDashboardData();
-    const taskId = stringOf(response.taskId, latestInterviewInvite.taskId);
-    const roomKey = stringOf(response.roomKey, latestInterviewInvite.roomKey);
-    const nextRoute = stringOf(response.nextRoute);
-    if (nextRoute) {
-      navigate(nextRoute);
+    if (decision === 'REJECT') {
+      setInviteMessage('已拒绝本次面试邀约。');
       return;
     }
-    navigate(`/talent/chat?taskId=${encodeURIComponent(taskId)}${roomKey ? `&room=${encodeURIComponent(roomKey)}&roomKey=${encodeURIComponent(roomKey)}` : ''}`);
+
+    if (decision === 'ACCEPT') {
+      setInviteMessage(response.nextStep || response.message || '已同意面试，等待企业确认合作后再进入沟通。');
+    }
   };
   
   const containerVars = {
@@ -253,8 +275,8 @@ export function TalentDashboard() {
                   <h3 className="text-2xl font-bold text-slate-800">{activeCollaborationsCount} 个</h3>
                 </div>
               </div>
-              <Link to="/talent/workspace" className="flex items-center text-sm text-emerald-600 font-medium hover:underline">
-                进入工作区 <ChevronRight className="w-4 h-4 ml-1" />
+              <Link to="/talent/records?tab=ongoing" className="flex items-center text-sm text-emerald-600 font-medium hover:underline">
+                查看协作任务 <ChevronRight className="w-4 h-4 ml-1" />
               </Link>
             </CardContent>
           </Card>
@@ -284,7 +306,7 @@ export function TalentDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column - Active Contracts & Applications */}
         <div className="lg:col-span-2 space-y-8">
-          {latestInterviewInvite && (
+          {visibleInterviewInvites.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -294,66 +316,77 @@ export function TalentDashboard() {
                   </span>
                   最新邀约与面试
                 </h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={acceptingInviteId === latestInterviewInvite.id}
-                  onClick={handleAcceptInvite}
-                  className="text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
-                >
-                  去沟通 <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
+                <Link to="/talent/notifications" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                  全部通知 <ChevronRight className="inline h-4 w-4" />
+                </Link>
               </div>
 
-              <Card className="relative overflow-hidden border-indigo-100 bg-gradient-to-r from-indigo-50 to-white shadow-sm">
-                <div className="absolute bottom-0 left-0 top-0 w-1 bg-indigo-500" />
-                <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex-1">
-                    <div className="mb-2 flex items-center space-x-3">
-                      <Badge className="border-none bg-red-50 text-red-600 hover:bg-red-100">
-                        紧急待办
-                      </Badge>
-                      <span className="text-xs font-medium text-slate-500">{latestInterviewInvite.updatedAt}</span>
-                    </div>
-                    <h3 className="mb-1 text-base font-bold text-slate-800">
-                      {latestInterviewInvite.company} 发送了在线面试邀约
-                    </h3>
-                    <p className="mb-4 line-clamp-2 text-sm text-slate-600">
-                      诚邀您参与【{latestInterviewInvite.title}】的面谈。{latestInterviewInvite.summary}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3 text-sm">
-                      <div className="flex items-center rounded-lg bg-indigo-100/50 px-3 py-1.5 font-medium text-indigo-700">
-                        <Clock className="mr-1.5 h-4 w-4 text-indigo-500" />
-                        建议面试时间：{latestInterviewInvite.interviewTime}
-                      </div>
-                      {latestInterviewInvite.meetingCode && (
-                        <div className="rounded-lg bg-white/80 px-3 py-1.5 font-medium text-slate-600">
-                          会议信息：{latestInterviewInvite.meetingCode}
+              <div className="space-y-3">
+                {visibleInterviewInvites.map((invite) => (
+                  <Card key={invite.id} className="relative overflow-hidden border-indigo-100 bg-gradient-to-r from-indigo-50 to-white shadow-sm">
+                    <div className="absolute bottom-0 left-0 top-0 w-1 bg-indigo-500" />
+                    <CardContent className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex-1">
+                        <div className="mb-2 flex items-center space-x-3">
+                          <Badge className="border-none bg-red-50 text-red-600 hover:bg-red-100">
+                            待回应
+                          </Badge>
+                          <span className="text-xs font-medium text-slate-500">{invite.updatedAt}</span>
                         </div>
-                      )}
-                    </div>
-                    {inviteError && (
-                      <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-600">
-                        {inviteError}
+                        <h3 className="mb-1 text-base font-bold text-slate-800">
+                          {invite.company} 发送了在线面试邀约
+                        </h3>
+                        <p className="mb-4 line-clamp-2 text-sm text-slate-600">
+                          诚邀您参与【{invite.title}】的面谈。{invite.summary}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                          <div className="flex items-center rounded-lg bg-indigo-100/50 px-3 py-1.5 font-medium text-indigo-700">
+                            <Clock className="mr-1.5 h-4 w-4 text-indigo-500" />
+                            建议面试时间：{invite.interviewTime}
+                          </div>
+                          {invite.meetingCode && (
+                            <div className="rounded-lg bg-white/80 px-3 py-1.5 font-medium text-slate-600">
+                              会议信息：{invite.meetingCode}
+                            </div>
+                          )}
+                        </div>
+                        {inviteError && (
+                          <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-600">
+                            {inviteError}
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <div className="flex flex-col justify-center gap-2 sm:ml-4 sm:min-w-32">
+                        <Button
+                          variant="outline"
+                          disabled={Boolean(processingInviteId)}
+                          onClick={() => handleRespondInvite(invite, 'REJECT')}
+                          className="w-full rounded-xl border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        >
+                          {processingInviteId === `REJECT-${invite.id}` ? '处理中...' : '拒绝邀约'}
+                        </Button>
+                        <Button
+                          disabled={Boolean(processingInviteId)}
+                          onClick={() => handleRespondInvite(invite, 'ACCEPT')}
+                          className="w-full rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700"
+                        >
+                          {processingInviteId === `ACCEPT-${invite.id}` ? '处理中...' : '同意面试'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {hiddenInterviewInviteCount > 0 && (
+                  <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-500">
+                    还有 {hiddenInterviewInviteCount} 条邀约可在通知中心处理。
                   </div>
-                  <div className="flex flex-col justify-center gap-2 sm:ml-4 sm:min-w-32">
-                    <Button
-                      disabled={acceptingInviteId === latestInterviewInvite.id}
-                      onClick={handleAcceptInvite}
-                      className="w-full rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700"
-                    >
-                      {acceptingInviteId === latestInterviewInvite.id ? '处理中...' : '接受并沟通'}
-                    </Button>
-                    <Link to="/talent/notifications">
-                      <Button variant="ghost" className="w-full rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700">
-                        稍后再看
-                      </Button>
-                    </Link>
+                )}
+                {inviteMessage && (
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    {inviteMessage}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             </motion.div>
           )}
 
@@ -365,7 +398,10 @@ export function TalentDashboard() {
             
             <div className="space-y-4">
               {activeApplications.map((app, idx) => {
-                const targetRoute = app.roomKey
+                const canEnterRoom = Boolean(app.roomKey && app.canEnterRoom);
+                const targetRoute = app.pendingInterview
+                  ? `/talent/tasks?taskId=${encodeURIComponent(app.taskId)}`
+                  : canEnterRoom
                   ? `/talent/chat?taskId=${encodeURIComponent(app.taskId)}&roomKey=${encodeURIComponent(app.roomKey)}`
                   : `/talent/workspace?taskId=${encodeURIComponent(app.taskId)}`;
                 return (
@@ -396,7 +432,7 @@ export function TalentDashboard() {
                         <div className="ml-4 h-full flex flex-col justify-center">
                           <Link to={targetRoute}>
                             <Button className="rounded-full bg-slate-900 text-white hover:bg-slate-800">
-                              {app.roomKey ? '继续沟通' : '进入协作'}
+                              {app.pendingInterview ? '查看邀约' : canEnterRoom ? '继续沟通' : '进入协作'}
                             </Button>
                           </Link>
                         </div>

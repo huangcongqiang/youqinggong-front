@@ -78,7 +78,7 @@ export function TaskApply() {
     }
 
     const response = await requestTaskCollaboration(taskId, {
-      source: 'react-demo',
+      source: 'frontend',
       note: coverLetter,
       quote,
       availableTime,

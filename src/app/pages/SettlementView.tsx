@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
+import { FinanceActionPanel } from "../components/FinanceActionPanel";
 import { ArrowRight, CheckCircle2, Clock, FileCheck, Loader2, Wallet } from "lucide-react";
 import { getOrderRecordDetail, getOrderRecords } from "../services/api";
 import { asArray, moneyLabel, normalizeFinanceSections, statusTone, stringOf } from "../services/workflowFormatters";
@@ -24,10 +25,19 @@ function normalizeRecord(item: any, index = 0) {
     title: stringOf(item?.title, item?.taskTitle, `合作 ${index + 1}`),
     stage: stringOf(item?.stage, item?.statusGroup, "待同步"),
     amount: moneyLabel(item?.amountValue || item?.amount || item?.budget, "待确认"),
+    amountLabel: stringOf(item?.amountLabel, "金额"),
     updatedAt: stringOf(item?.updatedAt),
     counterpartName: stringOf(item?.counterpartName, "合作方"),
     roomKey: stringOf(item?.roomKey)
   };
+}
+
+function contractAmountLabel(record: any) {
+  return moneyLabel(record?.task?.budget || record?.task?.amountValue || record?.contractAmountValue || record?.budget || record?.amountValue || record?.amount);
+}
+
+function isClosedFinanceStatus(value: unknown) {
+  return /已完成|已结算|已归档|已批准|已开票|已完成对账|未发起|未开始|COMPLETED|SETTLED|DONE|APPROVED|ISSUED|RECONCILED/i.test(stringOf(value));
 }
 
 export function SettlementView({ audience }: { audience: Audience }) {
@@ -39,6 +49,7 @@ export function SettlementView({ audience }: { audience: Audience }) {
   const [detailPayload, setDetailPayload] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,19 +72,31 @@ export function SettlementView({ audience }: { audience: Audience }) {
     return () => {
       cancelled = true;
     };
-  }, [audience, taskId]);
+  }, [audience, taskId, refreshKey]);
 
   const records = useMemo(() => asArray(recordsPayload?.items).map(normalizeRecord), [recordsPayload]);
   const detailRecord = detailPayload?.record || null;
   const financeSections = detailRecord ? normalizeFinanceSections(detailRecord) : [];
-  const pendingSections = financeSections.filter((section) => !/已完成|已结算|未发起|未开始/.test(section.status));
+  const isSettledFinance = financeSections.some((section) => section.key === "settlementSummary" && /已结算|已完成|SETTLED|DONE/i.test(section.status));
+  const pendingSections = isSettledFinance ? [] : financeSections.filter((section) => !isClosedFinanceStatus(section.status));
   const summary = recordsPayload?.summary || {};
+  const accent = isEnterprise
+    ? {
+        badge: "border-indigo-200 bg-indigo-50 text-indigo-700",
+        icon: "text-indigo-600",
+        loader: "text-indigo-600"
+      }
+    : {
+        badge: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        icon: "text-emerald-600",
+        loader: "text-emerald-600"
+      };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 p-6">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <Badge variant="outline" className="mb-4 border-emerald-200 bg-emerald-50 text-emerald-700">
+          <Badge variant="outline" className={`mb-4 ${accent.badge}`}>
             {isEnterprise ? "付款与对账" : "收入与请款"}
           </Badge>
           <h1 className="text-3xl font-semibold text-slate-900 tracking-tight mb-2">
@@ -95,7 +118,7 @@ export function SettlementView({ audience }: { audience: Audience }) {
         ].map((stat) => (
           <Card key={stat.label} className="border-slate-200 shadow-sm overflow-hidden bg-white">
             <CardContent className="p-6">
-              <stat.icon className="w-5 h-5 text-emerald-600 mb-4" />
+              <stat.icon className={`w-5 h-5 ${accent.icon} mb-4`} />
               <p className="text-sm font-medium text-slate-500 mb-2">{stat.label}</p>
               <h3 className="text-3xl font-bold tracking-tight text-slate-900">{stat.value}</h3>
               <div className="mt-4 inline-flex items-center text-xs font-medium text-slate-500 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-100">
@@ -108,7 +131,7 @@ export function SettlementView({ audience }: { audience: Audience }) {
 
       {isLoading ? (
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center text-slate-500">
-          <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" /> 正在读取结算数据...
+          <Loader2 className={`w-5 h-5 mx-auto mb-3 animate-spin ${accent.loader}`} /> 正在读取结算数据...
         </div>
       ) : detailRecord ? (
         <div className="grid lg:grid-cols-[1fr_360px] gap-6">
@@ -124,7 +147,7 @@ export function SettlementView({ audience }: { audience: Audience }) {
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-right">
                   <p className="text-sm text-slate-500">合同金额</p>
-                  <p className="text-2xl font-bold text-slate-900 mt-1">{moneyLabel(detailRecord.amountValue || detailRecord.amount)}</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">{contractAmountLabel(detailRecord)}</p>
                 </div>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
@@ -138,6 +161,13 @@ export function SettlementView({ audience }: { audience: Audience }) {
                     </div>
                     {section.amount && <p className="mt-4 text-xl font-bold text-slate-900">{section.amount}</p>}
                     <p className="mt-3 text-sm text-slate-500 leading-relaxed">{section.note || "等待流程推进后同步。"}</p>
+                    <FinanceActionPanel
+                      audience={audience}
+                      taskId={taskId}
+                      section={section}
+                      sections={financeSections}
+                      onCompleted={() => setRefreshKey((value) => value + 1)}
+                    />
                   </div>
                 ))}
               </div>
@@ -188,6 +218,7 @@ export function SettlementView({ audience }: { audience: Audience }) {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
+                        <p className="text-xs font-medium text-slate-500">{record.amountLabel}</p>
                         <p className="text-lg font-bold text-slate-900">{record.amount}</p>
                       </div>
                       <Link to={`/${audience}/records/${encodeURIComponent(record.taskId)}/settlement?taskId=${encodeURIComponent(record.taskId)}`}>

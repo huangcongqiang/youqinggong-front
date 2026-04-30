@@ -52,10 +52,10 @@ function normalizeNote(item: any, index = 0) {
 }
 
 function getIcon(type: string) {
-  if (/matching|interview|message/i.test(type)) return <MessageSquare className="h-5 w-5 text-emerald-600" />;
-  if (/acceptance|review|record/i.test(type)) return <FileText className="h-5 w-5 text-emerald-600" />;
+  if (/matching|interview|message/i.test(type)) return <MessageSquare className="h-5 w-5 text-indigo-600" />;
+  if (/acceptance|review|record/i.test(type)) return <FileText className="h-5 w-5 text-violet-600" />;
   if (/finance|claim|invoice|settlement/i.test(type)) return <AlertCircle className="h-5 w-5 text-amber-500" />;
-  if (/confirm/i.test(type)) return <Clock className="h-5 w-5 text-blue-500" />;
+  if (/confirm/i.test(type)) return <Clock className="h-5 w-5 text-indigo-500" />;
   return <Bell className="h-5 w-5 text-slate-500" />;
 }
 
@@ -90,11 +90,11 @@ export function EnterpriseNotifications() {
         <div>
           <h1 className="flex items-center gap-3 text-2xl font-bold text-slate-900">
             通知中心
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">{unreadCount} 未处理</span>
+            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">{unreadCount} 未处理</span>
           </h1>
           <p className="mt-1 text-sm text-slate-500">{headline || '招聘、验收、财务及系统提醒。'}</p>
         </div>
-        <Button variant="outline" className="gap-2 border-slate-200 text-slate-500 hover:text-emerald-700">
+        <Button variant="outline" className="gap-2 border-slate-200 text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
           <CheckCircle className="h-4 w-4" /> 真实状态随业务流更新
         </Button>
       </div>
@@ -111,7 +111,7 @@ export function EnterpriseNotifications() {
             key={filter.id}
             onClick={() => setActiveFilter(filter.id)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              activeFilter === filter.id ? 'bg-emerald-700 text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              activeFilter === filter.id ? 'bg-indigo-600 text-white shadow-sm' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
             {filter.label}
@@ -126,20 +126,20 @@ export function EnterpriseNotifications() {
       ) : (
         <div className="space-y-4">
           {filtered.map((note) => (
-            <Card key={note.id} className={`border transition-all ${note.read ? 'border-transparent bg-slate-50/50' : 'border-emerald-100 bg-white shadow-sm hover:border-emerald-300'}`}>
+            <Card key={note.id} className={`border transition-all ${note.read ? 'border-transparent bg-slate-50/50' : 'border-indigo-100 bg-white shadow-sm hover:border-indigo-300'}`}>
               <CardContent className="p-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">{getIcon(note.type)}</div>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50">{getIcon(note.type)}</div>
                   <div className="flex-1">
                     <div className="mb-1 flex items-start justify-between">
                       <h3 className={`text-sm font-bold ${note.read ? 'text-slate-700' : 'text-slate-900'}`}>
                         {note.title}
-                        {!note.read && <span className="relative -top-0.5 ml-2 inline-block h-2 w-2 rounded-full bg-emerald-600" />}
+                        {!note.read && <span className="relative -top-0.5 ml-2 inline-block h-2 w-2 rounded-full bg-indigo-600" />}
                       </h3>
                       <span className="whitespace-nowrap text-xs text-slate-400">{note.time}</span>
                     </div>
                     <p className={`mb-3 text-sm leading-relaxed ${note.read ? 'text-slate-500' : 'text-slate-600'}`}>{note.desc}</p>
-                    <Link to={note.link} className={`inline-flex items-center text-xs font-medium ${note.read ? 'text-slate-500 hover:text-emerald-700' : 'text-emerald-700 hover:text-emerald-800'}`}>
+                    <Link to={note.link} className={`inline-flex items-center text-xs font-medium ${note.read ? 'text-slate-500 hover:text-indigo-700' : 'text-indigo-700 hover:text-indigo-800'}`}>
                       去处理 <ArrowRight className="ml-1 h-3 w-3" />
                     </Link>
                   </div>

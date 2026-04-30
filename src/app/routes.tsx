@@ -5,6 +5,7 @@ import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { EnterpriseDashboard } from "./pages/EnterpriseDashboard";
+import { EnterpriseTasks } from "./pages/EnterpriseTasks";
 import { TaskPublish } from "./pages/TaskPublish";
 import { TalentSearch } from "./pages/TalentSearch";
 import { ContractWorkspace } from "./pages/ContractWorkspace";
@@ -74,6 +75,7 @@ export const router = createBrowserRouter([
     element: <AuthLayout />,
     children: [
       { index: true, element: <EnterpriseDashboard /> },
+      { path: "tasks", element: <EnterpriseTasks /> },
       { path: "publish", element: <TaskPublish /> },
       { path: "talents", element: <TalentSearch /> },
       { path: "talents/:slug", element: <TalentDetails /> },

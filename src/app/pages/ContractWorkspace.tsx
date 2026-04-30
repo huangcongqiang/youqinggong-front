@@ -7,10 +7,16 @@ import { AttachmentButton } from '../components/AttachmentButton';
 import { useStore } from '../store';
 import {
   FileText, CheckCircle2, MessageSquare, Download, Upload,
-  Clock, AlertCircle, ChevronRight, FileArchive, Zap, Flag, Calendar, Wallet
+  Clock, AlertCircle, ChevronRight, FileArchive, Zap, Flag, Calendar, Wallet, XCircle
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
-import { getWorkspaceData, submitTaskProgress, uploadTaskAttachmentAsset } from '../services/api';
+import {
+  getWorkspaceData,
+  submitEarlyCompletionAction,
+  submitTaskCancellationAction,
+  submitTaskProgress,
+  uploadTaskAttachmentAsset
+} from '../services/api';
 
 interface WorkspaceNode {
   id: string;
@@ -21,6 +27,9 @@ interface WorkspaceNode {
   progress: string;
   plannedDate: string;
   stageType: string;
+  amount: string;
+  amountValue: string;
+  payoutRatio: string;
   updatedAt: string;
   aiReviewSummary: string;
   attachments: WorkspaceAttachment[];
@@ -58,6 +67,19 @@ function isCompletedStatus(value: unknown) {
   return /已完成|完成$|完成[，。,.]|已交付|已验收|completed|done/i.test(text);
 }
 
+function numericAmount(value: unknown) {
+  const amount = Number.parseFloat(String(value || '').replace(/[^\d.]/g, ''));
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatAmount(value: number) {
+  return value > 0 ? `￥${Number(value.toFixed(2)).toLocaleString('zh-CN')}` : '￥0';
+}
+
+function isMutationBlocked(response: any) {
+  return Boolean(response?.requestError || response?.actionBlocked || response?.status === 'BLOCKED' || response?.status === 'FAILED');
+}
+
 function attachmentLabel(attachment: any) {
   if (typeof attachment === 'string') return attachment;
   return stringOf(attachment?.label, attachment?.name, attachment?.filename, attachment?.fileName, attachment?.title, '文件');
@@ -90,6 +112,9 @@ function normalizeNodes(list: any[]): WorkspaceNode[] {
       progress: stringOf(item?.progress, item?.completion, item?.completionPercent, status),
       plannedDate: stringOf(item?.plannedDate, item?.dueDate, item?.deadline, item?.updatedAt),
       stageType: stringOf(item?.stageType, item?.type, item?.kind, '里程碑'),
+      amount: stringOf(item?.amount, item?.milestoneAmount),
+      amountValue: stringOf(item?.amountValue, item?.milestoneAmountValue),
+      payoutRatio: stringOf(item?.payoutRatio, item?.ratio),
       updatedAt: stringOf(item?.updatedAt, item?.time, item?.submittedAt),
       aiReviewSummary: stringOf(item?.aiReview?.summary, item?.aiReviewSummary, item?.reviewSummary),
       attachments: asArray(item?.attachmentFiles || item?.talentSubmission?.attachmentFiles || item?.attachments || item?.files).map(normalizeAttachment),
@@ -133,6 +158,12 @@ export function ContractWorkspace() {
   const [progressFiles, setProgressFiles] = useState<File[]>([]);
   const [progressMessage, setProgressMessage] = useState('');
   const [isSubmittingProgress, setIsSubmittingProgress] = useState(false);
+  const [selectedProgressNodeId, setSelectedProgressNodeId] = useState('');
+  const [earlyCompletionNote, setEarlyCompletionNote] = useState('当前关键交付物已经覆盖主要范围，请进入提前完成确认。');
+  const [earlyCompletionGrade, setEarlyCompletionGrade] = useState('A');
+  const [cancellationReason, setCancellationReason] = useState('本次协作需要中止，请对方确认取消并保留历史记录。');
+  const [lifecycleMessage, setLifecycleMessage] = useState('');
+  const [isSubmittingLifecycle, setIsSubmittingLifecycle] = useState('');
 
   const isEnterprise = currentUser?.role !== 'TALENT';
   const requestedTaskId = searchParams.get('taskId') || '';
@@ -141,6 +172,12 @@ export function ContractWorkspace() {
     let cancelled = false;
 
     async function loadWorkspace() {
+      if (!requestedTaskId) {
+        setWorkspace(null);
+        setError('');
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setError('');
       const payload = await getWorkspaceData(requestedTaskId);
@@ -160,6 +197,7 @@ export function ContractWorkspace() {
 
   const summary = workspace?.summary || {};
   const taskDetail = workspace?.taskDetail || {};
+  const taskConfirmation = workspace?.taskConfirmation || {};
   const focus = workspace?.focus || {};
   const taskId = stringOf(summary.taskId, taskDetail.taskId, requestedTaskId);
   const roomKey = stringOf(summary.roomKey, workspace?.taskRoom?.roomKey, workspace?.roomKey);
@@ -174,6 +212,10 @@ export function ContractWorkspace() {
   const completedCount = milestones.filter((node) => node.isCompleted).length;
   const progressPercent = milestones.length ? Math.round((completedCount / milestones.length) * 100) : 0;
   const currentNode = milestones.find((node) => node.isCurrent) || milestones.find((node) => !node.isCompleted) || milestones[0];
+  const completedAmount = milestones
+    .filter((node) => node.isCompleted)
+    .reduce((total, node) => total + numericAmount(node.amountValue || node.amount), 0);
+  const progressTargetNode = milestones.find((node) => node.id === selectedProgressNodeId) || currentNode;
   const title = stringOf(summary.taskName, taskDetail.title, currentNode?.title, taskId ? `合同 ${taskId}` : '合同工作区');
   const lead = stringOf(focus.summary, summary.nextStep, taskDetail.summary, '在同一个工作区里查看里程碑、交付物、消息和验收状态。');
   const partnerName = isEnterprise
@@ -182,7 +224,71 @@ export function ContractWorkspace() {
   const amount = stringOf(summary.budget, summary.amount, taskDetail.budget, taskDetail.budgetRange, '待确认');
   const remainingTime = stringOf(summary.remainingTime, summary.remainingDays, taskDetail.period, taskDetail.timeline, '待同步');
   const baseQuery = buildQuery({ taskId, room: roomKey, roomKey });
-  const canSubmitProgress = !isEnterprise && Boolean(taskId && currentNode && !currentNode.isCompleted && nodeTone(currentNode) !== 'pending');
+  const taskConfirmationStatus = stringOf(taskConfirmation.status);
+  const taskConfirmationPendingAudience = stringOf(taskConfirmation.pendingAudience).toLowerCase();
+  const isTaskConfirmationPending = Boolean(
+    taskConfirmationPendingAudience && taskConfirmationPendingAudience !== 'none'
+  ) || ['待人才确认', '待企业修改'].includes(taskConfirmationStatus);
+  const workspaceStatusLabel = isTaskConfirmationPending
+    ? stringOf(taskConfirmationStatus, '待确认')
+    : stringOf(summary.status, currentNode?.status, '等待同步');
+  const chatHref = `${isEnterprise ? '/enterprise/chat' : '/talent/chat'}${baseQuery}`;
+  const acceptanceHref = `${isEnterprise ? '/enterprise/acceptance' : '/talent/acceptance'}${baseQuery}`;
+  const primaryActionHref = isTaskConfirmationPending ? chatHref : acceptanceHref;
+  const primaryActionLabel = isTaskConfirmationPending
+    ? (isEnterprise ? '查看确认单' : '确认任务单')
+    : (isEnterprise ? '去验收' : '查看验收状态');
+  const canSubmitProgress = !isTaskConfirmationPending && !isEnterprise && Boolean(taskId && progressTargetNode && !progressTargetNode.isCompleted && nodeTone(progressTargetNode) === 'current');
+  const currentAudience = isEnterprise ? 'enterprise' : 'talent';
+  const earlyCompletion = workspace?.earlyCompletion || taskDetail.earlyCompletion || {};
+  const cancellationRequest = workspace?.cancellationRequest || taskDetail.cancellationRequest || {};
+  const earlyStatus = stringOf(earlyCompletion.status, '未发起');
+  const cancellationStatus = stringOf(cancellationRequest.status, '未发起');
+  const cancellationInitiator = stringOf(cancellationRequest.initiatorAudience).toLowerCase();
+  const canRequestEarlyCompletion = isEnterprise
+    && Boolean(taskId)
+    && !isTaskConfirmationPending
+    && !/待人才同意提前完成|待企业评级|已完成评级/i.test(earlyStatus)
+    && !/待对方确认取消|已取消/i.test(cancellationStatus);
+  const canTalentResolveEarlyCompletion = !isEnterprise && earlyStatus === '待人才同意提前完成';
+  const canGradeEarlyCompletion = isEnterprise && earlyStatus === '待企业评级';
+  const canRequestCancellation = Boolean(taskId)
+    && !/待对方确认取消|已取消/i.test(cancellationStatus)
+    && earlyStatus !== '已完成评级';
+  const canResolveCancellation = Boolean(taskId)
+    && cancellationStatus === '待对方确认取消'
+    && Boolean(cancellationInitiator)
+    && cancellationInitiator !== currentAudience;
+
+  if (!requestedTaskId) {
+    return (
+      <div className="mx-auto max-w-3xl py-16">
+        <Card className="border border-dashed border-slate-200 bg-white shadow-sm">
+          <CardContent className="p-10 text-center">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+              <FileText className="h-7 w-7" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900">请选择一个合作任务</h1>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-500">
+              合同工作区现在作为单个任务的二级页面使用。请先从任务列表、交易记录或收入记录进入对应任务，再查看里程碑、金额、交付物和验收状态。
+            </p>
+            <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link to={isEnterprise ? '/enterprise/records' : '/talent/records'}>
+                <Button className="rounded-xl bg-slate-900 text-white hover:bg-slate-800">
+                  {isEnterprise ? '去交易记录选择任务' : '去收入记录选择任务'}
+                </Button>
+              </Link>
+              <Link to={isEnterprise ? '/enterprise' : '/talent/tasks'}>
+                <Button variant="outline" className="rounded-xl border-slate-200 bg-white">
+                  {isEnterprise ? '返回企业工作台' : '查看任务广场'}
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleSubmitProgress = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -213,9 +319,9 @@ export function ContractWorkspace() {
       uploadedFiles.push(uploaded);
     }
 
-    const milestoneNumber = Number.parseInt(String(currentNode?.milestoneId || ''), 10);
+    const milestoneNumber = Number.parseInt(String(progressTargetNode?.milestoneId || ''), 10);
     const response = await submitTaskProgress(taskId, {
-      stage: currentNode?.title || currentNode?.stageType || '协作进展同步',
+      stage: progressTargetNode?.title || progressTargetNode?.stageType || '协作进展同步',
       milestoneId: Number.isFinite(milestoneNumber) ? milestoneNumber : null,
       progressText: progressText.trim(),
       supportNeeded: supportNeeded.trim(),
@@ -233,9 +339,60 @@ export function ContractWorkspace() {
     setProgressText('');
     setSupportNeeded('');
     setProgressFiles([]);
+    setSelectedProgressNodeId('');
     const latest = await getWorkspaceData(taskId);
     setWorkspace(latest);
   };
+
+  async function refreshWorkspace() {
+    if (!taskId) return;
+    const latest = await getWorkspaceData(taskId);
+    setWorkspace(latest);
+  }
+
+  async function handleEarlyCompletion(action: 'request' | 'approve' | 'reject' | 'grade') {
+    if (!taskId) return;
+    setError('');
+    setLifecycleMessage('');
+    setIsSubmittingLifecycle(`early-${action}`);
+    const response = await submitEarlyCompletionAction(taskId, {
+      action,
+      note: earlyCompletionNote.trim(),
+      grade: earlyCompletionGrade
+    }) as any;
+    setIsSubmittingLifecycle('');
+    if (isMutationBlocked(response)) {
+      setError(response.requestError || response.actionMessage || response.nextStep || '提前完成处理失败，请稍后再试。');
+      return;
+    }
+    setLifecycleMessage(response.nextStep || '提前完成流程已同步。');
+    await refreshWorkspace();
+  }
+
+  async function handleCancellation(action: 'request' | 'approve' | 'reject') {
+    if (!taskId) return;
+    setError('');
+    setLifecycleMessage('');
+    setIsSubmittingLifecycle(`cancel-${action}`);
+    const response = await submitTaskCancellationAction(taskId, {
+      action,
+      reason: cancellationReason.trim()
+    }) as any;
+    setIsSubmittingLifecycle('');
+    if (isMutationBlocked(response)) {
+      setError(response.requestError || response.actionMessage || response.nextStep || '取消协作处理失败，请稍后再试。');
+      return;
+    }
+    setLifecycleMessage(response.nextStep || '取消协作流程已同步。');
+    await refreshWorkspace();
+  }
+
+  function selectProgressNode(node: WorkspaceNode) {
+    setSelectedProgressNodeId(node.id);
+    window.setTimeout(() => {
+      document.getElementById('talent-progress-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -244,20 +401,20 @@ export function ContractWorkspace() {
           <div className="flex items-center space-x-3 mb-2">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">合同工作区</h1>
             <Badge variant="success" className="px-2 py-0.5 rounded-md font-semibold tracking-wide">
-              {stringOf(summary.status, currentNode?.status, '等待同步')}
+              {workspaceStatusLabel}
             </Badge>
           </div>
           <p className="text-slate-500 font-medium">{title} <span className="mx-2 text-slate-300">|</span> 合作方：{partnerName}</p>
         </div>
         <div className="flex space-x-3">
-          <Link to={`${isEnterprise ? '/enterprise/chat' : '/talent/chat'}${baseQuery}`}>
+          <Link to={chatHref}>
             <Button variant="outline" className="rounded-xl border-slate-200 gap-2 shadow-sm font-semibold text-slate-700 bg-white hover:bg-slate-50">
               <MessageSquare className="w-4 h-4" /> 合同消息
             </Button>
           </Link>
-          <Link to={`${isEnterprise ? '/enterprise/acceptance' : '/talent/acceptance'}${baseQuery}`}>
+          <Link to={primaryActionHref}>
             <Button variant="primary" className="rounded-xl shadow-md gap-2 font-semibold bg-indigo-600 hover:bg-indigo-700 border-none">
-              {isEnterprise ? '去验收' : '查看验收状态'}
+              {primaryActionLabel}
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
@@ -294,6 +451,14 @@ export function ContractWorkspace() {
                 </div>
               </div>
               <div>
+                <p className="text-slate-500 font-medium mb-1">当前节点金额</p>
+                <p className="font-bold text-slate-900 text-lg">{currentNode?.amount || '待确认'}</p>
+              </div>
+              <div>
+                <p className="text-slate-500 font-medium mb-1">已完成累计</p>
+                <p className="font-bold text-emerald-700 text-lg">{formatAmount(completedAmount)}</p>
+              </div>
+              <div>
                 <p className="text-slate-500 font-medium mb-1">剩余时间</p>
                 <p className="font-bold text-amber-600 text-lg flex items-center"><Clock className="w-4 h-4 mr-1" /> {remainingTime}</p>
               </div>
@@ -318,7 +483,8 @@ export function ContractWorkspace() {
             <div className="absolute left-6 top-8 bottom-8 w-px bg-slate-200 z-0"></div>
 
             {milestones.map((node, idx) => {
-              const tone = nodeTone(node);
+              const tone = isTaskConfirmationPending && !node.isCompleted ? 'pending' : nodeTone(node);
+              const nodeStatusText = isTaskConfirmationPending && !node.isCompleted ? '待确认' : statusLabel(node, isEnterprise);
               return (
                 <motion.div
                   key={node.id}
@@ -347,12 +513,17 @@ export function ContractWorkspace() {
                           {node.title}
                         </h3>
                         <Badge variant={tone === 'completed' ? 'success' : tone === 'current' ? 'warning' : 'outline'} className="rounded-md">
-                          {statusLabel(node, isEnterprise)}
+                          {nodeStatusText}
                         </Badge>
                       </div>
 
                       <p className="text-sm text-slate-500 mb-4 font-medium flex items-center">
                         <Calendar className="w-3.5 h-3.5 mr-1" /> {node.plannedDate ? `计划日期: ${node.plannedDate}` : node.stageType}
+                        {(node.amount || node.payoutRatio) && (
+                          <span className="ml-3 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                            {node.amount || '金额待确认'}{node.payoutRatio ? ` · ${node.payoutRatio}` : ''}
+                          </span>
+                        )}
                       </p>
                       <p className="text-sm text-slate-700 leading-relaxed mb-5 bg-slate-50 p-3 rounded-lg border border-slate-100">
                         {node.summary}
@@ -383,6 +554,18 @@ export function ContractWorkspace() {
                             </div>
                           </div>
                         )}
+
+                        {!isEnterprise && !isTaskConfirmationPending && tone === 'current' && (
+                          <div className="mt-4 flex flex-col gap-2 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-indigo-900">在这个里程碑提交交付物</p>
+                              <p className="mt-1 text-xs text-indigo-700">提交后会挂到「{node.title}」，企业验收页和记录页会同步读取。</p>
+                            </div>
+                            <Button type="button" onClick={() => selectProgressNode(node)} className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">
+                              <Upload className="mr-2 h-4 w-4" /> 提交交付物
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -405,7 +588,7 @@ export function ContractWorkspace() {
           </h2>
           <Card className="bg-white shadow-sm border border-slate-200/60">
             <CardContent className="p-0">
-              <Link to={`${isEnterprise ? '/enterprise/chat' : '/talent/chat'}${baseQuery}`} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors flex items-center justify-between group">
+              <Link to={chatHref} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors flex items-center justify-between group">
                 <div className="flex items-center text-slate-700 font-medium">
                   <MessageSquare className="w-4 h-4 mr-3 text-slate-400 group-hover:text-indigo-500 transition-colors" />
                   进入合同消息
@@ -419,17 +602,157 @@ export function ContractWorkspace() {
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500" />
               </Link>
-              <Link to={`${isEnterprise ? '/enterprise/acceptance' : '/talent/acceptance'}${baseQuery}`} className="p-4 hover:bg-slate-50 cursor-pointer transition-colors flex items-center justify-between group">
+              <Link to={isTaskConfirmationPending ? chatHref : acceptanceHref} className="p-4 hover:bg-slate-50 cursor-pointer transition-colors flex items-center justify-between group">
                 <div className="flex items-center text-slate-700 font-medium">
-                  <AlertCircle className="w-4 h-4 mr-3 text-slate-400 group-hover:text-red-500 transition-colors" />
-                  查看验收状态
+                  <AlertCircle className="w-4 h-4 mr-3 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                  {isTaskConfirmationPending ? '查看任务确认单' : '查看验收状态'}
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500" />
-              </Link>
+	              </Link>
+	            </CardContent>
+	          </Card>
+
+          <Card className="bg-white shadow-sm border border-slate-200/60">
+            <CardContent className="p-6">
+              <h3 className="font-bold text-slate-900 mb-2 text-base">协作决策</h3>
+              <p className="text-sm text-slate-500 leading-relaxed mb-4">
+                提前完成和取消协作会写入同一条任务生命周期，并同步到通知、审批、记录和结算读模型。
+              </p>
+
+              {lifecycleMessage && (
+                <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+                  {lifecycleMessage}
+                </div>
+              )}
+
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-indigo-950">提前完成</p>
+                    <Badge variant="outline" className="rounded-md bg-white">{earlyStatus}</Badge>
+                  </div>
+                  <textarea
+                    value={earlyCompletionNote}
+                    disabled={Boolean(isSubmittingLifecycle)}
+                    onChange={(event) => setEarlyCompletionNote(event.target.value)}
+                    className="min-h-20 w-full resize-none rounded-xl border border-indigo-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 disabled:opacity-60"
+                    placeholder="补充提前完成、同意、驳回或评级说明..."
+                  />
+                  {earlyCompletion.aiReviewSummary && (
+                    <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-xs leading-5 text-indigo-800">{stringOf(earlyCompletion.aiReviewSummary)}</p>
+                  )}
+                  {canGradeEarlyCompletion && (
+                    <select
+                      value={earlyCompletionGrade}
+                      disabled={Boolean(isSubmittingLifecycle)}
+                      onChange={(event) => setEarlyCompletionGrade(event.target.value)}
+                      className="mt-3 h-10 w-full rounded-xl border border-indigo-100 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    >
+                      <option value="S">S 级 · 100% 结算</option>
+                      <option value="A">A 级 · 80% 结算</option>
+                      <option value="B">B 级 · 30% 结算</option>
+                    </select>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {canRequestEarlyCompletion && (
+                      <Button
+                        type="button"
+                        disabled={Boolean(isSubmittingLifecycle)}
+                        onClick={() => handleEarlyCompletion('request')}
+                        className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        <Zap className="mr-2 h-4 w-4" /> 申请提前完成
+                      </Button>
+                    )}
+                    {canTalentResolveEarlyCompletion && (
+                      <>
+                        <Button
+                          type="button"
+                          disabled={Boolean(isSubmittingLifecycle)}
+                          onClick={() => handleEarlyCompletion('approve')}
+                          className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" /> 同意提前完成
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={Boolean(isSubmittingLifecycle)}
+                          onClick={() => handleEarlyCompletion('reject')}
+                          className="rounded-xl border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+                        >
+                          <XCircle className="mr-2 h-4 w-4" /> 继续执行
+                        </Button>
+                      </>
+                    )}
+                    {canGradeEarlyCompletion && (
+                      <Button
+                        type="button"
+                        disabled={Boolean(isSubmittingLifecycle)}
+                        onClick={() => handleEarlyCompletion('grade')}
+                        className="rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="mr-2 h-4 w-4" /> 提交最终评级
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-rose-950">取消协作</p>
+                    <Badge variant="outline" className="rounded-md bg-white">{cancellationStatus}</Badge>
+                  </div>
+                  <textarea
+                    value={cancellationReason}
+                    disabled={Boolean(isSubmittingLifecycle)}
+                    onChange={(event) => setCancellationReason(event.target.value)}
+                    className="min-h-20 w-full resize-none rounded-xl border border-rose-100 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 disabled:opacity-60"
+                    placeholder="说明取消、同意或拒绝取消的原因..."
+                  />
+                  {cancellationRequest.reason && (
+                    <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-xs leading-5 text-rose-800">对方说明：{stringOf(cancellationRequest.reason)}</p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {canRequestCancellation && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={Boolean(isSubmittingLifecycle)}
+                        onClick={() => handleCancellation('request')}
+                        className="rounded-xl border-rose-200 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        <XCircle className="mr-2 h-4 w-4" /> 发起取消申请
+                      </Button>
+                    )}
+                    {canResolveCancellation && (
+                      <>
+                        <Button
+                          type="button"
+                          disabled={Boolean(isSubmittingLifecycle)}
+                          onClick={() => handleCancellation('approve')}
+                          className="rounded-xl bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
+                        >
+                          同意取消
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={Boolean(isSubmittingLifecycle)}
+                          onClick={() => handleCancellation('reject')}
+                          className="rounded-xl border-slate-200 bg-white text-slate-700 disabled:opacity-50"
+                        >
+                          拒绝取消
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-sm border border-slate-200/60 mt-6">
+	          <Card className="bg-white shadow-sm border border-slate-200/60 mt-6">
             <CardContent className="p-6">
               <h3 className="font-bold text-slate-900 mb-4 text-base">当前节点</h3>
               <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4 mb-5">
@@ -449,14 +772,14 @@ export function ContractWorkspace() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-sm border border-slate-200/60">
+          <Card id="talent-progress-form" className="bg-white shadow-sm border border-slate-200/60">
             <CardContent className="p-6">
-              <h3 className="font-bold text-slate-900 mb-2 text-base">提交当前节点进展</h3>
+              <h3 className="font-bold text-slate-900 mb-2 text-base">提交里程碑交付物</h3>
               <p className="text-sm text-slate-500 leading-relaxed mb-4">
                 {isEnterprise
                   ? '企业端在这里查看人才提交后的进展与附件；提交操作由人才端完成。'
                   : canSubmitProgress
-                    ? '进展会写入后端，并同步到企业端工作区、验收和记录。'
+                    ? `当前提交到「${progressTargetNode?.title || '当前节点'}」，进展会同步到企业端工作区、验收和记录。`
                     : '待开始或已完成节点不能继续提交进展。'}
               </p>
 
@@ -468,6 +791,10 @@ export function ContractWorkspace() {
 
               {!isEnterprise && (
                 <form onSubmit={handleSubmitProgress} className="space-y-4">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    <span className="font-semibold text-slate-800">目标里程碑：</span>
+                    {progressTargetNode?.title || '等待同步'}
+                  </div>
                   <textarea
                     value={progressText}
                     disabled={!canSubmitProgress || isSubmittingProgress}

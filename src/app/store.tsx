@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import {
   AuthAudience,
   AuthLoginPayload,
@@ -52,6 +52,10 @@ export interface Task {
   actionType?: string;
   nextRoute?: string;
   roomKey?: string;
+  match?: string;
+  matchLabel?: string;
+  matchNote?: string;
+  matchScore?: number;
   deliverables?: string[];
   raw?: Record<string, any>;
 }
@@ -93,7 +97,14 @@ interface AppState {
   registerAccount: (payload: AuthRegisterPayload) => Promise<AuthSuccessResult>;
   logout: () => Promise<void>;
   refreshDashboardData: () => Promise<void>;
-  refreshTasks: () => Promise<void>;
+  refreshTasks: (query?: TaskMarketplaceQuery) => Promise<void>;
+}
+
+interface TaskMarketplaceQuery {
+  keyword?: string;
+  category?: string;
+  page?: number;
+  size?: number;
 }
 
 const StoreContext = createContext<AppState | undefined>(undefined);
@@ -224,6 +235,10 @@ function normalizeTask(raw: any, index = 0): Task {
     actionType,
     nextRoute: stringOf(action?.nextRoute, raw?.nextRoute),
     roomKey: stringOf(action?.roomKey, raw?.roomKey, raw?.room),
+    match: stringOf(raw?.match),
+    matchLabel: stringOf(raw?.matchLabel),
+    matchNote: stringOf(raw?.matchNote),
+    matchScore: numberOf(raw?.matchScore),
     deliverables: Array.isArray(raw?.deliverables) ? raw.deliverables.map((item: unknown) => String(item)).filter(Boolean) : [],
     raw
   };
@@ -310,6 +325,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [dashboardData, setDashboardData] = useState<Record<string, any> | null>(null);
   const [authError, setAuthError] = useState("");
   const [dataError, setDataError] = useState("");
+  const dataRequestSeq = useRef(0);
 
   const login = useCallback((user: User, session?: { token?: string; expiresAt?: string }) => {
     setCurrentUser(user);
@@ -319,21 +335,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const refreshTasks = useCallback(async () => {
-    const payload = await getTaskMarketplaceData();
-    if (payload.requestError) {
-      setDataError(payload.requestError);
-      setTasks([]);
-      return;
-    }
+  const refreshTasks = useCallback(async (query: TaskMarketplaceQuery = {}) => {
+    const requestId = dataRequestSeq.current + 1;
+    dataRequestSeq.current = requestId;
+    setIsLoadingData(true);
+    setTasks([]);
+    try {
+      const payload = await getTaskMarketplaceData(query);
+      if (dataRequestSeq.current !== requestId) {
+        return;
+      }
+      if (payload.requestError) {
+        setDataError(payload.requestError);
+        setTasks([]);
+        return;
+      }
 
-    setTasks(extractTaskItems(payload).map(normalizeTask));
-    setDashboardData((current) => ({ ...(current || {}), taskMarketplace: payload }));
-    setDataError("");
-    setDataMode("real");
+      setTasks(extractTaskItems(payload).map(normalizeTask));
+      setDashboardData((current) => ({ ...(current || {}), taskMarketplace: payload }));
+      setDataError("");
+      setDataMode("real");
+    } finally {
+      if (dataRequestSeq.current === requestId) {
+        setIsLoadingData(false);
+      }
+    }
   }, []);
 
   const refreshDashboardData = useCallback(async () => {
+    const requestId = dataRequestSeq.current + 1;
+    dataRequestSeq.current = requestId;
     setIsLoadingData(true);
     try {
       const user = currentUser;
@@ -344,6 +375,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       const audience = user.role === "TALENT" ? "talent" : "enterprise";
       const payload = audience === "talent" ? await getTalentData() : await getBusinessData();
+      if (dataRequestSeq.current !== requestId) {
+        return;
+      }
       if (payload.requestError) {
         setDataError(payload.requestError);
         setTasks([]);
@@ -360,7 +394,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setDataError("");
       setDataMode("real");
     } finally {
-      setIsLoadingData(false);
+      if (dataRequestSeq.current === requestId) {
+        setIsLoadingData(false);
+      }
     }
   }, [currentUser, refreshTasks]);
 

@@ -9,6 +9,7 @@ import {
   recordRecruitingInterviewOutcome,
   sendRecruitingInterviewInvite
 } from '../services/api';
+import { isKnownInterviewTimeInPast, PAST_INTERVIEW_TIME_MESSAGE } from '../utils/interviewTime';
 import { resolveRecruitingSuccessRoute } from './enterpriseRecruitingRoute';
 
 interface RecruitingApplicant {
@@ -43,6 +44,14 @@ const tabDefs = [
   { id: 'rejected', label: '已关闭' },
   { id: 'all', label: '全部申请' }
 ];
+
+const inviteListButtonClass =
+  'border-indigo-100 bg-indigo-50 text-indigo-700 shadow-none hover:border-indigo-200 hover:bg-indigo-100 hover:text-indigo-800';
+const inviteSubmitButtonClass = 'bg-slate-900 text-white shadow-sm hover:bg-slate-800';
+const confirmCooperationButtonClass =
+  'border-emerald-100 bg-emerald-50 text-emerald-700 shadow-none hover:border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800';
+const workspaceButtonClass =
+  'border-slate-200 bg-slate-50 text-slate-700 shadow-none hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900';
 
 function stringOf(...values: unknown[]) {
   for (const value of values) {
@@ -184,6 +193,10 @@ export function EnterpriseRecruiting() {
       setError('先填写面试时间。');
       return;
     }
+    if (isKnownInterviewTimeInPast(inviteDraft.interviewAt)) {
+      setError(PAST_INTERVIEW_TIME_MESSAGE);
+      return;
+    }
     if (!inviteDraft.meetingCode.trim()) {
       setError('先填写腾讯会议号。');
       return;
@@ -217,52 +230,6 @@ export function EnterpriseRecruiting() {
       talentUserId: applicant.talentUserId,
       outcome: 'PASS_CONFIRM'
     }));
-  };
-
-  const buildChatRoute = (applicant: RecruitingApplicant, nextRoomKey: string) =>
-    `/enterprise/chat?taskId=${encodeURIComponent(applicant.taskId || taskId)}&room=${encodeURIComponent(nextRoomKey)}&roomKey=${encodeURIComponent(nextRoomKey)}`;
-
-  const handleContinue = async (applicant: RecruitingApplicant) => {
-    if (applicant.roomKey) {
-      navigate(buildChatRoute(applicant, applicant.roomKey));
-      return;
-    }
-
-    if (applicant.status !== 'INTERVIEW_ACCEPTED') {
-      setError('对方还没有确认面试，暂时不能进入继续沟通。');
-      return;
-    }
-
-    setIsMutating(`continue-${applicant.id}`);
-    setError('');
-    setMessage('');
-    const response = await recordRecruitingInterviewOutcome({
-      taskId: applicant.taskId || taskId,
-      talentUserId: applicant.talentUserId,
-      outcome: 'CONTINUE'
-    });
-
-    if (response?.requestError || response?.status === 'FAILED') {
-      setError(response.requestError || response.nextStep || '当前暂时无法打开继续沟通。');
-      setIsMutating('');
-      return;
-    }
-
-    const nextRoomKey = stringOf(response?.roomKey);
-    const nextRoute = stringOf(response?.nextRoute);
-    setMessage(response?.nextStep || '继续沟通房间已打开。');
-    setIsMutating('');
-    await loadRecruitingData();
-
-    if (nextRoute) {
-      navigate(nextRoute);
-      return;
-    }
-    if (nextRoomKey) {
-      navigate(buildChatRoute(applicant, nextRoomKey));
-      return;
-    }
-    setError('继续沟通已开启，但房间信息还没同步回来，请刷新后重试。');
   };
 
   const title = workspace?.task?.title || '招聘申请处理';
@@ -376,11 +343,11 @@ export function EnterpriseRecruiting() {
                           <XCircle className="w-4 h-4 mr-1"/> 拒绝
                         </Button>
                         <Button
-                          variant="primary"
+                          variant="outline"
                           size="sm"
                           disabled={mutating || !applicant.talentUserId}
                           onClick={() => handleInvite(applicant)}
-                          className="bg-indigo-600 hover:bg-indigo-700"
+                          className={inviteListButtonClass}
                         >
                           <MessageSquare className="w-4 h-4 mr-1"/> 邀约面试
                         </Button>
@@ -389,22 +356,13 @@ export function EnterpriseRecruiting() {
 
                     {group === 'interviewing' && (
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={mutating || (!applicant.roomKey && applicant.status !== 'INTERVIEW_ACCEPTED')}
-                          onClick={() => handleContinue(applicant)}
-                          className="text-slate-600"
-                        >
-                          <MessageSquare className="w-4 h-4 mr-1"/> 继续沟通
-                        </Button>
                         {applicant.status === 'INTERVIEW_ACCEPTED' && (
                           <Button
-                            variant="primary"
+                            variant="outline"
                             size="sm"
                             disabled={mutating || !applicant.talentUserId}
                             onClick={() => handleConfirm(applicant)}
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className={confirmCooperationButtonClass}
                           >
                             <CheckCircle className="w-4 h-4 mr-1"/> 确认合作
                           </Button>
@@ -414,7 +372,7 @@ export function EnterpriseRecruiting() {
 
                     {group === 'hired' && (
                       <Link to={`/enterprise/workspace?taskId=${encodeURIComponent(applicant.taskId || taskId)}`}>
-                        <Button variant="primary" size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                        <Button variant="outline" size="sm" className={workspaceButtonClass}>
                           <CheckCircle className="w-4 h-4 mr-1"/> 进入工作区
                         </Button>
                       </Link>
@@ -463,7 +421,7 @@ export function EnterpriseRecruiting() {
                 <input
                   value={inviteDraft.interviewAt}
                   onChange={(event) => setInviteDraft((prev) => ({ ...prev, interviewAt: event.target.value }))}
-                  placeholder="例如：2026-04-25 14:00"
+                  placeholder="例如：明天 14:00 或 2026-04-27 14:00"
                   className="h-12 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                 />
               </label>
@@ -492,7 +450,7 @@ export function EnterpriseRecruiting() {
               <Button
                 disabled={isMutating === `invite-${inviteApplicant.id}`}
                 onClick={submitInvite}
-                className="bg-indigo-600 hover:bg-indigo-700"
+                className={inviteSubmitButtonClass}
               >
                 {isMutating === `invite-${inviteApplicant.id}` ? '发送中...' : '发送邀约'}
               </Button>

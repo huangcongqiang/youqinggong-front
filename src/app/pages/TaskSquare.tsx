@@ -24,10 +24,15 @@ export function TaskSquare() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTaskId = searchParams.get('taskId') || '';
+  const taskSearchKeyword = searchQuery.trim();
+  const taskCategoryPreference = activeCategory === '全部' ? '' : activeCategory;
 
   useEffect(() => {
-    refreshTasks();
-  }, [refreshTasks]);
+    const timer = window.setTimeout(() => {
+      refreshTasks({ keyword: taskSearchKeyword, category: taskCategoryPreference, size: 60 });
+    }, taskSearchKeyword ? 250 : 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshTasks, taskSearchKeyword, taskCategoryPreference]);
 
   useEffect(() => {
     if (!selectedTaskId || !tasks.length) {
@@ -59,10 +64,9 @@ export function TaskSquare() {
         task.title.toLowerCase().includes(normalizedQuery) ||
         task.description.toLowerCase().includes(normalizedQuery) ||
         task.skills.some((skill) => skill.toLowerCase().includes(normalizedQuery));
-      const categoryMatched = activeCategory === '全部' || task.skills.some((skill) => skill.includes(activeCategory));
-      return task.status !== 'CLOSED' && textMatched && categoryMatched;
+      return task.status !== 'CLOSED' && textMatched;
     });
-  }, [activeCategory, searchQuery, tasks]);
+  }, [searchQuery, tasks]);
 
   const recommendedCount = tasks.filter((task) => task.status !== 'CLOSED').length;
 
@@ -123,7 +127,7 @@ export function TaskSquare() {
     setApplyMessage('');
 
     const response = await requestTaskCollaboration(selectedTask.id, {
-      source: 'react-demo',
+      source: 'frontend',
       note: '人才端任务广场发起合作申请'
     }) as {
       requestError?: string;
@@ -156,7 +160,7 @@ export function TaskSquare() {
 
     setApplySuccess(false);
     setSelectedTask(null);
-    refreshTasks();
+    refreshTasks({ keyword: searchQuery.trim(), category: taskCategoryPreference, size: 60 });
   };
 
   const handleInterviewDecision = async (decision: 'ACCEPT' | 'REJECT') => {
@@ -188,7 +192,7 @@ export function TaskSquare() {
     }
 
     setApplyMessage(response.nextStep || response.message || '面试邀约状态已更新。');
-    await refreshTasks();
+    await refreshTasks({ keyword: searchQuery.trim(), category: taskCategoryPreference, size: 60 });
   };
 
   return (
@@ -257,7 +261,7 @@ export function TaskSquare() {
         </div>
         
         <Button variant="outline" className="rounded-full bg-white text-slate-600 border-slate-200 hover:bg-slate-50">
-          <Filter className="w-4 h-4 mr-2" /> 更多筛选
+          <Filter className="w-4 h-4 mr-2" /> 按匹配度排序
         </Button>
       </div>
 
@@ -292,9 +296,16 @@ export function TaskSquare() {
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out" />
               
               <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center space-x-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-medium">
-                  <Zap className="w-3 h-3 fill-indigo-600" />
-                  <span>{task.statusLabel || '可查看'}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center space-x-2 bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-xs font-medium">
+                    <Zap className="w-3 h-3 fill-indigo-600" />
+                    <span>{task.statusLabel || '可查看'}</span>
+                  </div>
+                  {task.match && (
+                    <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      {task.matchLabel || '匹配'} {task.match}
+                    </div>
+                  )}
                 </div>
                 <div className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
                   {task.budget}
@@ -378,6 +389,12 @@ export function TaskSquare() {
                 <div className="text-3xl font-bold text-indigo-600 mb-6">{selectedTask.budget}</div>
                 
                 <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-600">
+                  {selectedTask.match && (
+                    <div className="flex items-center space-x-1.5 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-emerald-100 text-emerald-700">
+                      <Sparkles className="w-4 h-4 text-emerald-500" />
+                      <span>{selectedTask.matchLabel || '匹配'}: {selectedTask.match}</span>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-1.5 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-slate-100">
                     <Clock className="w-4 h-4 text-indigo-500" />
                     <span>周期: {selectedTask.cycle}</span>
@@ -435,12 +452,12 @@ export function TaskSquare() {
                   </div>
                 )}
 
-                {(selectedTask.actionNote || applyError || applyMessage) && (
+                {(selectedTask.matchNote || selectedTask.actionNote || applyError || applyMessage) && (
                   <div className={cn(
                     "rounded-2xl px-4 py-3 text-sm leading-relaxed",
                     applyError ? "bg-red-50 text-red-700 border border-red-100" : "bg-indigo-50 text-indigo-700 border border-indigo-100"
                   )}>
-                    {applyError || applyMessage || selectedTask.actionNote}
+                    {applyError || applyMessage || selectedTask.actionNote || selectedTask.matchNote}
                   </div>
                 )}
 

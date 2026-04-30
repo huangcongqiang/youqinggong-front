@@ -20,6 +20,19 @@ export interface NormalizedFinanceSection {
   status: string;
   amount: string;
   note: string;
+  claimId: string;
+  invoiceId: string;
+  reconciliationId: string;
+  settlementId: string;
+  disputeId: string;
+  availableActions: NormalizedFinanceAction[];
+}
+
+export interface NormalizedFinanceAction {
+  key: string;
+  label: string;
+  action: string;
+  tone: string;
 }
 
 export function asArray<T = any>(value: unknown): T[] {
@@ -78,13 +91,13 @@ export function moneyLabel(value: unknown, fallback = "待确认") {
 
 export function statusTone(value: unknown) {
   const text = stringOf(value);
-  if (/已完成|已结算|已归档|COMPLETED|DONE|ACCEPTED/i.test(text)) {
+  if (/已完成|已结算|已归档|已批准|已开票|已完成对账|COMPLETED|SETTLED|DONE|ACCEPTED|APPROVED|ISSUED|RECONCILED/i.test(text)) {
     return "success";
   }
   if (/待验收|待支付|待处理|待企业|PENDING|WAITING/i.test(text)) {
     return "warning";
   }
-  if (/拒绝|失败|异常|取消|FAILED|REJECT|FROZEN/i.test(text)) {
+  if (/拒绝|失败|异常|取消|争议|异议|FAILED|REJECT|FROZEN|DISPUT/i.test(text)) {
     return "danger";
   }
   return "neutral";
@@ -182,7 +195,18 @@ export function normalizeFinanceSections(record: any): NormalizedFinanceSection[
       label,
       status: stringOf(summary?.status, "未发起"),
       amount: moneyLabel(summary?.amount || summary?.amountValue, ""),
-      note: stringOf(summary?.nextStep, summary?.decisionNote, summary?.note, summary?.summary)
+      note: stringOf(summary?.nextStep, summary?.decisionNote, summary?.note, summary?.summary),
+      claimId: stringOf(summary?.claimId),
+      invoiceId: stringOf(summary?.invoiceId),
+      reconciliationId: stringOf(summary?.reconciliationId),
+      settlementId: stringOf(summary?.settlementId),
+      disputeId: stringOf(summary?.disputeId),
+      availableActions: asArray(summary?.availableActions).map((action: any, actionIndex) => ({
+        key: stringOf(action?.key, `finance-action-${actionIndex}`),
+        label: stringOf(action?.label, "处理"),
+        action: stringOf(action?.action),
+        tone: stringOf(action?.tone)
+      }))
     };
   });
 }

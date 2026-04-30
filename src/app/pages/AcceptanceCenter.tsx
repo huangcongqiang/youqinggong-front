@@ -106,9 +106,6 @@ export function AcceptanceCenter() {
       if (payload.requestError) {
         setError(payload.requestError);
       }
-      if (!selectedTaskId && cards.length) {
-        setSelectedTaskId(cards[0].taskId);
-      }
       setIsLoadingList(false);
     }
 
@@ -154,7 +151,7 @@ export function AcceptanceCenter() {
     };
   }, [selectedTaskId]);
 
-  const selectedCard = taskCards.find((card) => card.taskId === selectedTaskId) || taskCards[0];
+  const selectedCard = taskCards.find((card) => card.taskId === selectedTaskId);
   const summary = closure?.summary || workspace?.summary || recordDetail?.summary || {};
   const record = recordDetail?.record || {};
   const acceptance = closure?.acceptance || record?.acceptance || {};
@@ -253,7 +250,7 @@ export function AcceptanceCenter() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold text-slate-900 tracking-tight mb-2">验收与评级中心</h1>
-          <p className="text-slate-500">直接读取合作工作区、交付附件和关闭链路数据，验收后写入评级与结算流程。</p>
+          <p className="text-slate-500">先选择合作任务，再查看交付附件、验收意见、评级与结算流程。</p>
         </div>
         {selectedTaskId && (
           <Link to={`/enterprise/chat?taskId=${encodeURIComponent(selectedTaskId)}&roomKey=${encodeURIComponent(roomKey)}`}>
@@ -291,7 +288,7 @@ export function AcceptanceCenter() {
             <motion.div whileHover={{ y: -2 }} key={task.taskId}>
               <Card
                 className={`cursor-pointer transition-all ${
-                  selectedTaskId === task.taskId ? "border-emerald-500 shadow-md ring-1 ring-emerald-500" : "border-slate-200 hover:border-emerald-300"
+                  selectedTaskId === task.taskId ? "border-indigo-500 shadow-md ring-1 ring-indigo-500" : "border-slate-200 hover:border-indigo-300"
                 }`}
                 onClick={() => setSelectedTaskId(task.taskId)}
               >
@@ -321,7 +318,7 @@ export function AcceptanceCenter() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
               <Card className="border-slate-200 shadow-sm overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="p-8 border-b border-slate-100 bg-gradient-to-br from-emerald-50/70 via-white to-slate-50">
+                  <div className="p-8 border-b border-slate-100 bg-gradient-to-br from-indigo-50/70 via-white to-slate-50">
                     <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
                       <div>
                         <Badge variant="outline" className={badgeClass(taskStatus)}>
@@ -368,7 +365,7 @@ export function AcceptanceCenter() {
                       <textarea
                         value={acceptanceNote}
                         onChange={(event) => setAcceptanceNote(event.target.value)}
-                        className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                        className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                         rows={4}
                         placeholder="写下本次验收结论..."
                       />
@@ -385,7 +382,7 @@ export function AcceptanceCenter() {
                               onClick={() => setRating(level.grade)}
                               className={`w-full rounded-2xl border-2 p-4 flex flex-col items-center text-center transition-all ${
                                 rating === level.grade
-                                  ? `border-emerald-500 shadow-md ring-4 ring-emerald-100 ${level.color}`
+                                  ? `shadow-md ring-4 ring-indigo-100 ${level.color}`
                                   : "border-slate-100 hover:border-slate-300 bg-white"
                               }`}
                             >
@@ -400,7 +397,7 @@ export function AcceptanceCenter() {
                       <textarea
                         value={reviewContent}
                         onChange={(event) => setReviewContent(event.target.value)}
-                        className="mt-4 w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                        className="mt-4 w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-700 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                         rows={3}
                         placeholder="补充评价内容..."
                       />
@@ -446,7 +443,7 @@ export function AcceptanceCenter() {
                       <Button
                         disabled={!rating || (!canAccept && !canGrade) || isSubmitting}
                         onClick={handleSubmit}
-                        className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white min-w-[160px]"
+                        className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white min-w-[160px]"
                       >
                         {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
                         {canAccept || canGrade ? "确认验收并评级" : "当前不可验收"}

@@ -154,18 +154,46 @@ export function getTalentData() {
   });
 }
 
-export function getTaskMarketplaceData() {
-  return readJson("/tasks/marketplace", {
+export function getTaskMarketplaceData(params: { page?: number; size?: number; keyword?: string; category?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", String(params.page));
+  if (params.size) query.set("size", String(params.size));
+  if (params.keyword?.trim()) query.set("keyword", params.keyword.trim());
+  if (params.category?.trim()) query.set("category", params.category.trim());
+  const suffix = query.toString();
+  return readJson(`/tasks/marketplace${suffix ? `?${suffix}` : ""}`, {
     items: [],
     tasks: [],
-    categories: []
+    categories: [],
+    pagination: {
+      page: 1,
+      pageSize: params.size || 24,
+      total: 0,
+      totalPages: 0,
+      hasPrevious: false,
+      hasNext: false
+    }
   });
 }
 
-export function getTalentMarketplaceData() {
-  return readJson("/talents/marketplace", {
+export function getTalentMarketplaceData(params: { page?: number; size?: number; keyword?: string; filter?: string } = {}) {
+  const query = new URLSearchParams();
+  if (params.page) query.set("page", String(params.page));
+  if (params.size) query.set("size", String(params.size));
+  if (params.keyword?.trim()) query.set("keyword", params.keyword.trim());
+  if (params.filter?.trim()) query.set("filter", params.filter.trim());
+  const suffix = query.toString();
+  return readJson(`/talents/marketplace${suffix ? `?${suffix}` : ""}`, {
     items: [],
-    talents: []
+    talents: [],
+    pagination: {
+      page: 1,
+      pageSize: params.size || 8,
+      total: 0,
+      totalPages: 0,
+      hasPrevious: false,
+      hasNext: false
+    }
   });
 }
 
@@ -226,6 +254,15 @@ export function getAiPublishPresets() {
     presets: [],
     templates: [],
     suggestions: []
+  });
+}
+
+export function getTagCatalog() {
+  return readJson("/tags/catalog", {
+    skills: [],
+    businessTags: [],
+    deliverableTags: [],
+    customTags: []
   });
 }
 
@@ -330,6 +367,10 @@ export function submitEarlyCompletionAction(taskId: string, payload: unknown) {
   return writeJson(`/tasks/${encodeURIComponent(taskId)}/early-completion`, { taskId, status: "FAILED" }, payload);
 }
 
+export function submitTaskCancellationAction(taskId: string, payload: unknown) {
+  return writeJson(`/tasks/${encodeURIComponent(taskId)}/cancellation`, { taskId, status: "FAILED" }, payload);
+}
+
 export function getTaskRooms() {
   return readJson("/messages/task-rooms", {
     summary: {
@@ -347,6 +388,47 @@ export function getTaskRoom(roomKey: string) {
     roomKey,
     taskRoom: null,
     messages: []
+  });
+}
+
+export interface TencentImRoomMember {
+  userId?: number | string;
+  platformUserId?: number | string;
+  account?: string;
+  imUserId?: string;
+  role?: string;
+  displayName?: string;
+  audience?: string;
+  isCurrentUser?: boolean;
+}
+
+export interface TencentImRoomConfig {
+  sdkAppId: number | string;
+  userId: string;
+  userSig: string;
+  groupId: string;
+  roomKey: string;
+  provider: string;
+  enabled?: boolean;
+  status?: string;
+  realtimeDisabledReason?: string;
+  taskId?: string;
+  roomTitle?: string;
+  members?: TencentImRoomMember[];
+  currentUser?: TencentImRoomMember;
+  counterpartUser?: TencentImRoomMember;
+  requestError?: string;
+}
+
+export async function getTencentImConfig(roomKey: string): Promise<TencentImRoomConfig & ApiFailure> {
+  return readJson(`/im/tencent/config?roomKey=${encodeURIComponent(roomKey)}`, {
+    sdkAppId: "",
+    userId: "",
+    userSig: "",
+    groupId: "",
+    roomKey,
+    provider: "TENCENT_IM",
+    members: []
   });
 }
 
@@ -398,6 +480,10 @@ export function submitReview(taskId: string, payload: unknown) {
 
 export function publishTask(payload: unknown) {
   return writeJson("/tasks/publish", { success: false, taskId: "", nextStep: "当前暂时无法发布任务。" }, payload);
+}
+
+export function updateTaskContent(taskId: string, payload: unknown) {
+  return writeJson(`/tasks/${encodeURIComponent(taskId)}/content`, { taskId, status: "FAILED" }, payload);
 }
 
 export function confirmTaskAnalysis(taskId: string, payload: unknown) {

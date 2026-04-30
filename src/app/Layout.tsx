@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { Outlet, NavLink, useNavigate, Navigate, Link } from "react-router";
+import { Outlet, NavLink, useNavigate, Navigate, Link, useLocation } from "react-router";
 import { useStore } from "./store";
 import { 
-  LayoutDashboard, FileText, Briefcase, MessageSquare, 
+  LayoutDashboard, FileText, MessageSquare, 
   CheckCircle, FileSearch, Wallet, Bell, Search, LogOut, FileCheck,
   ChevronLeft, ChevronRight
 } from "lucide-react";
@@ -15,7 +15,6 @@ const getMenu = (role: 'ENTERPRISE' | 'TALENT') => {
       { path: "/enterprise", label: "工作台", icon: LayoutDashboard },
       { path: "/enterprise/publish", label: "发布任务", icon: FileText },
       { path: "/enterprise/talents", label: "寻找人才", icon: Search },
-      { path: "/enterprise/workspace", label: "合同协作", icon: Briefcase },
       { path: "/enterprise/chat", label: "合同消息", icon: MessageSquare },
       { path: "/enterprise/acceptance", label: "验收", icon: CheckCircle },
       { path: "/enterprise/approvals", label: "审批中心", icon: FileCheck },
@@ -27,7 +26,6 @@ const getMenu = (role: 'ENTERPRISE' | 'TALENT') => {
   return [
     { path: "/talent", label: "工作台", icon: LayoutDashboard },
     { path: "/talent/tasks", label: "任务广场", icon: Search },
-    { path: "/talent/workspace", label: "我的协作", icon: Briefcase },
     { path: "/talent/chat", label: "消息", icon: MessageSquare },
     { path: "/talent/acceptance", label: "交付与验收", icon: CheckCircle },
     { path: "/talent/records", label: "收入记录", icon: FileSearch },
@@ -38,7 +36,10 @@ const getMenu = (role: 'ENTERPRISE' | 'TALENT') => {
 export function AuthLayout() {
   const { currentUser, logout, isBootstrapping } = useStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeKey = `${location.pathname}${location.search}`;
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   if (isBootstrapping) {
     return (
@@ -54,6 +55,19 @@ export function AuthLayout() {
 
   const menu = getMenu(currentUser.role === 'BOTH' ? 'ENTERPRISE' : currentUser.role);
   const currentAudience = currentUser.role === 'TALENT' ? 'talent' : 'enterprise';
+  const submitGlobalSearch = (rawKeyword: string) => {
+    const keyword = rawKeyword.trim();
+    if (!keyword) {
+      return;
+    }
+    const query = new URLSearchParams({ keyword }).toString();
+    navigate(currentAudience === 'enterprise' ? `/enterprise/talents?${query}` : `/talent/tasks?${query}`);
+  };
+  const handleGlobalSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    submitGlobalSearch(String(formData.get("globalSearch") || globalSearch));
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex h-screen overflow-hidden">
@@ -83,14 +97,25 @@ export function AuthLayout() {
               <Search className="w-5 h-5" />
             </button>
           ) : (
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <form className="relative w-full" onSubmit={handleGlobalSearch}>
+              <button type="submit" className="absolute left-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-indigo-600" aria-label="搜索">
+                <Search className="w-4 h-4" />
+              </button>
               <input 
                 type="text" 
+                name="globalSearch"
                 placeholder="搜索任务、人才、合同..." 
+                value={globalSearch}
+                onChange={(event) => setGlobalSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    submitGlobalSearch(event.currentTarget.value);
+                  }
+                }}
                 className="w-full bg-slate-100/50 border border-slate-200/50 rounded-lg py-2 pl-9 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none"
               />
-            </div>
+            </form>
           )}
         </div>
 
@@ -209,7 +234,7 @@ export function AuthLayout() {
         <div className="flex-1 overflow-y-auto bg-slate-50">
           <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8 min-h-full">
             <AnimatePresence mode="wait">
-              <Outlet />
+              <Outlet key={routeKey} />
             </AnimatePresence>
           </div>
         </div>

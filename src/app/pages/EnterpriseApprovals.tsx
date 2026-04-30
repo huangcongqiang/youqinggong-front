@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { FileCheck, XCircle, CheckCircle, Search, UserCheck, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router';
 import { getEnterpriseApprovalsData, submitEnterpriseApprovalAction } from '../services/api';
 import { asArray, isMutationFailed, mutationMessage, stringOf } from '../services/workflowFormatters';
 import { EmptyState, ErrorState, LoadingState } from '../components/AsyncState';
@@ -23,6 +24,33 @@ function normalizeApproval(item: any) {
     related: asArray<any>(item?.related || item?.highlights),
     actions: asArray<any>(item?.decisionActions)
   };
+}
+
+function buildApprovalLink(item: any) {
+  const query = new URLSearchParams();
+  if (item.taskId) query.set('taskId', item.taskId);
+  if (item.roomKey) query.set('roomKey', item.roomKey);
+  if (item.id) {
+    query.set('approvalId', item.id);
+    query.set('itemId', item.id);
+  }
+  if (item.type) query.set('group', item.type);
+  query.set('source', 'approvals');
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+
+  if (item.type === 'matching') {
+    return `/enterprise/recruiting${suffix}`;
+  }
+  if (/review|acceptance/.test(item.type)) {
+    return `/enterprise/acceptance${suffix}`;
+  }
+  if (item.roomKey || /confirmation|change|cancellation/.test(item.type)) {
+    return `/enterprise/chat${suffix}`;
+  }
+  if (item.taskId) {
+    return `/enterprise/workspace${suffix}`;
+  }
+  return '/enterprise';
 }
 
 export function EnterpriseApprovals() {
@@ -92,7 +120,7 @@ export function EnterpriseApprovals() {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索项目、任务或提交人..."
-              className="w-64 rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              className="w-64 rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
             />
           </div>
         </div>
@@ -111,7 +139,7 @@ export function EnterpriseApprovals() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`border-b-2 pb-3 text-sm font-medium transition-colors ${
-              activeTab === tab.id ? 'border-emerald-700 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+              activeTab === tab.id ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
             {tab.label}
@@ -128,9 +156,9 @@ export function EnterpriseApprovals() {
           {filteredApprovals.map((item) => {
             const canDirectApprove = item.actions.some((action: any) => /APPROVE/i.test(stringOf(action?.action, action?.key)));
             const canDirectReject = item.actions.some((action: any) => /REJECT/i.test(stringOf(action?.action, action?.key)));
-            const iconClass = item.type === 'matching' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600';
+            const iconClass = item.type === 'matching' ? 'bg-indigo-50 text-indigo-700' : 'bg-violet-50 text-violet-700';
             return (
-              <Card key={item.id} className="transition-colors hover:border-emerald-100">
+              <Card key={item.id} className="transition-colors hover:border-indigo-100">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-6">
                     <div className="flex gap-4">
@@ -139,7 +167,7 @@ export function EnterpriseApprovals() {
                       </div>
                       <div>
                         <div className="mb-1 flex items-center gap-2">
-                          <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
                             {item.typeLabel}
                           </span>
                           <h3 className="text-lg font-bold text-slate-900">{item.title}</h3>
@@ -178,16 +206,16 @@ export function EnterpriseApprovals() {
                               size="sm"
                               onClick={() => handleAction(item, 'APPROVE')}
                               disabled={actingId === `${item.id}-APPROVE`}
-                              className="bg-emerald-700 hover:bg-emerald-800"
+                              className="bg-indigo-600 hover:bg-indigo-700"
                             >
                               <CheckCircle className="mr-1 h-4 w-4" /> 同意
                             </Button>
                           )}
                         </div>
                       ) : (
-                        <span className="flex items-center rounded-full bg-amber-50 px-3 py-1 text-sm font-medium text-amber-700">
+                        <Link to={buildApprovalLink(item)} className="flex items-center rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 transition-colors hover:bg-indigo-100 hover:text-indigo-800">
                           <AlertCircle className="mr-1 h-4 w-4" /> 去任务内处理
-                        </span>
+                        </Link>
                       )}
                     </div>
                   </div>

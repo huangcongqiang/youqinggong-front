@@ -56,7 +56,7 @@ export function EnterpriseBilling() {
             <Filter className="h-4 w-4" /> 历史对账单
           </Button>
           <Link to="/enterprise/records">
-            <Button className="gap-2 bg-emerald-700 hover:bg-emerald-800">进入记录处理</Button>
+            <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700">进入记录处理</Button>
           </Link>
         </div>
       </div>
@@ -68,19 +68,19 @@ export function EnterpriseBilling() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <Card className="relative overflow-hidden border-emerald-700 shadow-sm shadow-emerald-700/10 lg:col-span-2">
+            <Card className="relative overflow-hidden border-indigo-200 shadow-sm shadow-indigo-100/50 lg:col-span-2">
               <div className="absolute right-0 top-0 p-6 opacity-10">
-                <CreditCard className="h-48 w-48 -translate-y-10 translate-x-10 transform text-emerald-700" />
+                <CreditCard className="h-48 w-48 -translate-y-10 translate-x-10 transform text-indigo-700" />
               </div>
               <CardContent className="flex flex-col items-center justify-between gap-6 p-8 md:flex-row">
                 <div className="flex-1">
                   <div className="mb-2 flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-emerald-700" />
+                    <ShieldCheck className="h-5 w-5 text-indigo-700" />
                     <h2 className="text-lg font-bold text-slate-900">{stringOf(summary?.title, '支出中心')}</h2>
                   </div>
                   <p className="mb-6 text-sm text-slate-500">全部金额来自后端财务汇总，跟随请款、开票、对账和结算实时变化。</p>
                   <div className="flex items-end gap-3">
-                    <span className="text-4xl font-bold tracking-tight text-emerald-700">{moneyLabel(summary?.pendingPayable, '￥0')}</span>
+                    <span className="text-4xl font-bold tracking-tight text-indigo-700">{moneyLabel(summary?.pendingPayable, '￥0')}</span>
                     <span className="mb-1.5 text-sm text-slate-400">待支付/待处理</span>
                   </div>
                 </div>
@@ -95,7 +95,7 @@ export function EnterpriseBilling() {
                     <span className="font-bold text-slate-900">{moneyLabel(summary?.disputedAmount, '￥0')}</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-slate-200">
-                    <div className="h-2 rounded-full bg-emerald-600" style={{ width: expenses.length ? '68%' : '0%' }} />
+                    <div className="h-2 rounded-full bg-indigo-600" style={{ width: expenses.length ? '68%' : '0%' }} />
                   </div>
                 </div>
               </CardContent>
@@ -103,12 +103,12 @@ export function EnterpriseBilling() {
 
             <Card className="border-slate-200 shadow-sm">
               <CardContent className="flex h-full flex-col justify-center p-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
                   <FileText className="h-6 w-6" />
                 </div>
                 <h3 className="mb-2 text-lg font-bold text-slate-900">发票与对账</h3>
                 <p className="mb-6 text-sm leading-relaxed text-slate-500">发票、对账、结算的实际动作都在合作记录/结算页中完成。</p>
-                <Link to="/enterprise/records" className="flex w-full items-center justify-center gap-1 py-2 text-sm font-medium text-emerald-700 hover:text-emerald-800">
+                <Link to="/enterprise/records" className="flex w-full items-center justify-center gap-1 py-2 text-sm font-medium text-indigo-700 hover:text-indigo-800">
                   查看财务记录 <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </CardContent>
@@ -117,7 +117,7 @@ export function EnterpriseBilling() {
 
           <Card className="overflow-hidden border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 p-6">
-              <Calendar className="h-5 w-5 text-emerald-700" />
+              <Calendar className="h-5 w-5 text-indigo-700" />
               <h2 className="text-lg font-bold text-slate-900">近期财务动作</h2>
             </div>
 
@@ -130,7 +130,7 @@ export function EnterpriseBilling() {
                 {expenses.map((bill) => (
                   <div key={bill.id} className="flex flex-col justify-between gap-4 p-6 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
                         <FileText className="h-6 w-6" />
                       </div>
                       <div>

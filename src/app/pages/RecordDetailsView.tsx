@@ -4,6 +4,7 @@ import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { AttachmentButton } from "../components/AttachmentButton";
+import { FinanceActionPanel } from "../components/FinanceActionPanel";
 import { ArrowLeft, Bot, CheckCircle, Clock, Download, FileText, Loader2, MessageSquare, Paperclip, Wallet } from "lucide-react";
 import { getOrderRecordDetail } from "../services/api";
 import {
@@ -34,6 +35,7 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
   const [payload, setPayload] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!taskId) {
@@ -57,7 +59,7 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
     return () => {
       cancelled = true;
     };
-  }, [audience, taskId]);
+  }, [audience, taskId, refreshKey]);
 
   const record = payload?.record || {};
   const summary = payload?.summary || {};
@@ -72,6 +74,28 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
   const aiReviewItems = asArray(record?.aiReviewHistory || record?.sections?.aiReviewHistory);
   const financeSections = normalizeFinanceSections(record);
   const tags = asArray(record?.tags || record?.sections?.taskTags).map((tag) => String(tag));
+  const isEnterprise = audience === "enterprise";
+  const accent = isEnterprise
+    ? {
+        tag: "border-indigo-100 bg-indigo-50 text-indigo-700",
+        hero: "bg-gradient-to-br from-indigo-50 via-white to-slate-50",
+        icon: "text-indigo-500",
+        note: "bg-indigo-50 text-indigo-800",
+        aiCard: "bg-gradient-to-br from-indigo-50 to-violet-50 border-indigo-100",
+        aiTitle: "text-indigo-900",
+        aiText: "text-indigo-900/80",
+        loader: "text-indigo-600"
+      }
+    : {
+        tag: "border-emerald-100 bg-emerald-50 text-emerald-700",
+        hero: "bg-gradient-to-br from-emerald-50 via-white to-slate-50",
+        icon: "text-emerald-500",
+        note: "bg-emerald-50 text-emerald-800",
+        aiCard: "bg-gradient-to-br from-emerald-50 to-lime-50 border-emerald-100",
+        aiTitle: "text-emerald-900",
+        aiText: "text-emerald-900/80",
+        loader: "text-emerald-600"
+      };
 
   const attachments = useMemo(
     () =>
@@ -102,7 +126,7 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {tags.slice(0, 5).map((tag) => (
-              <span key={tag} className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-sm text-emerald-700">
+              <span key={tag} className={`rounded-full border px-3 py-1 text-sm ${accent.tag}`}>
                 {tag}
               </span>
             ))}
@@ -127,13 +151,13 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
 
       {isLoading ? (
         <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center text-slate-500">
-          <Loader2 className="w-5 h-5 mx-auto mb-3 animate-spin" /> 正在读取真实记录...
+          <Loader2 className={`w-5 h-5 mx-auto mb-3 animate-spin ${accent.loader}`} /> 正在读取真实记录...
         </div>
       ) : (
         <div className="grid lg:grid-cols-[1fr_360px] gap-6">
           <div className="space-y-6">
             <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">
-              <div className="bg-gradient-to-br from-emerald-50 via-white to-slate-50 p-6 border-b border-slate-100">
+              <div className={`${accent.hero} p-6 border-b border-slate-100`}>
                 <div className="grid sm:grid-cols-3 gap-4">
                   <div>
                     <p className="text-sm text-slate-500">合作金额</p>
@@ -159,7 +183,7 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-emerald-500" /> 合作时间线
+                  <Clock className={`w-5 h-5 ${accent.icon}`} /> 合作时间线
                 </h3>
                 {timeline.length ? (
                   <div className="space-y-6">
@@ -204,7 +228,7 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
                         </div>
                         <p className="text-sm text-slate-700 leading-relaxed">{stringOf(item?.summary, item?.description, item?.content, "已提交进展。")}</p>
                         {item?.aiReviewSummary && (
-                          <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{item.aiReviewSummary}</p>
+                          <p className={`mt-3 rounded-xl px-4 py-3 text-sm ${accent.note}`}>{item.aiReviewSummary}</p>
                         )}
                       </div>
                     ))}
@@ -218,14 +242,14 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
             </Card>
 
             {aiReviewItems.length > 0 && (
-              <Card className="bg-gradient-to-br from-emerald-50 to-lime-50 border-emerald-100">
+              <Card className={accent.aiCard}>
                 <CardContent className="p-6">
-                  <h3 className="text-sm font-bold text-emerald-900 mb-3 flex items-center gap-2">
+                  <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${accent.aiTitle}`}>
                     <Bot className="w-4 h-4" /> AI 合作摘要
                   </h3>
                   <div className="space-y-3">
                     {aiReviewItems.slice(0, 3).map((item: any, index) => (
-                      <p key={stringOf(item?.time, index)} className="text-sm text-emerald-900/80 leading-relaxed">
+                      <p key={stringOf(item?.time, index)} className={`text-sm leading-relaxed ${accent.aiText}`}>
                         {stringOf(item?.summary, item?.note, item?.title)}
                       </p>
                     ))}
@@ -276,6 +300,13 @@ export function RecordDetailsView({ audience }: { audience: Audience }) {
                         <span className="text-sm font-semibold text-slate-800">{section.status}</span>
                       </div>
                       <p className="mt-3 text-sm text-slate-500 leading-relaxed">{section.note || "等待流程推进。"}</p>
+                      <FinanceActionPanel
+                        audience={audience}
+                        taskId={taskId}
+                        section={section}
+                        sections={financeSections}
+                        onCompleted={() => setRefreshKey((value) => value + 1)}
+                      />
                     </div>
                   ))}
                 </div>

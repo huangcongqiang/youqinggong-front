@@ -4,7 +4,7 @@ import { AlertCircle, Inbox, Loader2 } from "lucide-react";
 export function LoadingState({ text = "正在同步真实数据..." }: { text?: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-6 py-10 text-center text-sm text-slate-500">
-      <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-emerald-600" />
+      <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-indigo-600" />
       {text}
     </div>
   );
