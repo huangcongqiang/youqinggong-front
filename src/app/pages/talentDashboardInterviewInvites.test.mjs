@@ -20,3 +20,14 @@ assert(
     && talentDashboardSource.includes('已拒绝本次面试邀约'),
   'TalentDashboard should let talent reject each pending interview invite from the dashboard.'
 );
+
+assert(
+  talentDashboardSource.includes('closedProgressStatuses')
+    && talentDashboardSource.includes("'COMPLETED'")
+    && talentDashboardSource.includes("'SETTLED'")
+    && talentDashboardSource.includes("'ACCEPTED'")
+    && talentDashboardSource.includes('isClosedProgressItem')
+    && talentDashboardSource.includes('activeNotificationItems')
+    && talentDashboardSource.includes('filter((item) => !isClosedProgressItem(item))'),
+  'TalentDashboard should keep completed or settled tasks out of the active collaboration and progress lists.'
+);

@@ -240,6 +240,9 @@ export function Register() {
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700">手机号码</label>
                     <Input 
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
                       placeholder="请输入11位手机号" 
                       value={formData.phone}
                       onChange={e => setFormData({...formData, phone: e.target.value})}
@@ -252,6 +255,8 @@ export function Register() {
                     <label className="text-sm font-medium text-slate-700">验证码</label>
                     <div className="flex space-x-3">
                       <Input 
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
                         placeholder="请输入验证码" 
                         value={formData.code}
                         onChange={e => setFormData({...formData, code: e.target.value})}
@@ -268,6 +273,7 @@ export function Register() {
                     <label className="text-sm font-medium text-slate-700">登录密码</label>
                     <Input
                       type="password"
+                      autoComplete="new-password"
                       placeholder="至少 6 位，用于真实账号登录"
                       value={formData.password}
                       onChange={e => setFormData({...formData, password: e.target.value})}
@@ -278,6 +284,7 @@ export function Register() {
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700">真实姓名 / 昵称</label>
                     <Input 
+                      autoComplete="name"
                       placeholder={role === 'ENTERPRISE' ? '请输入联系人姓名' : '请输入您的姓名'}
                       value={formData.name}
                       onChange={e => setFormData({...formData, name: e.target.value})}
@@ -293,6 +300,7 @@ export function Register() {
                     >
                       <label className="text-sm font-medium text-slate-700">企业名称</label>
                       <Input 
+                        autoComplete="organization"
                         placeholder="请输入完整企业名称"
                         value={formData.companyName}
                         onChange={e => setFormData({...formData, companyName: e.target.value})}

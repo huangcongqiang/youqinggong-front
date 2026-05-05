@@ -168,29 +168,30 @@ export function Home() {
 
   return (
     <div className="min-h-screen bg-white overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
-      <nav className="fixed top-0 inset-x-0 h-16 bg-white/80 backdrop-blur-md z-50 border-b border-slate-100 flex items-center justify-between px-8">
+      <nav className="fixed top-0 inset-x-0 box-border h-16 bg-white/80 backdrop-blur-md z-50 border-b border-slate-100 flex items-center justify-between px-4 sm:px-8">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
             <Zap className="w-4 h-4 text-white" />
           </div>
           <span className="text-xl font-bold tracking-tight text-slate-900">有轻功</span>
         </div>
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-3 sm:space-x-6">
           <Link to="/auth" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">登录</Link>
-          <Link to="/register">
+          <Link to="/register" data-home-register-link className="hidden sm:block">
             <Button size="sm" className="rounded-full bg-indigo-600 text-white shadow-md shadow-indigo-500/20 hover:bg-indigo-700">免费注册</Button>
           </Link>
         </div>
       </nav>
 
-      <section className="pt-32 pb-20 px-4 flex flex-col items-center text-center relative max-w-5xl mx-auto">
+      <section data-home-hero className="box-border w-full max-w-full pt-32 pb-20 px-4 flex flex-col items-center text-center relative sm:max-w-5xl sm:mx-auto">
         <div className="absolute inset-0 -z-10 h-[600px] w-full bg-[radial-gradient(100%_100%_at_top_center,rgba(99,102,241,0.08),transparent)]" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center space-x-2 bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-8 border border-indigo-100/50"
+          data-home-hero-fit
+          className="inline-flex max-w-[calc(100vw-2rem)] items-center space-x-2 bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-semibold mb-8 border border-indigo-100/50"
         >
           <span className="flex h-2 w-2 relative">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
@@ -200,19 +201,23 @@ export function Home() {
         </motion.div>
 
         <motion.h1
-          className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6"
+          data-home-hero-title
+          data-home-hero-fit
+          className="w-full min-w-0 max-w-[calc(100vw-2rem)] sm:max-w-full text-3xl sm:text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.15] mb-6 break-words [overflow-wrap:anywhere]"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          不再为找外包发愁 <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-            用有轻功，连接全球顶尖人才
+          <span className="block">不再为找外包发愁</span>
+          <span className="block text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+            <span className="block sm:inline">用有轻功，</span>
+            <span className="block sm:inline">连接全球顶尖人才</span>
           </span>
         </motion.h1>
 
         <motion.p
-          className="text-lg text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed"
+          data-home-hero-fit
+          className="w-full min-w-0 text-base sm:text-lg text-slate-500 max-w-[calc(100vw-2rem)] sm:max-w-2xl mx-auto mb-10 leading-relaxed break-words [overflow-wrap:anywhere]"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -221,7 +226,9 @@ export function Home() {
         </motion.p>
 
         <motion.div
-          className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center max-w-md mx-auto"
+          data-home-hero-fit
+          data-home-hero-actions
+          className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center max-w-[calc(100vw-2rem)] sm:max-w-md mx-auto"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
@@ -240,16 +247,16 @@ export function Home() {
         </motion.div>
       </section>
 
-      <section className="py-24 bg-slate-50 border-t border-slate-100">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
-            <div>
+      <section className="w-full py-24 bg-slate-50 border-t border-slate-100 overflow-hidden">
+        <div className="w-full max-w-6xl mx-auto px-6 min-w-0">
+          <div className="flex min-w-0 flex-col md:flex-row md:items-end justify-between mb-12">
+            <div className="min-w-0">
               <div className="flex items-center space-x-2 text-indigo-600 font-semibold mb-3">
                 <Award className="w-5 h-5" />
                 <span>严选数字人才</span>
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-4">连接前 1% 的顶尖自由职业者</h2>
-              <p className="text-slate-500 max-w-2xl text-lg">
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4 break-words [overflow-wrap:anywhere]">连接前 1% 的顶尖自由职业者</h2>
+              <p className="text-slate-500 max-w-2xl text-base sm:text-lg break-words [overflow-wrap:anywhere]">
                 所有人才卡片均来自服务端人才广场，展示当前可被企业查看、邀请和继续沟通的真实人才资料。
               </p>
             </div>
@@ -330,11 +337,11 @@ export function Home() {
         </div>
       </section>
 
-      <section className="py-24 bg-white relative">
-        <div className="max-w-6xl mx-auto px-6">
+      <section className="w-full py-24 bg-white relative overflow-hidden">
+        <div className="w-full max-w-6xl mx-auto px-6 min-w-0">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">见证成功业务落地</h2>
-            <p className="text-slate-500 max-w-2xl mx-auto text-lg">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4 break-words [overflow-wrap:anywhere]">见证成功业务落地</h2>
+            <p className="text-slate-500 max-w-2xl mx-auto text-base sm:text-lg break-words [overflow-wrap:anywhere]">
               从灵感迸发到产品上线，有轻功平台助力企业完成高质量的敏捷协作与交付。
             </p>
           </div>
@@ -406,11 +413,11 @@ export function Home() {
         </div>
       </section>
 
-      <section className="py-24 bg-slate-50">
-        <div className="max-w-6xl mx-auto px-6">
+      <section className="w-full py-24 bg-slate-50 overflow-hidden">
+        <div className="w-full max-w-6xl mx-auto px-6 min-w-0">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">重新定义企业雇佣</h2>
-            <p className="text-slate-500">打破信息差，通过真实业务状态同步，建立 100% 互信的合作环境</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4 break-words [overflow-wrap:anywhere]">重新定义企业雇佣</h2>
+            <p className="text-slate-500 break-words [overflow-wrap:anywhere]">打破信息差，通过真实业务状态同步，建立 100% 互信的合作环境</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">

@@ -21,6 +21,10 @@ const talentNotificationsSource = read('TalentNotifications.tsx');
 const enterpriseContractsSource = read('EnterpriseContracts.tsx');
 const contractChatSource = read('ContractChat.tsx');
 const interviewTimeSource = read('../utils/interviewTime.ts');
+const earlyCompletionRequestGuard = workspaceSource.slice(
+  workspaceSource.indexOf('const canRequestEarlyCompletion'),
+  workspaceSource.indexOf('const canTalentResolveEarlyCompletion')
+);
 
 assert(
   recruitingSource.includes('role="dialog"')
@@ -83,7 +87,19 @@ assert(
 );
 
 assert(
+  taskPublishSource.includes('createAlipayTaskPublishPayment')
+    && taskPublishSource.includes('getAlipayOrder')
+    && taskPublishSource.includes('真实支付宝预付款')
+    && taskPublishSource.includes('YOUQINGGONG_ALIPAY_RETURN')
+    && taskPublishSource.includes('支付并发布任务')
+    && !taskPublishSource.includes('confirmTaskAnalysis'),
+  'TaskPublish final step should require a real Alipay prepayment before the task is formally published.'
+);
+
+assert(
   routesSource.includes('{ path: "publish", element: <TaskPublish /> }')
+    && routesSource.includes('path: "/task/publish"')
+    && routesSource.includes('<Navigate to="/enterprise/publish" replace />')
     && layoutSource.includes('useLocation')
     && layoutSource.includes('const location = useLocation()')
     && layoutSource.includes('const routeKey = `${location.pathname}${location.search}`')
@@ -94,8 +110,10 @@ assert(
 assert(
   routesSource.includes('{ path: "records", element: <FinanceRecords /> }')
     && routesSource.includes('{ path: "settlement", element: <EnterpriseSettlement /> }')
-    && routesSource.includes('{ path: "billing", element: <EnterpriseBilling /> }'),
-  'Enterprise records, settlement, and billing routes should remain first-class deep-linkable pages.'
+    && routesSource.includes('{ path: "billing", element: <EnterpriseBilling /> }')
+    && routesSource.includes('{ path: "invoices", element: <InvoiceManagement audience="enterprise" /> }')
+    && routesSource.includes('{ path: "invoices", element: <InvoiceManagement audience="talent" /> }'),
+  'Records, settlement, billing, and invoice routes should remain first-class deep-linkable pages.'
 );
 
 assert(
@@ -103,6 +121,15 @@ assert(
     && workspaceSource.includes('已完成累计')
     && workspaceSource.includes('payoutRatio'),
   'ContractWorkspace should show current milestone amount, ratio, and accumulated completed amount.'
+);
+
+assert(
+  earlyCompletionRequestGuard.includes('isEnterprise')
+    && earlyCompletionRequestGuard.includes('Boolean(taskId)')
+    && !earlyCompletionRequestGuard.includes('!isTaskConfirmationPending')
+    && workspaceSource.includes("onClick={() => handleEarlyCompletion('request')}")
+    && workspaceSource.includes('申请提前完成'),
+  'Enterprise workspace should keep the early-completion submit button visible for task-scoped collaboration decisions.'
 );
 
 assert(

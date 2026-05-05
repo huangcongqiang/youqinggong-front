@@ -139,7 +139,7 @@ export function TalentSearch() {
 
       <ErrorState text={error} />
 
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex flex-wrap gap-2 pb-2">
         {filters.map((filter) => {
           const key = filter === '为您推荐' ? 'all' : filter;
           const active = activeFilter === key;
@@ -174,7 +174,7 @@ export function TalentSearch() {
               >
                 <Card className="group relative overflow-hidden border-none bg-white shadow-md transition-all duration-300 hover:shadow-xl">
                   {Number(talent.rating) >= 4.8 && (
-                    <div className="absolute -right-12 top-6 rotate-45 bg-gradient-to-r from-amber-400 to-amber-500 px-12 py-1 text-xs font-bold text-white shadow-sm">
+                    <div className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-1 text-xs font-bold text-white shadow-sm">
                       高评分
                     </div>
                   )}

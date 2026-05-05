@@ -247,7 +247,6 @@ export function ContractWorkspace() {
   const cancellationInitiator = stringOf(cancellationRequest.initiatorAudience).toLowerCase();
   const canRequestEarlyCompletion = isEnterprise
     && Boolean(taskId)
-    && !isTaskConfirmationPending
     && !/待人才同意提前完成|待企业评级|已完成评级/i.test(earlyStatus)
     && !/待对方确认取消|已取消/i.test(cancellationStatus);
   const canTalentResolveEarlyCompletion = !isEnterprise && earlyStatus === '待人才同意提前完成';

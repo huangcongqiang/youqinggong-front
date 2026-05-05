@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { User, Star, CheckCircle, ArrowRight, UploadCloud, Briefcase, Award, AlertCircle, X } from 'lucide-react';
+import { User, Star, CheckCircle, ArrowRight, UploadCloud, Briefcase, Award, AlertCircle, X, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
-import { getTagCatalog, submitTalentOnboarding, uploadStandaloneAttachmentAsset } from '../services/api';
+import { getTagCatalog, parseResumeFile, parseResumeText, submitTalentOnboarding, uploadStandaloneAttachmentAsset } from '../services/api';
 import { isMutationFailed, mutationMessage, stringOf } from '../services/workflowFormatters';
 import { mergeTags, normalizeCatalog, toggleTag, type TagCatalog } from '../services/tagCatalog';
 
@@ -53,6 +53,51 @@ function TagChoiceGroup({
   );
 }
 
+function resolveResumeDayRate(result: any) {
+  const low = Number(result?.priceLow || result?.price_low || 0);
+  const high = Number(result?.priceHigh || result?.price_high || 0);
+  if (low > 0 && high > 0) return String(Math.round((low + high) / 2));
+  if (high > 0) return String(high);
+  return low > 0 ? String(low) : '';
+}
+
+function resolveResumeTokens(result: any) {
+  return `${result?.title || ''},${result?.fields || ''},${result?.tools || ''}`
+    .split(/[，,、/|｜;\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function mapResumeTokenToSkill(token: string, catalogSkills: string[]) {
+  if (catalogSkills.includes(token)) return token;
+  const lower = token.toLowerCase();
+  if (/ui|ux|figma|视觉|交互|设计/.test(lower)) return catalogSkills.includes('UI / UX 设计') ? 'UI / UX 设计' : '';
+  if (/全栈|程序|开发|java|spring|node|python/.test(lower)) return catalogSkills.includes('全栈开发') ? '全栈开发' : '';
+  if (/前端|vue|react|h5/.test(lower)) return catalogSkills.includes('前端开发') ? '前端开发' : '';
+  if (/后端|api|数据库|spring/.test(lower)) return catalogSkills.includes('后端开发') ? '后端开发' : '';
+  if (/产品|需求|原型|prd/.test(lower)) return catalogSkills.includes('AI 产品设计') ? 'AI 产品设计' : '';
+  if (/agent|自动化|工作流|cursor|copilot|deepseek|chatgpt|claude/.test(lower)) return catalogSkills.includes('AI Agent 工作流') ? 'AI Agent 工作流' : '';
+  if (/内容|文案|运营|品牌/.test(lower)) return catalogSkills.includes('内容创作') ? '内容创作' : '';
+  return '';
+}
+
+function resolveResumeSkills(result: any, catalogSkills: string[]) {
+  const resolved: string[] = [];
+  resolveResumeTokens(result).forEach((token) => {
+    const skill = mapResumeTokenToSkill(token, catalogSkills);
+    if (skill && !resolved.includes(skill)) resolved.push(skill);
+  });
+  return resolved.slice(0, 6);
+}
+
+function resolveResumeCustomTags(result: any, catalogSkills: string[]) {
+  const mappedSkills = new Set(resolveResumeSkills(result, catalogSkills));
+  return resolveResumeTokens(result)
+    .filter((token) => !mappedSkills.has(token))
+    .filter((token) => token.length >= 2)
+    .slice(0, 4);
+}
+
 export function TalentOnboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -71,6 +116,10 @@ export function TalentOnboarding() {
   });
   const [tagCatalog, setTagCatalog] = useState<TagCatalog>(() => normalizeCatalog({}));
   const [files, setFiles] = useState<File[]>([]);
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeText, setResumeText] = useState('');
+  const [resumeParsing, setResumeParsing] = useState(false);
+  const [resumeParsedSummary, setResumeParsedSummary] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -111,6 +160,37 @@ export function TalentOnboarding() {
   const portfolioUrlsForSubmit = () => {
     const pendingInput = form.portfolioInput.trim();
     return Array.from(new Set([...form.portfolioUrls, pendingInput].map((item) => item.trim()).filter(Boolean)));
+  };
+
+  const parseResumeAndFill = async () => {
+    if (resumeParsing) return;
+    if (!resumeFile && !resumeText.trim()) {
+      setError('请先上传简历文件或粘贴简历正文。');
+      return;
+    }
+    setResumeParsing(true);
+    setError('');
+    const result = resumeFile ? await parseResumeFile(resumeFile) : await parseResumeText(resumeText);
+    setResumeParsing(false);
+    if ((result as any).requestError) {
+      setError((result as any).requestError || '简历解析失败，请换一份简历或改为粘贴文本。');
+      return;
+    }
+    setForm((prev) => {
+      const mappedSkills = resolveResumeSkills(result, tagCatalog.skills);
+      const mappedCustomTags = resolveResumeCustomTags(result, tagCatalog.skills);
+      return {
+        ...prev,
+        displayName: stringOf(result.name, prev.displayName),
+        headline: stringOf(result.title, prev.headline),
+        introduction: stringOf(result.bio, prev.introduction),
+        dayRate: resolveResumeDayRate(result) || prev.dayRate,
+        skills: mappedSkills.length ? mappedSkills : prev.skills,
+        customTags: Array.from(new Set([...prev.customTags, ...mappedCustomTags])).slice(0, 6),
+        portfolioInput: prev.portfolioInput || [result.fields ? `擅长领域：${result.fields}` : '', result.tools ? `常用 AI 工具：${result.tools}` : ''].filter(Boolean).join('\n')
+      };
+    });
+    setResumeParsedSummary(stringOf(result.title, result.fields, '已解析并回填简历资料'));
   };
 
   const handleSubmit = async () => {
@@ -187,16 +267,16 @@ export function TalentOnboarding() {
           <p className="mt-2 text-slate-500">资料会提交到 Spring 后端人才入驻接口，附件走真实上传。</p>
         </div>
 
-        <div className="mb-12 overflow-x-auto pb-4">
-          <div className="relative flex min-w-[520px] items-center justify-between">
+        <div className="mb-12 pb-4">
+          <div className="relative grid grid-cols-4 items-start gap-2">
             <div className="absolute left-0 top-1/2 -z-10 h-0.5 w-full -translate-y-1/2 bg-slate-200" />
             <div className="absolute left-0 top-1/2 -z-10 h-0.5 -translate-y-1/2 bg-emerald-600 transition-all duration-500" style={{ width: `${((step - 1) / 3) * 100}%` }} />
             {steps.map((item) => (
-              <div key={item.id} className="flex flex-col items-center">
+              <div key={item.id} className="flex min-w-0 flex-col items-center text-center">
                 <div className={`flex h-10 w-10 items-center justify-center rounded-full border-4 font-semibold transition-colors ${step >= item.id ? 'border-emerald-100 bg-emerald-600 text-white' : 'border-slate-100 bg-white text-slate-400'}`}>
                   <item.icon className="h-4 w-4" />
                 </div>
-                <span className={`mt-2 text-xs font-medium ${step >= item.id ? 'text-emerald-900' : 'text-slate-400'}`}>{item.title}</span>
+                <span className={`mt-2 break-words text-xs font-medium ${step >= item.id ? 'text-emerald-900' : 'text-slate-400'}`}>{item.title}</span>
               </div>
             ))}
           </div>
@@ -215,6 +295,28 @@ export function TalentOnboarding() {
               {step === 1 && (
                 <div className="space-y-6">
                   <h2 className="mb-6 text-xl font-bold text-slate-900">基本资料</h2>
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
+                    <div className="mb-4 flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-emerald-950">AI 简历解析</h3>
+                        <p className="mt-1 text-sm text-emerald-800">上传 PDF/DOCX/TXT，或粘贴简历正文，解析后会回填名称、头衔、简介、技能和报价。</p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                      <label className="flex min-h-11 cursor-pointer items-center justify-between rounded-lg border border-emerald-200 bg-white px-3 text-sm text-slate-600">
+                        <span className="truncate">{resumeFile ? resumeFile.name : '选择 PDF / DOCX / TXT 简历'}</span>
+                        <input type="file" accept=".pdf,.docx,.txt,.md,.markdown" className="hidden" onChange={(event) => setResumeFile(event.target.files?.[0] || null)} />
+                      </label>
+                      <Button type="button" onClick={parseResumeAndFill} disabled={resumeParsing} className="border-transparent bg-emerald-700 hover:bg-emerald-800">
+                        {resumeParsing ? '解析中...' : '解析并回填'}
+                      </Button>
+                    </div>
+                    <textarea value={resumeText} onChange={(event) => setResumeText(event.target.value)} className="mt-3 h-28 w-full rounded-lg border border-emerald-200 bg-white p-3 text-sm outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" placeholder="也可以直接粘贴简历正文..." />
+                    {resumeParsedSummary && <p className="mt-3 rounded-lg bg-white px-3 py-2 text-sm font-medium text-emerald-800">{resumeParsedSummary}</p>}
+                  </div>
                   <div className="grid gap-6 md:grid-cols-2">
                     <div>
                       <label className="mb-1 block text-sm font-medium text-slate-700">展示名称</label>

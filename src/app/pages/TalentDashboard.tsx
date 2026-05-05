@@ -35,6 +35,20 @@ function isPendingInterviewItem(item: any) {
   return !closed && /talent-interview-|interview_pending|待确认面试|面试邀约/.test(content);
 }
 
+const closedProgressStatuses = new Set(['CLOSED', 'SETTLED', 'COMPLETED', 'ACCEPTED', 'DONE', 'CANCELLED', 'AUTO_CLOSED', 'REJECTED']);
+const closedProgressStatusTextPattern = /已完成|已结算|已取消|已关闭|已验收|已提前完成|已完成待评分/;
+
+function isClosedProgressItem(item: any) {
+  const statusText = [
+    stringOf(item?.statusCode, item?.taskStatus, item?.state),
+    stringOf(item?.status, item?.statusLabel, item?.applicationStatus),
+    stringOf(item?.acceptanceStatus, item?.settlementStatus, item?.cancellationStatus)
+  ].join(' ').trim();
+  const normalized = statusText.toUpperCase();
+  return Array.from(closedProgressStatuses).some((status) => normalized.split(/\s+/).includes(status))
+    || closedProgressStatusTextPattern.test(statusText);
+}
+
 export function TalentDashboard() {
   const { currentUser, applications, tasks, dashboardData, dataError, isLoadingData, refreshDashboardData } = useStore();
   const [inviteError, setInviteError] = useState('');
@@ -44,13 +58,14 @@ export function TalentDashboard() {
   const overview = dashboardData?.overview || {};
   const hero = dashboardData?.hero || {};
   const notificationItems = asArray<any>(dashboardData?.notificationItems);
-  const dashboardActiveTasks = asArray<any>(dashboardData?.activeTasks);
+  const dashboardActiveTasks = asArray<any>(dashboardData?.activeTasks).filter((item) => !isClosedProgressItem(item));
   const marketplaceTasks = asArray<any>(dashboardData?.marketplace);
   const currentRating = stringOf(overview.rating, currentUser?.rating, hero.score) || '暂无';
   const currentRatingNote = stringOf(overview.ratingNote, hero.score ? '已根据最新合作评分更新。' : '', '评分会在验收后沉淀到这里');
 
-  const activeApplications = notificationItems.length
-    ? notificationItems.map((item, index) => {
+  const activeNotificationItems = notificationItems.filter((item) => !isClosedProgressItem(item));
+  const activeApplications = activeNotificationItems.length
+    ? activeNotificationItems.map((item, index) => {
         const highlights = asArray<any>(item?.highlights);
         const budget = highlights.find((entry) => /预算/.test(stringOf(entry?.label)))?.value;
         const period = highlights.find((entry) => /工期/.test(stringOf(entry?.label)))?.value;
@@ -72,7 +87,7 @@ export function TalentDashboard() {
         };
       })
     : applications
-        .filter((item) => !item.talentId || item.talentId === currentUser?.id)
+        .filter((item) => (!item.talentId || item.talentId === currentUser?.id) && !isClosedProgressItem(item))
         .map((item) => {
           const task = tasks.find((taskItem) => taskItem.id === item.taskId);
           const pendingInterview = item.status === 'INTERVIEW';
@@ -100,7 +115,7 @@ export function TalentDashboard() {
         skills: asArray<any>(item?.tags).map((tag) => String(tag)),
         nextRoute: stringOf(item?.taskId) ? `/talent/tasks/${encodeURIComponent(String(item.taskId))}` : '/talent/tasks'
       }))
-    : tasks.filter(task => task.status !== 'CLOSED').slice(0, 3);
+    : tasks.filter(task => !isClosedProgressItem(task)).slice(0, 3);
 
   const activeCollaborationsCount = dashboardActiveTasks.length || activeApplications.length;
   const pendingInterviewInvites = notificationItems
@@ -244,10 +259,10 @@ export function TalentDashboard() {
         variants={containerVars}
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        <motion.div variants={itemVars}>
-          <Card className="border-none shadow-sm bg-gradient-to-br from-indigo-50 to-white overflow-hidden relative">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4 mb-4">
+        <motion.div variants={itemVars} className="h-full">
+          <Card className="h-full border-none shadow-sm bg-gradient-to-br from-indigo-50 to-white overflow-hidden relative">
+            <CardContent className="flex h-full min-h-[168px] flex-col justify-between p-6">
+              <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600">
                   <DollarSign className="w-6 h-6" />
                 </div>
@@ -256,17 +271,22 @@ export function TalentDashboard() {
                   <h3 className="text-2xl font-bold text-slate-800">{walletSummary.totalEarned || '￥0'}</h3>
                 </div>
               </div>
-              <div className="flex items-center text-sm text-indigo-600 font-medium">
-                <TrendingUp className="w-4 h-4 mr-1" /> 可提现 {walletSummary.availableToWithdraw || '￥0'}
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-indigo-600 font-medium">
+                  <TrendingUp className="w-4 h-4 mr-1" /> 可提现 {walletSummary.availableToWithdraw || '￥0'}
+                </div>
+                <Link to="/talent/withdrawals" className="inline-flex items-center text-sm font-medium text-indigo-600 hover:underline">
+                  去提现 <ChevronRight className="w-4 h-4 ml-1" />
+                </Link>
               </div>
             </CardContent>
           </Card>
         </motion.div>
 
-        <motion.div variants={itemVars}>
-          <Card className="border-none shadow-sm bg-gradient-to-br from-emerald-50 to-white">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4 mb-4">
+        <motion.div variants={itemVars} className="h-full">
+          <Card className="h-full border-none shadow-sm bg-gradient-to-br from-emerald-50 to-white">
+            <CardContent className="flex h-full min-h-[168px] flex-col justify-between p-6">
+              <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
                   <Briefcase className="w-6 h-6" />
                 </div>
@@ -282,10 +302,10 @@ export function TalentDashboard() {
           </Card>
         </motion.div>
 
-        <motion.div variants={itemVars}>
-          <Card className="border-none shadow-sm bg-gradient-to-br from-amber-50 to-white">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4 mb-4">
+        <motion.div variants={itemVars} className="h-full">
+          <Card className="h-full border-none shadow-sm bg-gradient-to-br from-amber-50 to-white">
+            <CardContent className="flex h-full min-h-[168px] flex-col justify-between p-6">
+              <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
                   <Star className="w-6 h-6" />
                 </div>

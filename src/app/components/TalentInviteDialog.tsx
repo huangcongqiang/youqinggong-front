@@ -31,14 +31,15 @@ type TalentInviteDialogProps = {
   onClose: () => void;
 };
 
-const closedTaskStatuses = new Set(['CLOSED', 'SETTLED', 'COMPLETED', 'CANCELLED', 'AUTO_CLOSED', 'REJECTED']);
+const closedTaskStatuses = new Set(['CLOSED', 'SETTLED', 'COMPLETED', 'ACCEPTED', 'DONE', 'CANCELLED', 'AUTO_CLOSED', 'REJECTED']);
+const closedTaskStatusTextPattern = /已完成|已结算|已取消|已关闭|已验收|已提前完成|已完成待评分/;
 
 function normalizeInviteTask(item: any): InviteTask {
   return {
     taskId: stringOf(item?.taskId, item?.id),
     title: stringOf(item?.title, '未命名任务'),
     status: stringOf(item?.statusLabel, item?.status, '状态待同步'),
-    statusCode: stringOf(item?.statusCode, item?.state, item?.status),
+    statusCode: stringOf(item?.statusCode, item?.taskStatus, item?.state, item?.status, item?.statusLabel),
     budget: stringOf(item?.budget, '预算待确认'),
     updatedAt: stringOf(item?.updatedAt, item?.createdAt, '')
   };
@@ -49,7 +50,8 @@ function isInviteEligibleTask(task: InviteTask) {
     return false;
   }
   const statusCode = task.statusCode.toUpperCase();
-  return !closedTaskStatuses.has(statusCode);
+  const statusText = `${task.status} ${task.statusCode}`.trim();
+  return !closedTaskStatuses.has(statusCode) && !closedTaskStatusTextPattern.test(statusText);
 }
 
 function resolveTalentUserId(talent: TalentInviteProfile | null) {

@@ -31,8 +31,10 @@ import { TalentAssistant } from "./pages/TalentAssistant";
 import { EnterpriseContracts } from "./pages/EnterpriseContracts";
 import { EnterpriseReports } from "./pages/EnterpriseReports";
 import { EnterpriseBilling } from "./pages/EnterpriseBilling";
+import { InvoiceManagement } from "./pages/InvoiceManagement";
 import { TalentSettlement } from "./pages/TalentSettlement";
 import { TalentAcceptance } from "./pages/TalentAcceptance";
+import { TalentWithdrawals } from "./pages/TalentWithdrawals";
 
 // Mock empty pages for routing structure completeness
 const Placeholder = ({ title }: { title: string }) => (
@@ -71,6 +73,10 @@ export const router = createBrowserRouter([
     element: <TalentOnboarding />,
   },
   {
+    path: "/task/publish",
+    element: <Navigate to="/enterprise/publish" replace />,
+  },
+  {
     path: "/enterprise",
     element: <AuthLayout />,
     children: [
@@ -87,6 +93,7 @@ export const router = createBrowserRouter([
       { path: "contracts", element: <EnterpriseContracts /> },
       { path: "reports", element: <EnterpriseReports /> },
       { path: "billing", element: <EnterpriseBilling /> },
+      { path: "invoices", element: <InvoiceManagement audience="enterprise" /> },
       { path: "chat", element: <ContractChat /> },
       { path: "acceptance", element: <AcceptanceCenter /> },
       { path: "records", element: <FinanceRecords /> },
@@ -112,6 +119,8 @@ export const router = createBrowserRouter([
       { path: "records", element: <FinanceRecords /> },
       { path: "records/:recordId", element: <TalentRecordDetails /> },
       { path: "settlement", element: <TalentSettlement /> },
+      { path: "withdrawals", element: <TalentWithdrawals /> },
+      { path: "invoices", element: <InvoiceManagement audience="talent" /> },
       { path: "records/:recordId/settlement", element: <TalentSettlement /> },
       { path: "*", element: <Placeholder title="人才端功能模块" /> },
     ],

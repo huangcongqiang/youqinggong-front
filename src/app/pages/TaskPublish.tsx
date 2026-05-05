@@ -4,14 +4,14 @@ import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
-import { Sparkles, ArrowRight, Wand2, Calendar, DollarSign, Briefcase, AlertCircle } from 'lucide-react';
+import { Sparkles, ArrowRight, Wand2, Calendar, DollarSign, Briefcase, AlertCircle, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import {
-  confirmTaskAnalysis,
+  createAlipayTaskPublishPayment,
   decomposeTaskBrief,
+  getAlipayOrder,
   getAiPublishPresets,
-  getTagCatalog,
-  publishTask
+  getTagCatalog
 } from '../services/api';
 import { asArray, isMutationFailed, mutationMessage, stringOf } from '../services/workflowFormatters';
 import { classifyTags, mergeTags, normalizeCatalog, normalizeTags, toggleTag, type TagCatalog } from '../services/tagCatalog';
@@ -72,6 +72,10 @@ function formatMilestoneAmount(totalBudget: number, ratio: string) {
   if (!totalBudget) return '金额待确认';
   const amount = (totalBudget * ratioNumber(ratio)) / 100;
   return `￥${Number(amount.toFixed(2)).toLocaleString('zh-CN')}`;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function normalizeAiSuggestion(payload: any, fallbackBudget: string): AiSuggestion {
@@ -159,6 +163,7 @@ export function TaskPublish() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
   const [milestoneBudgets, setMilestoneBudgets] = useState<MilestoneBudget[]>([]);
+  const [paymentStatus, setPaymentStatus] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -178,6 +183,23 @@ export function TaskPublish() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const onPaymentReturn = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+      const data = event.data || {};
+      if (data?.type === 'YOUQINGGONG_ALIPAY_RETURN') {
+        const orderNo = stringOf(data?.orderNo);
+        setPaymentStatus(orderNo
+          ? `支付宝已返回有轻功，正在同步订单 ${orderNo} 的支付结果...`
+          : '支付宝已返回有轻功，正在同步支付结果...');
+      }
+    };
+    window.addEventListener('message', onPaymentReturn);
+    return () => window.removeEventListener('message', onPaymentReturn);
   }, []);
 
   const selectedPreset = presets.find((item) => stringOf(item?.id, item?.presetId) === selectedPresetId);
@@ -254,44 +276,90 @@ export function TaskPublish() {
       return;
     }
 
+    const normalizedBudget = budget || aiSuggestion?.recommendedBudget || '';
+    if (parseBudgetNumber(normalizedBudget) <= 0) {
+      setError('请先填写明确的大于 0 的任务预算，最后一步会按该金额发起真实支付宝预付款。');
+      return;
+    }
+
+    const paymentWindow = window.open('', '_blank');
+    if (!paymentWindow) {
+      setError('浏览器阻止了支付宝支付窗口，请允许弹窗后重试。');
+      return;
+    }
+    paymentWindow.opener = null;
+    paymentWindow.document.open();
+    paymentWindow.document.write('<!doctype html><title>有轻功支付</title><p style="font-family: sans-serif; padding: 24px;">正在创建支付宝真实支付订单...</p>');
+    paymentWindow.document.close();
+
     setIsSubmitting(true);
     setError('');
-    const response = await publishTask({
+    setPaymentStatus('正在创建任务发布预付款订单...');
+    const publishPayload = {
       title: title.trim(),
       brief: description.trim(),
       source: 'TEXT',
-      budget: budget || aiSuggestion?.recommendedBudget || '',
+      budget: normalizedBudget,
       skills,
       customSkills: [],
       businessTags,
       deliverableTags,
       customTags,
+      clientType: window.innerWidth <= 768 ? 'WAP' : 'PAGE',
       milestoneBudgets: normalizedMilestoneBudgets.map((item) => ({
         name: item.name,
         ratio: ratioNumber(item.ratio)
       }))
-    });
+    };
+    const response = await createAlipayTaskPublishPayment(publishPayload);
 
     if (isMutationFailed(response)) {
+      paymentWindow.close();
       setIsSubmitting(false);
-      setError(mutationMessage(response, '任务发布失败，请稍后再试。'));
+      setPaymentStatus('');
+      setError(mutationMessage(response, '任务预付款订单创建失败，请稍后再试。'));
       return;
     }
 
-    const taskId = stringOf((response as any).taskId, (response as any).id);
-    if (taskId) {
-      const confirmResponse = await confirmTaskAnalysis(taskId, { source: 'frontend' });
-      if (isMutationFailed(confirmResponse)) {
-        setIsSubmitting(false);
-        setError(mutationMessage(confirmResponse, '任务已发布，但 AI 分析确认失败，请稍后在任务中继续确认。'));
+    const html = stringOf((response as any).paymentHtml);
+    const orderNo = stringOf((response as any).orderNo);
+    if (!html || !orderNo) {
+      paymentWindow.close();
+      setIsSubmitting(false);
+      setPaymentStatus('');
+      setError(stringOf((response as any).nextStep, '支付宝下单成功但未返回支付页面，请稍后重试。'));
+      return;
+    }
+
+    paymentWindow.document.open();
+    paymentWindow.document.write(html);
+    paymentWindow.document.close();
+    setPaymentStatus(`已创建真实支付宝订单 ${orderNo}，请在新窗口完成付款；付款成功后系统会自动发布任务并进入人才匹配。`);
+
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      await delay(3000);
+      const order = await getAlipayOrder(orderNo);
+      if (isMutationFailed(order)) {
+        setPaymentStatus(mutationMessage(order, '正在等待支付宝支付结果同步...'));
+        continue;
+      }
+      const status = stringOf((order as any).status).toUpperCase();
+      const taskId = stringOf((order as any).taskId, (order as any).publishResult?.taskId);
+      if (status === 'PAID' && taskId) {
+        setPaymentStatus('支付已完成，任务已发布并进入人才匹配。');
+        navigate(`/enterprise/recruiting?taskId=${encodeURIComponent(taskId)}`);
         return;
       }
-      navigate(`/enterprise/recruiting?taskId=${encodeURIComponent(taskId)}`);
-      return;
+      if (status === 'CLOSED' || status === 'FAILED') {
+        setIsSubmitting(false);
+        setError('支付宝订单已关闭或支付失败，请重新发起发布预付款。');
+        return;
+      }
+      setPaymentStatus('正在等待支付宝支付结果同步，完成付款后请保持当前页面打开...');
     }
 
     setIsSubmitting(false);
-    navigate('/enterprise/recruiting');
+    setError('暂未确认支付宝支付结果；如果已经付款，请稍后在发单记录中查看，或刷新后联系平台处理。');
   };
 
   const budgetNumber = parseBudgetNumber(budget || aiSuggestion?.recommendedBudget || '');
@@ -629,8 +697,15 @@ export function TaskPublish() {
                   </div>
 
                   <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5 text-sm text-indigo-800">
-                    确认发布后，系统会创建真实任务、确认 AI 拆解结果，并进入人才匹配/招募处理。
+                    最后一步会先按任务预算创建真实支付宝预付款订单；付款成功后，系统才会发布真实任务、确认 AI 拆解结果，并进入人才匹配/招募处理。
                   </div>
+
+                  {paymentStatus && (
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-800">
+                      <CreditCard className="mr-2 inline h-4 w-4" />
+                      {paymentStatus}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between pt-8">
                     <Button variant="ghost" onClick={() => setStep(2)} className="text-slate-500">上一步</Button>
@@ -644,7 +719,7 @@ export function TaskPublish() {
                         disabled={isSubmitting}
                         className="rounded-xl border-none bg-indigo-600 shadow-lg shadow-indigo-500/25 hover:bg-indigo-700"
                       >
-                        {isSubmitting ? '正在发布...' : '确认发布任务'}
+                        {isSubmitting ? '等待支付完成...' : '支付并发布任务'}
                       </Button>
                     </div>
                   </div>

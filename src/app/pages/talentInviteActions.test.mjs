@@ -48,3 +48,14 @@ assert(
     && interviewTimeSource.includes('parseKnownInterviewTime'),
   'TalentInviteDialog should reject parseable past interview times before sending profile invites.'
 );
+
+assert(
+  inviteDialogSource.includes("closedTaskStatuses")
+    && inviteDialogSource.includes("'COMPLETED'")
+    && inviteDialogSource.includes("'SETTLED'")
+    && inviteDialogSource.includes("'ACCEPTED'")
+    && inviteDialogSource.includes("closedTaskStatusTextPattern")
+    && inviteDialogSource.includes("已完成")
+    && inviteDialogSource.includes("filter(isInviteEligibleTask)"),
+  'TalentInviteDialog should not offer completed, accepted, settled, or cancelled tasks for new interview invites.'
+);

@@ -18,6 +18,17 @@ export interface AuthRegisterPayload extends AuthLoginPayload {
   skills?: string[];
 }
 
+export interface AuthPasswordResetRequestPayload {
+  audience: AuthAudience;
+  mobile?: string;
+  email?: string;
+}
+
+export interface AuthPasswordResetConfirmPayload extends AuthPasswordResetRequestPayload {
+  code: string;
+  newPassword: string;
+}
+
 export interface ApiFailure {
   requestError?: string;
   requestStatus?: number;
@@ -27,11 +38,36 @@ const API_BASE = resolveApiBase(
   import.meta.env as Record<string, string | undefined>,
   typeof window === "undefined" ? globalThis : window
 );
+const API_TIMEOUT_MS = Number(import.meta.env?.VITE_API_TIMEOUT_MS || 12_000);
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = API_TIMEOUT_MS) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return fetch(input, init);
+  }
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const timeoutError = new Error("接口响应超时，请稍后再试。") as Error & { status?: number };
+      timeoutError.status = 408;
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
 
 async function readJson<T>(path: string, fallback: T): Promise<T & ApiFailure> {
   try {
     const targetUrl = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
-    const response = await fetch(targetUrl, {
+    const response = await fetchWithTimeout(targetUrl, {
       headers: buildAuthHeaders(getStoredAuthToken, {})
     });
     const payload = await readResponsePayload(response);
@@ -47,7 +83,7 @@ async function readJson<T>(path: string, fallback: T): Promise<T & ApiFailure> {
 
 async function writeJson<T>(path: string, fallback: T, body: unknown): Promise<T & ApiFailure> {
   try {
-    const response = await fetch(`${API_BASE}${path}`, {
+    const response = await fetchWithTimeout(`${API_BASE}${path}`, {
       method: "POST",
       headers: buildAuthHeaders(getStoredAuthToken, {
         "Content-Type": "application/json"
@@ -65,16 +101,34 @@ async function writeJson<T>(path: string, fallback: T, body: unknown): Promise<T
   }
 }
 
+async function writeFormData<T>(path: string, fallback: T, formData: FormData): Promise<T & ApiFailure> {
+  try {
+    const response = await fetchWithTimeout(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: buildAuthHeaders(getStoredAuthToken, {}),
+      body: formData
+    }, 30_000);
+    const payload = await readResponsePayload(response);
+    return unwrapEnvelopePayload<T & ApiFailure>(response, payload);
+  } catch (error) {
+    return {
+      ...(fallback && typeof fallback === "object" ? fallback : {}),
+      requestError: requestErrorMessage(error),
+      requestStatus: (error as { status?: number })?.status || 0
+    } as T & ApiFailure;
+  }
+}
+
 async function putBinary<T>(path: string, fallback: T, file: File, contentType = "application/octet-stream"): Promise<T & ApiFailure> {
   try {
     const targetUrl = /^https?:\/\//i.test(path) ? path : `${API_BASE}${path}`;
-    const response = await fetch(targetUrl, {
+    const response = await fetchWithTimeout(targetUrl, {
       method: "PUT",
       headers: {
         "Content-Type": contentType
       },
       body: file
-    });
+    }, 30_000);
     const payload = await readResponsePayload(response);
     return unwrapEnvelopePayload<T & ApiFailure>(response, payload);
   } catch (error) {
@@ -123,6 +177,31 @@ export function logoutAuth() {
   return writeJson("/auth/logout", { success: false, message: "当前暂时无法退出登录，请稍后再试。" }, {});
 }
 
+export function requestPasswordResetCode(payload: AuthPasswordResetRequestPayload) {
+  return writeJson(
+    "/auth/password-reset/request",
+    {
+      success: false,
+      message: "当前暂时无法获取重置验证码，请稍后再试。",
+      deliveryChannel: "",
+      expiresAt: "",
+      demoCode: ""
+    },
+    payload
+  );
+}
+
+export function resetPassword(payload: AuthPasswordResetConfirmPayload) {
+  return writeJson(
+    "/auth/password-reset/confirm",
+    {
+      success: false,
+      message: "当前暂时无法重置密码，请稍后再试。"
+    },
+    payload
+  );
+}
+
 export function getBusinessData() {
   return readJson("/business", {
     attentionItems: [],
@@ -152,6 +231,29 @@ export function getTalentData() {
     notifications: [],
     taskPool: []
   });
+}
+
+export function getTalentWithdrawalData() {
+  return readJson("/talent/withdrawals", {
+    walletSummary: null,
+    withdrawals: [],
+    requestIssue: ""
+  });
+}
+
+export function createTalentWithdrawal(payload: {
+  amount: string;
+  payoutChannel: string;
+  accountName: string;
+  accountNo: string;
+  bankName?: string;
+  note?: string;
+}) {
+  return writeJson("/talent/withdrawals", {
+    withdrawalId: "",
+    withdrawal: null,
+    walletSummary: null
+  }, payload);
 }
 
 export function getTaskMarketplaceData(params: { page?: number; size?: number; keyword?: string; category?: string } = {}) {
@@ -247,6 +349,75 @@ export function submitTalentOnboarding(payload: unknown) {
     status: "FAILED",
     nextStep: "当前暂时无法提交人才入驻。"
   }, payload);
+}
+
+export interface ParsedResumePayload {
+  name: string;
+  title: string;
+  bio: string;
+  fields: string;
+  tools: string;
+  priceLow: number;
+  priceHigh: number;
+  provider?: string;
+  model?: string;
+  fileName?: string;
+}
+
+const parsedResumeFallback: ParsedResumePayload = {
+  name: "",
+  title: "",
+  bio: "",
+  fields: "",
+  tools: "",
+  priceLow: 0,
+  priceHigh: 0
+};
+
+export function parseResumeText(resumeText: string) {
+  return writeJson<ParsedResumePayload>("/ai/parse-resume", parsedResumeFallback, { resumeText });
+}
+
+export function parseResumeFile(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return writeFormData<ParsedResumePayload>("/ai/parse-resume-file", parsedResumeFallback, formData);
+}
+
+export function generateAiBioTemplates(payload: { title?: string; fields?: string; tools?: string }) {
+  return writeJson("/ai/generate-bio", {
+    templates: [],
+    provider: "",
+    model: "",
+    requestError: "当前暂时无法生成个人简介。"
+  }, {
+    title: payload?.title || "",
+    fields: payload?.fields || "",
+    tools: payload?.tools || ""
+  });
+}
+
+export function getAiTaskMonitor(taskId: string) {
+  return readJson(`/ai/task-monitor/${encodeURIComponent(taskId)}`, {
+    taskId,
+    needsReminder: false,
+    needsIntervention: false,
+    message: "",
+    hoursSinceProgress: 0,
+    reminderCount: 0,
+    currentStage: "",
+    lastProgressAt: ""
+  });
+}
+
+export function sendAiProgressReminder(taskId: string) {
+  return writeJson(`/ai/send-reminder/${encodeURIComponent(taskId)}`, {
+    taskId,
+    reminderCount: 0,
+    aiMessage: "",
+    currentStage: "",
+    nextStep: "当前暂时无法发送 AI 进度提醒。"
+  }, {});
 }
 
 export function getAiPublishPresets() {
@@ -530,6 +701,186 @@ export function createTaskInvoice(claimId: string, payload: unknown) {
     status: "FAILED",
     nextStep: "当前暂时无法提交发票。"
   }, payload);
+}
+
+export function getInvoiceTemplate() {
+  return readJson("/invoice-template", {
+    template: null,
+    hasTemplate: false,
+    nextStep: ""
+  });
+}
+
+export function saveInvoiceTemplate(payload: unknown) {
+  return writeJson("/invoice-template", {
+    success: false,
+    template: null,
+    nextStep: "当前暂时无法保存发票模板。"
+  }, payload);
+}
+
+export function requestEnterpriseInvoice(taskId: string) {
+  return writeJson(`/tasks/${encodeURIComponent(taskId)}/invoice-request`, {
+    taskId,
+    invoiceId: "",
+    status: "FAILED",
+    nextStep: "当前暂时无法发起开票请求。"
+  }, {});
+}
+
+export function getPendingInvoices(params: { status?: string; page?: number } = {}) {
+  const query = new URLSearchParams();
+  if (params.status?.trim()) query.set("status", params.status.trim());
+  if (params.page) query.set("page", String(params.page));
+  const suffix = query.toString();
+  return readJson(`/invoices/pending${suffix ? `?${suffix}` : ""}`, {
+    items: [],
+    pending_count: 0,
+    page: params.page || 1,
+    pages: 0,
+    total: 0
+  });
+}
+
+export function getInvoiceHistory(params: { status?: string; page?: number } = {}) {
+  const query = new URLSearchParams();
+  if (params.status?.trim()) query.set("status", params.status.trim());
+  if (params.page) query.set("page", String(params.page));
+  const suffix = query.toString();
+  return readJson(`/invoices/history${suffix ? `?${suffix}` : ""}`, {
+    items: [],
+    page: params.page || 1,
+    pages: 0,
+    total: 0
+  });
+}
+
+export function getInvoiceDetail(invoiceId: string) {
+  return readJson(`/invoices/${encodeURIComponent(invoiceId)}`, {
+    invoice: null,
+    nextStep: ""
+  });
+}
+
+export function respondInvoice(invoiceId: string, payload: unknown) {
+  return writeJson(`/invoices/${encodeURIComponent(invoiceId)}/respond`, {
+    invoiceId,
+    status: "FAILED",
+    nextStep: "当前暂时无法响应开票请求。"
+  }, payload);
+}
+
+export function reviewInvoice(invoiceId: string, payload: unknown) {
+  return writeJson(`/invoices/${encodeURIComponent(invoiceId)}/review`, {
+    invoiceId,
+    status: "FAILED",
+    nextStep: "当前暂时无法审核发票。"
+  }, payload);
+}
+
+export function rejectInvoiceRequest(invoiceId: string, payload: unknown = {}) {
+  return writeJson(`/invoices/${encodeURIComponent(invoiceId)}/reject`, {
+    invoiceId,
+    status: "FAILED",
+    nextStep: "当前暂时无法驳回开票请求。"
+  }, payload);
+}
+
+export function getInvoiceReviewingCount() {
+  return readJson("/invoices/reviewing-count", {
+    count: 0
+  });
+}
+
+export function getAlipayConfigStatus() {
+  return readJson("/alipay/config/status", {
+    enabled: false,
+    configured: false,
+    sandbox: true,
+    gateway: "",
+    appIdMasked: "",
+    notifyUrlConfigured: false,
+    returnUrlConfigured: false,
+    privateKeyConfigured: false,
+    publicKeyConfigured: false,
+    nextStep: ""
+  });
+}
+
+export function getAlipayMembershipInfo() {
+  return readJson("/alipay/membership/info", {
+    enabled: false,
+    configured: false,
+    plans: {
+      monthly: { price: "29.90", currency: "CNY" },
+      yearly: { price: "299.00", currency: "CNY" }
+    }
+  });
+}
+
+export function getMembershipPrices() {
+  return readJson("/membership/prices", {
+    enabled: false,
+    configured: false,
+    plans: {
+      monthly: { price: "29.90", currency: "CNY" },
+      yearly: { price: "299.00", currency: "CNY" }
+    }
+  });
+}
+
+export function createAlipayMembershipPurchase(payload: { plan?: "monthly" | "yearly"; clientType?: "PAGE" | "WAP" | "MOBILE" }) {
+  return writeJson("/alipay/membership/purchase", {
+    orderNo: "",
+    provider: "ALIPAY",
+    status: "FAILED",
+    paymentHtml: "",
+    nextStep: "当前暂时无法创建真实支付宝会员支付订单。"
+  }, payload);
+}
+
+export function createAlipayRecharge(payload: { amount?: string; subject?: string; clientType?: "PAGE" | "WAP" | "MOBILE" }) {
+  return writeJson("/alipay/recharge/create", {
+    orderNo: "",
+    provider: "ALIPAY",
+    status: "FAILED",
+    paymentHtml: "",
+    nextStep: "当前暂时无法创建真实支付宝充值订单。"
+  }, payload);
+}
+
+export function createAlipayTaskPublishPayment(payload: Record<string, unknown> & { clientType?: "PAGE" | "WAP" | "MOBILE" }) {
+  return writeJson("/alipay/task-publish/create", {
+    orderNo: "",
+    provider: "ALIPAY",
+    orderType: "TASK_PUBLISH",
+    status: "FAILED",
+    taskId: "",
+    taskStatus: "",
+    paymentHtml: "",
+    nextStep: "当前暂时无法创建任务发布预付款订单。"
+  }, payload);
+}
+
+export function getAlipayOrder(orderNo: string) {
+  return readJson(`/alipay/orders/${encodeURIComponent(orderNo)}`, {
+    orderNo,
+    provider: "ALIPAY",
+    status: "UNKNOWN",
+    nextStep: ""
+  });
+}
+
+export function getInvoiceProviderStatus() {
+  return readJson("/invoices/provider/status", {
+    provider: "HTTP",
+    realIssueEnabled: false,
+    configured: false,
+    issueUrlConfigured: false,
+    apiKeyConfigured: false,
+    sellerConfigured: false,
+    nextStep: ""
+  });
 }
 
 export function respondTaskReconciliation(reconciliationId: string, payload: unknown) {

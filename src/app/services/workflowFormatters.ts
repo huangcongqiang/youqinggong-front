@@ -94,7 +94,7 @@ export function statusTone(value: unknown) {
   if (/已完成|已结算|已归档|已批准|已开票|已完成对账|COMPLETED|SETTLED|DONE|ACCEPTED|APPROVED|ISSUED|RECONCILED/i.test(text)) {
     return "success";
   }
-  if (/待验收|待支付|待处理|待企业|PENDING|WAITING/i.test(text)) {
+  if (/待验收|待支付|待处理|待企业|待人才|PENDING|WAITING|REQUESTED|REVIEWING/i.test(text)) {
     return "warning";
   }
   if (/拒绝|失败|异常|取消|争议|异议|FAILED|REJECT|FROZEN|DISPUT/i.test(text)) {
@@ -154,15 +154,53 @@ export function normalizeAttachment(attachment: any, index = 0): NormalizedAttac
   };
 }
 
+function attachmentIdentity(value: unknown) {
+  return stringOf(value).toLowerCase();
+}
+
+function isBareAttachmentReference(file: NormalizedAttachment) {
+  const href = attachmentIdentity(file.href);
+  const name = attachmentIdentity(file.name);
+  const key = attachmentIdentity(file.key);
+  if (!href) {
+    return true;
+  }
+  if (href === name || href === key) {
+    return true;
+  }
+  return !/^(https?:\/\/|\/|blob:|data:)/i.test(file.href) && !file.href.includes("/");
+}
+
 export function collectAttachments(...sources: unknown[]) {
-  const seen = new Set<string>();
+  const seenStrong = new Set<string>();
+  const resolvedNames = new Set<string>();
+  const bareNames = new Set<string>();
   const files = sources.flatMap((source) => asArray(source).map(normalizeAttachment));
   return files.filter((file) => {
-    const key = stringOf(file.href, file.name, file.key);
-    if (!key || seen.has(key)) {
+    const href = attachmentIdentity(file.href);
+    const name = attachmentIdentity(file.name);
+    const key = attachmentIdentity(file.key);
+    const bareReference = isBareAttachmentReference(file);
+    const strongKeys = [
+      href && !bareReference ? `href:${href}` : "",
+      key && key !== name && key !== href ? `key:${key}` : ""
+    ].filter(Boolean);
+    if (!href && !name && !key) {
       return false;
     }
-    seen.add(key);
+    if (strongKeys.some((item) => seenStrong.has(item))) {
+      return false;
+    }
+    if (bareReference && name && (resolvedNames.has(name) || bareNames.has(name))) {
+      return false;
+    }
+    strongKeys.forEach((item) => seenStrong.add(item));
+    if (bareReference && name) {
+      bareNames.add(name);
+    }
+    if (!bareReference && name) {
+      resolvedNames.add(name);
+    }
     return true;
   });
 }

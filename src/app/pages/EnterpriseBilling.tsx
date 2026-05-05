@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
-import { CreditCard, FileText, Calendar, Filter, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { Input } from '../components/ui/Input';
+import { CreditCard, FileText, Calendar, Filter, ArrowUpRight, ShieldCheck, WalletCards } from 'lucide-react';
 import { Link } from 'react-router';
-import { getBusinessData } from '../services/api';
+import {
+  createAlipayMembershipPurchase,
+  createAlipayRecharge,
+  getAlipayMembershipInfo,
+  getBusinessData,
+  getInvoiceProviderStatus
+} from '../services/api';
 import { asArray, moneyLabel, stringOf } from '../services/workflowFormatters';
 import { EmptyState, ErrorState, LoadingState } from '../components/AsyncState';
 
@@ -23,6 +30,11 @@ function normalizeExpense(item: any, index = 0) {
 export function EnterpriseBilling() {
   const [summary, setSummary] = useState<any>(null);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [membership, setMembership] = useState<any>(null);
+  const [invoiceProvider, setInvoiceProvider] = useState<any>(null);
+  const [rechargeAmount, setRechargeAmount] = useState('0.01');
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -44,6 +56,55 @@ export function EnterpriseBilling() {
     };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getAlipayMembershipInfo(), getInvoiceProviderStatus()])
+      .then(([membershipData, invoiceProviderData]: any[]) => {
+        if (!alive) {
+          return;
+        }
+        setMembership(membershipData);
+        setInvoiceProvider(invoiceProviderData);
+      })
+      .catch((exception: any) => {
+        if (alive) {
+          setPaymentStatus(exception?.message || '支付与开票配置读取失败');
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const launchPayment = async (kind: 'monthly' | 'yearly' | 'recharge') => {
+    setPaymentLoading(kind);
+    setPaymentStatus('');
+    try {
+      const payload = kind === 'recharge'
+        ? await createAlipayRecharge({ amount: rechargeAmount, subject: '有轻功真实支付联调', clientType: 'PAGE' })
+        : await createAlipayMembershipPurchase({ plan: kind, clientType: 'PAGE' });
+      const html = stringOf(payload?.paymentHtml);
+      if (!html) {
+        setPaymentStatus(stringOf(payload?.nextStep, '支付宝下单成功但未返回支付页面。'));
+        return;
+      }
+      const paymentWindow = window.open('', '_blank');
+      if (!paymentWindow) {
+        setPaymentStatus('浏览器阻止了支付窗口，请允许弹窗后重试。');
+        return;
+      }
+      paymentWindow.opener = null;
+      paymentWindow.document.open();
+      paymentWindow.document.write(html);
+      paymentWindow.document.close();
+      setPaymentStatus(`已创建真实支付宝订单 ${stringOf(payload?.orderNo)}，请在新窗口完成支付。`);
+    } catch (exception: any) {
+      setPaymentStatus(exception?.message || '创建支付宝真实支付订单失败');
+    } finally {
+      setPaymentLoading('');
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-8">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -55,8 +116,8 @@ export function EnterpriseBilling() {
           <Button variant="outline" className="gap-2 border-slate-200 text-slate-600">
             <Filter className="h-4 w-4" /> 历史对账单
           </Button>
-          <Link to="/enterprise/records">
-            <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700">进入记录处理</Button>
+          <Link to="/enterprise/invoices">
+            <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700">进入发票管理</Button>
           </Link>
         </div>
       </div>
@@ -107,13 +168,71 @@ export function EnterpriseBilling() {
                   <FileText className="h-6 w-6" />
                 </div>
                 <h3 className="mb-2 text-lg font-bold text-slate-900">发票与对账</h3>
-                <p className="mb-6 text-sm leading-relaxed text-slate-500">发票、对账、结算的实际动作都在合作记录/结算页中完成。</p>
-                <Link to="/enterprise/records" className="flex w-full items-center justify-center gap-1 py-2 text-sm font-medium text-indigo-700 hover:text-indigo-800">
-                  查看财务记录 <ArrowUpRight className="h-4 w-4" />
+                <p className="mb-6 text-sm leading-relaxed text-slate-500">企业在发票管理中发起和审核开票请求，对账与结算会同步到合作记录。</p>
+                <Link to="/enterprise/invoices" className="flex w-full items-center justify-center gap-1 py-2 text-sm font-medium text-indigo-700 hover:text-indigo-800">
+                  查看发票管理 <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </CardContent>
             </Card>
           </div>
+
+          <Card className="border-slate-200 shadow-sm">
+            <CardContent className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr]">
+              <div>
+                <div className="mb-4 flex items-center gap-2">
+                  <WalletCards className="h-5 w-5 text-indigo-700" />
+                  <h2 className="text-lg font-bold text-slate-900">支付宝真实支付联调</h2>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Button
+                    type="button"
+                    disabled={!membership?.configured || paymentLoading === 'monthly'}
+                    onClick={() => launchPayment('monthly')}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    月度 {stringOf(membership?.plans?.monthly?.price, '29.90')}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={!membership?.configured || paymentLoading === 'yearly'}
+                    onClick={() => launchPayment('yearly')}
+                    className="bg-indigo-600 hover:bg-indigo-700"
+                  >
+                    年度 {stringOf(membership?.plans?.yearly?.price, '299.00')}
+                  </Button>
+                  <div className="flex gap-2">
+                    <Input
+                      value={rechargeAmount}
+                      onChange={(event) => setRechargeAmount(event.target.value)}
+                      inputMode="decimal"
+                      className="min-w-0"
+                      aria-label="充值金额"
+                    />
+                    <Button
+                      type="button"
+                      disabled={!membership?.configured || paymentLoading === 'recharge'}
+                      onClick={() => launchPayment('recharge')}
+                      variant="outline"
+                      className="shrink-0"
+                    >
+                      充值
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-slate-500">
+                  {membership?.configured ? '支付宝商户配置已就绪，点击会打开真实支付宝收银台。' : '支付宝商户密钥尚未配置，暂不能发起真实支付。'}
+                </p>
+                {paymentStatus && <p className="mt-2 text-sm text-slate-600">{paymentStatus}</p>}
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-sm text-slate-600">
+                <div className="mb-2 font-semibold text-slate-900">正式开票</div>
+                <div>提供方：{stringOf(invoiceProvider?.provider, 'HTTP')}</div>
+                <div>真实开票：{invoiceProvider?.realIssueEnabled ? '已启用' : '未启用'}</div>
+                <div>配置状态：{invoiceProvider?.configured ? '已配置' : '待配置'}</div>
+                <p className="mt-2 leading-relaxed">{stringOf(invoiceProvider?.nextStep, '请配置开票服务后再进行正式出票测试。')}</p>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="overflow-hidden border-slate-200 shadow-sm">
             <div className="flex items-center gap-2 border-b border-slate-100 p-6">

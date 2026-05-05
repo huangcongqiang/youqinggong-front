@@ -22,17 +22,24 @@ assert(
 assert(
   actionPanelSource.includes('requestTaskClaim')
     && actionPanelSource.includes('reviewTaskClaim')
-    && actionPanelSource.includes('createTaskInvoice')
+    && actionPanelSource.includes('requestEnterpriseInvoice')
+    && actionPanelSource.includes('respondInvoice')
+    && actionPanelSource.includes('reviewInvoice')
+    && actionPanelSource.includes('rejectInvoiceRequest')
     && actionPanelSource.includes('respondTaskReconciliation')
     && actionPanelSource.includes('respondTaskSettlement'),
   'FinanceActionPanel should wire every backend finance action endpoint.'
 );
 
 assert(
-  actionPanelSource.includes('dispute_reconciliation')
+  actionPanelSource.includes('request_invoice')
+    && actionPanelSource.includes('respond_invoice')
+    && actionPanelSource.includes('approve_invoice')
+    && actionPanelSource.includes('reject_invoice')
+    && actionPanelSource.includes('dispute_reconciliation')
     && actionPanelSource.includes('fail_settlement')
     && actionPanelSource.includes('retry_settlement'),
-  'FinanceActionPanel should support dispute, failure, and retry settlement actions.'
+  'FinanceActionPanel should support invoice request/review plus dispute, failure, and retry settlement actions.'
 );
 
 assert(

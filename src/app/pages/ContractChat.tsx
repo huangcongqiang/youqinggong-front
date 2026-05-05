@@ -12,7 +12,7 @@ import {
   Phone, Video, CheckCircle2, Clock
 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
-import { getTaskRoom, getTaskRooms, sendTaskRoomMessage, submitTaskConfirmation, uploadTaskAttachmentAsset } from '../services/api';
+import { createTaskRoom, getTaskRoom, getTaskRooms, sendTaskRoomMessage, submitTaskConfirmation, uploadTaskAttachmentAsset } from '../services/api';
 import { useTaskImRoom } from '../services/useTaskImRoom';
 import type { TaskImIncomingMessage } from '../services/tencentImClient';
 import { useSearchParams } from 'react-router';
@@ -150,6 +150,22 @@ export function ContractChat() {
     async function loadRooms() {
       setIsLoading(true);
       setError('');
+      if (taskId && !activeRoomKey) {
+        const initiated = await createTaskRoom({ taskId });
+        if (cancelled) return;
+        if (!initiated.requestError) {
+          const initiatedRoomDetail = initiated.room || initiated.taskRoom || initiated;
+          const initiatedRoom = normalizeRoom({ ...initiatedRoomDetail, roomKey: initiated.roomKey || initiatedRoomDetail?.roomKey });
+          if (initiatedRoom.roomKey) {
+            setRooms([initiatedRoom]);
+            setRoomDetail(initiatedRoomDetail);
+            setActiveRoomKey(initiatedRoom.roomKey);
+            setIsLoading(false);
+            return;
+          }
+        }
+      }
+
       const payload = await getTaskRooms();
       if (cancelled) return;
       if (payload.requestError) {

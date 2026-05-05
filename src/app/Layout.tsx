@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate, Navigate, Link, useLocation } from "react-router";
 import { useStore } from "./store";
 import { 
   LayoutDashboard, FileText, MessageSquare, 
   CheckCircle, FileSearch, Wallet, Bell, Search, LogOut, FileCheck,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, MoreHorizontal
 } from "lucide-react";
 import { cn } from "./utils/cn";
 import { motion, AnimatePresence } from "motion/react";
@@ -21,6 +21,7 @@ const getMenu = (role: 'ENTERPRISE' | 'TALENT') => {
       { path: "/enterprise/records", label: "交易记录", icon: FileSearch },
       { path: "/enterprise/settlement", label: "结算中心", icon: Wallet },
       { path: "/enterprise/billing", label: "账单管理", icon: FileText },
+      { path: "/enterprise/invoices", label: "发票管理", icon: FileText },
     ];
   }
   return [
@@ -30,6 +31,8 @@ const getMenu = (role: 'ENTERPRISE' | 'TALENT') => {
     { path: "/talent/acceptance", label: "交付与验收", icon: CheckCircle },
     { path: "/talent/records", label: "收入记录", icon: FileSearch },
     { path: "/talent/settlement", label: "我的结算", icon: Wallet },
+    { path: "/talent/withdrawals", label: "提现", icon: Wallet },
+    { path: "/talent/invoices", label: "发票管理", icon: FileText },
   ];
 };
 
@@ -40,6 +43,11 @@ export function AuthLayout() {
   const routeKey = `${location.pathname}${location.search}`;
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMobileMoreOpen(false);
+  }, [routeKey]);
 
   if (isBootstrapping) {
     return (
@@ -55,6 +63,8 @@ export function AuthLayout() {
 
   const menu = getMenu(currentUser.role === 'BOTH' ? 'ENTERPRISE' : currentUser.role);
   const currentAudience = currentUser.role === 'TALENT' ? 'talent' : 'enterprise';
+  const mobilePrimaryMenu = menu.slice(0, 4);
+  const mobileMoreMenu = menu.slice(4);
   const submitGlobalSearch = (rawKeyword: string) => {
     const keyword = rawKeyword.trim();
     if (!keyword) {
@@ -232,7 +242,7 @@ export function AuthLayout() {
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto bg-slate-50">
-          <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8 min-h-full">
+          <div className="w-full max-w-[1440px] mx-auto p-3 sm:p-4 md:p-6 lg:p-8 min-h-full" data-app-shell-content>
             <AnimatePresence mode="wait">
               <Outlet key={routeKey} />
             </AnimatePresence>
@@ -240,9 +250,45 @@ export function AuthLayout() {
         </div>
         
         {/* Mobile Navigation Bar (Bottom) */}
-        <div className="lg:hidden bg-white border-t border-slate-200 z-30 pb-safe shrink-0 sticky bottom-0">
+        {isMobileMoreOpen && (
+          <div className="lg:hidden fixed inset-x-3 bottom-20 z-40 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-900/15">
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="text-sm font-semibold text-slate-900">更多功能</span>
+              <button
+                type="button"
+                onClick={() => setIsMobileMoreOpen(false)}
+                className="rounded-full px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
+              >
+                收起
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {mobileMoreMenu.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.path === "/enterprise" || item.path === "/talent"}
+                  className={({ isActive }) => cn(
+                    "flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-colors",
+                    isActive
+                      ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                      : "border-slate-100 bg-slate-50 text-slate-700 hover:border-indigo-100 hover:bg-indigo-50"
+                  )}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-indigo-600" : "text-slate-500")} />
+                      <span className="truncate">{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="lg:hidden bg-white border-t border-slate-200 z-30 pb-safe shrink-0" data-mobile-bottom-nav>
           <nav className="flex items-center justify-around h-16 px-2">
-            {menu.slice(0, 5).map((item) => (
+            {mobilePrimaryMenu.map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -260,6 +306,17 @@ export function AuthLayout() {
                 )}
               </NavLink>
             ))}
+            <button
+              type="button"
+              onClick={() => setIsMobileMoreOpen((open) => !open)}
+              className={cn(
+                "flex h-full w-16 flex-col items-center justify-center space-y-1 text-xs transition-colors",
+                isMobileMoreOpen ? "text-indigo-600" : "text-slate-500 hover:text-slate-900"
+              )}
+            >
+              <MoreHorizontal className={cn("h-5 w-5", isMobileMoreOpen ? "text-indigo-600" : "text-slate-400")} />
+              <span className="scale-90">更多</span>
+            </button>
           </nav>
         </div>
       </main>

@@ -4,7 +4,11 @@ import { Link, useNavigate } from 'react-router';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useStore } from '../store';
-import { Lock, Phone, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { requestPasswordResetCode, resetPassword, type AuthAudience } from '../services/api';
+import { Lock, Phone, ShieldCheck, ArrowRight, Loader2, X, CheckCircle2 } from 'lucide-react';
+
+type ResetAudience = Extract<AuthAudience, 'enterprise' | 'talent'>;
+type ResetStep = 'request' | 'confirm';
 
 export function Login() {
   const [method, setMethod] = useState<'password' | 'code'>('password');
@@ -13,6 +17,18 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [resetStep, setResetStep] = useState<ResetStep>('request');
+  const [resetAudience, setResetAudience] = useState<ResetAudience>('enterprise');
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [resetDemoCode, setResetDemoCode] = useState('');
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [isResetLoading, setIsResetLoading] = useState(false);
   
   const { loginWithPassword } = useStore();
   const navigate = useNavigate();
@@ -44,10 +60,100 @@ export function Login() {
     });
   };
 
+  const openPasswordReset = () => {
+    setIsResetOpen(true);
+    setResetStep('request');
+    setResetAudience('enterprise');
+    setResetPhone(phone);
+    setResetCode('');
+    setResetDemoCode('');
+    setResetPasswordValue('');
+    setResetPasswordConfirm('');
+    setResetMessage('');
+    setResetError('');
+  };
+
+  const closePasswordReset = () => {
+    setIsResetOpen(false);
+    setIsResetLoading(false);
+  };
+
+  const handleRequestPasswordReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setResetError('');
+    setResetMessage('');
+    setResetDemoCode('');
+
+    if (resetPhone.length !== 11) {
+      setResetError('请输入有效的11位手机号');
+      return;
+    }
+
+    setIsResetLoading(true);
+    try {
+      const result = await requestPasswordResetCode({
+        audience: resetAudience,
+        mobile: resetPhone
+      });
+      if (result.requestError || result.success === false) {
+        setResetError(result.requestError || result.message || '当前暂时无法获取重置验证码。');
+        return;
+      }
+      const demoCode = String(result.demoCode || '');
+      setResetDemoCode(demoCode);
+      setResetCode(demoCode);
+      setResetMessage(result.message || '如果账号存在，验证码会发送到预留联系方式。');
+      setResetStep('confirm');
+    } finally {
+      setIsResetLoading(false);
+    }
+  };
+
+  const handleConfirmPasswordReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setResetError('');
+
+    if (!resetCode.trim()) {
+      setResetError('请输入验证码');
+      return;
+    }
+    if (resetPasswordValue.length < 6) {
+      setResetError('新密码至少需要 6 位');
+      return;
+    }
+    if (resetPasswordValue !== resetPasswordConfirm) {
+      setResetError('两次输入的新密码不一致');
+      return;
+    }
+
+    setIsResetLoading(true);
+    try {
+      const result = await resetPassword({
+        audience: resetAudience,
+        mobile: resetPhone,
+        code: resetCode.trim(),
+        newPassword: resetPasswordValue
+      });
+      if (result.requestError || result.success === false) {
+        setResetError(result.requestError || result.message || '当前暂时无法重置密码。');
+        return;
+      }
+      setPhone(resetPhone);
+      setPassword('');
+      setMethod('password');
+      setNotice(result.message || '密码已重置，请使用新密码登录。');
+      setError('');
+      closePasswordReset();
+    } finally {
+      setIsResetLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setNotice('');
     
     if (method === 'code') {
       setError('验证码登录还没有真实后端通道，先使用密码登录跑通数据流。');
@@ -122,6 +228,9 @@ export function Login() {
               <div className="relative">
                 <Phone className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <Input 
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
                   placeholder="请输入手机号" 
                   className="pl-10 h-12 bg-slate-50 border-transparent focus:bg-white" 
                   value={phone}
@@ -142,6 +251,8 @@ export function Login() {
                   <div className="relative flex-1">
                     <ShieldCheck className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <Input 
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
                       placeholder="请输入验证码" 
                       className="pl-10 h-12 bg-slate-50 border-transparent focus:bg-white" 
                       value={code}
@@ -163,6 +274,7 @@ export function Login() {
                   <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <Input 
                     type="password"
+                    autoComplete="current-password"
                     placeholder="请输入密码" 
                     className="pl-10 h-12 bg-slate-50 border-transparent focus:bg-white" 
                     value={password}
@@ -171,8 +283,19 @@ export function Login() {
                 </motion.div>
               )}
             </AnimatePresence>
-            
+
             <AnimatePresence>
+              {notice && (
+                <motion.p
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-center gap-2 text-emerald-600 text-sm m-0"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {notice}
+                </motion.p>
+              )}
               {error && (
                 <motion.p 
                   initial={{ opacity: 0, height: 0 }} 
@@ -202,11 +325,154 @@ export function Login() {
           </form>
           
           <div className="mt-8 text-center flex items-center justify-between text-sm">
-            <a href="#" className="text-slate-500 hover:text-indigo-600 transition-colors">忘记密码？</a>
+            <button
+              type="button"
+              onClick={openPasswordReset}
+              className="text-slate-500 hover:text-indigo-600 transition-colors"
+            >
+              忘记密码？
+            </button>
             <Link to="/register" className="text-indigo-600 font-medium hover:text-indigo-700">去注册</Link>
           </div>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {isResetOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="password-reset-title"
+              className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                <div>
+                  <h3 id="password-reset-title" className="text-lg font-semibold text-slate-900">重置登录密码</h3>
+                  <p className="mt-1 text-sm text-slate-500">选择账号角色后验证手机号</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closePasswordReset}
+                  className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="关闭重置密码弹窗"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="px-6 py-5">
+                <div className="mb-5 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                  {(['enterprise', 'talent'] as ResetAudience[]).map((audience) => (
+                    <button
+                      key={audience}
+                      type="button"
+                      onClick={() => setResetAudience(audience)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        resetAudience === audience
+                          ? 'bg-white text-indigo-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {audience === 'enterprise' ? '企业账号' : '人才账号'}
+                    </button>
+                  ))}
+                </div>
+
+                {resetStep === 'request' ? (
+                  <form className="space-y-4" onSubmit={handleRequestPasswordReset}>
+                    <div className="relative">
+                      <Phone className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        placeholder="请输入注册手机号"
+                        className="pl-10 h-12 bg-slate-50 border-transparent focus:bg-white"
+                        value={resetPhone}
+                        onChange={(event) => setResetPhone(event.target.value)}
+                      />
+                    </div>
+                    {resetError && <p className="text-sm text-red-500">{resetError}</p>}
+                    <Button type="submit" variant="primary" className="h-11 w-full rounded-xl" disabled={isResetLoading}>
+                      {isResetLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : '获取重置验证码'}
+                    </Button>
+                  </form>
+                ) : (
+                  <form className="space-y-4" onSubmit={handleConfirmPasswordReset}>
+                    {resetMessage && (
+                      <div className="rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+                        {resetMessage}
+                        {resetDemoCode && (
+                          <div className="mt-2 rounded-lg bg-white px-3 py-2 font-mono text-base font-semibold tracking-widest text-indigo-600">
+                            {resetDemoCode}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="relative">
+                      <ShieldCheck className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder="请输入验证码"
+                        className="pl-10 h-12 bg-slate-50 border-transparent focus:bg-white"
+                        value={resetCode}
+                        onChange={(event) => setResetCode(event.target.value)}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="请输入新密码"
+                        className="pl-10 h-12 bg-slate-50 border-transparent focus:bg-white"
+                        value={resetPasswordValue}
+                        onChange={(event) => setResetPasswordValue(event.target.value)}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Input
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="请再次输入新密码"
+                        className="pl-10 h-12 bg-slate-50 border-transparent focus:bg-white"
+                        value={resetPasswordConfirm}
+                        onChange={(event) => setResetPasswordConfirm(event.target.value)}
+                      />
+                    </div>
+                    {resetError && <p className="text-sm text-red-500">{resetError}</p>}
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 rounded-xl"
+                        onClick={() => setResetStep('request')}
+                        disabled={isResetLoading}
+                      >
+                        返回
+                      </Button>
+                      <Button type="submit" variant="primary" className="h-11 rounded-xl" disabled={isResetLoading}>
+                        {isResetLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : '确认重置'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -67,12 +67,12 @@ export function EnterpriseDashboard() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header Greeting */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">晚上好，{currentUser?.name}</h1>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words text-2xl font-bold text-slate-900 tracking-tight">晚上好，{currentUser?.name}</h1>
           <p className="text-slate-500 mt-1">这里是您的企业雇佣全景看板。</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link to="/enterprise/onboarding">
             <Button variant="outline" className="rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 shadow-sm font-semibold">
               <span className="mr-2">🌟</span>

@@ -2,10 +2,13 @@ import React, { useMemo, useState } from "react";
 import { Button } from "./ui/Button";
 import { Textarea } from "./ui/Textarea";
 import {
-  createTaskInvoice,
+  rejectInvoiceRequest,
+  requestEnterpriseInvoice,
   requestTaskClaim,
+  respondInvoice,
   respondTaskReconciliation,
   respondTaskSettlement,
+  reviewInvoice,
   reviewTaskClaim
 } from "../services/api";
 import {
@@ -36,19 +39,27 @@ function buttonClass(action: NormalizedFinanceAction) {
 }
 
 function notePlaceholder(action: NormalizedFinanceAction) {
+  if (action.key === "request_invoice") return "说明本次开票请求的抬头、金额或资料要求。";
+  if (action.key === "respond_invoice") return "补充发票提交方式、票面信息或附件说明。";
+  if (action.key === "approve_invoice") return "补充确认发票通过的说明。";
+  if (action.key === "reject_invoice" || action.key === "reject_invoice_request") return "说明驳回或拒绝开票请求的原因。";
   if (/DISPUTE/i.test(action.action || action.key)) return "说明发起争议的原因和需平台核对的点。";
   if (/REJECT|FAIL/i.test(action.action || action.key)) return "说明驳回或标记失败的原因。";
   if (/APPROVE|CONFIRM|EXECUTE/i.test(action.action || action.key)) return "补充本次确认或执行说明。";
   return "补充本次财务处理说明。";
 }
 
-function claimIdFor(section: NormalizedFinanceSection, sections: NormalizedFinanceSection[]) {
-  return section.claimId || sections.find((item) => item.key === "claimSummary")?.claimId || "";
+function invoiceIdFor(section: NormalizedFinanceSection, sections: NormalizedFinanceSection[]) {
+  return section.invoiceId || sections.find((item) => item.key === "invoiceSummary")?.invoiceId || "";
 }
 
 function actionValue(action: NormalizedFinanceAction) {
   if (action.action) return action.action;
-  if (action.key === "create_claim" || action.key === "submit_invoice") return "CREATE";
+  if (action.key === "create_claim") return "CREATE";
+  if (action.key === "request_invoice") return "REQUEST";
+  if (action.key === "respond_invoice") return "RESPOND";
+  if (action.key === "approve_invoice") return "APPROVE";
+  if (action.key === "reject_invoice" || action.key === "reject_invoice_request") return "REJECT";
   if (action.key === "approve_claim") return "APPROVE";
   if (action.key === "reject_claim") return "REJECT";
   if (action.key === "confirm_reconciliation") return "CONFIRM";
@@ -82,13 +93,29 @@ export function FinanceActionPanel({ audience, taskId, section, sections, onComp
     try {
       if (activeAction.key === "create_claim") {
         result = await requestTaskClaim(taskId, { note });
-      } else if (activeAction.key === "submit_invoice") {
-        const claimId = claimIdFor(section, sections);
-        if (!claimId) {
-          setMessage("请款单编号尚未同步，暂不能提交开票。");
+      } else if (activeAction.key === "request_invoice") {
+        result = await requestEnterpriseInvoice(taskId);
+      } else if (activeAction.key === "respond_invoice") {
+        const invoiceId = invoiceIdFor(section, sections);
+        if (!invoiceId) {
+          setMessage("发票编号尚未同步，暂不能响应开票请求。");
           return;
         }
-        result = await createTaskInvoice(claimId, { invoiceType: "ELECTRONIC_NORMAL", note });
+        result = await respondInvoice(invoiceId, { mode: "SELF_PROVIDED", remark: note, note });
+      } else if (activeAction.key === "reject_invoice_request") {
+        const invoiceId = invoiceIdFor(section, sections);
+        if (!invoiceId) {
+          setMessage("发票编号尚未同步，暂不能拒绝开票请求。");
+          return;
+        }
+        result = await rejectInvoiceRequest(invoiceId, { reason: note });
+      } else if (activeAction.key === "approve_invoice" || activeAction.key === "reject_invoice") {
+        const invoiceId = invoiceIdFor(section, sections);
+        if (!invoiceId) {
+          setMessage("发票编号尚未同步，暂不能审核发票。");
+          return;
+        }
+        result = await reviewInvoice(invoiceId, { approved: activeAction.key === "approve_invoice", action, note, reason: note });
       } else if (activeAction.key.includes("claim")) {
         if (!section.claimId) {
           setMessage("请款单编号尚未同步，暂不能处理请款。");

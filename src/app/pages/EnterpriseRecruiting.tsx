@@ -275,7 +275,7 @@ export function EnterpriseRecruiting() {
         </div>
       )}
 
-      <div className="flex space-x-6 mb-6 border-b border-slate-200 overflow-x-auto">
+      <div className="mb-6 flex flex-wrap gap-x-4 gap-y-3 border-b border-slate-200 sm:gap-x-6">
         {tabs.map(tab => (
           <button
             key={tab.id}
